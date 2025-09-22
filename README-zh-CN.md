@@ -57,11 +57,11 @@
     *   对于 `ask-gemini.user.js` 脚本，您需要进行额外配置才能使用。
     *   在浏览器右上角点击 Tampermonkey 扩展图标，然后选择 **`管理面板`**。
     *   在已安装脚本列表中找到 `ask-gemini.user.js`，点击其右侧的 **`编辑`** 图标（一支笔的形状）。
-    *   在打开的代码编辑器中，找到如下一行（通常在文件顶部）：
+    *   在打开的代码编辑器中，找到如下一行（在文件顶部）：
         ```javascript
-        const GEMINI_API_KEY = "YOUR_API_KEY_HERE";
+        const GEMINI_API_KEY = "YOUR_GEMINI_KEY";
         ```
-    *   将 `"YOUR_API_KEY_HERE"` 替换为您自己的 Gemini API 密钥（请确保密钥被英文双引号包裹）。
+    *   将 `"YOUR_GEMINI_KEY"` 替换为您自己的 Gemini API 密钥（请确保密钥被英文双引号包裹）。
     *   修改完成后，按 `Ctrl + S` 或点击编辑器菜单中的“文件”->“保存”来保存您的更改。
     *   请再次确认，使用此脚本需要您能够访问国际互联网。
 
