@@ -9,7 +9,7 @@
 [![Greasemonkey](https://img.shields.io/badge/Greasemonkey-compatible-green)](https://www.greasespot.net/)
 
 ## 工作原理
-本仓库包含一系列用户脚本（适用于 Tampermonkey/Greasemonkey），用于增强和自动化北大附中新能源课程系统 (北大附中高三备考系统，https://bdfz.xnykcxt.com:5002/stu/)，以服务于教育目的。
+本仓库包含一系列用户脚本（适用于 Tampermonkey/Greasemonkey），用于增强和自动化北大附中新能源课程系统 (北大附中高三备考系统，https://bdfz.xnykcxt.com:5002/stu/ )，以服务于教育目的。
 
 每个脚本都针对一个特定的痛点或使用场景，在可用性、自动化、用户界面和工作流程可靠性方面提供了改进。
 
