@@ -26,7 +26,7 @@
 
     // --- 1. 配置 ---
 
-    const GEMINI_API_KEY = "YOUR_GEMINI_KEY"; // 请确保这是你有效的 API 密钥
+    const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; // 请确保这是你有效的 API 密钥
 
     const LONG_PRESS_DURATION = 500;
 
