@@ -45,4 +45,4 @@ Our enhancement is implemented through [Tampermonkey](http://tampermonkey.net). 
 ## No Warranty & License
 This software is provided "as is", without warranty of any kind. See the [LICENSE](LICENSE) file (GPL v3.0) for details. Use at your own risk.
 
-The software is developed, tested, and distributed beforehand for Insiders users on **Tampermonkey on Microsoft Edge** on Android devices. The software is theoretically able to run on any modern browsers as long as similar user scripts management extensions are installed. However, we do not guarantee its liability, and please make sure you know what you are doing if you are using other platforms.
+The software is developed, tested, and distributed beforehand for Insiders users on **Tampermonkey on Microsoft Edge** on Android devices. The software is theoretically able to run on any modern browsers as long as similar user scripts management extensions are installed. However, we do not guarantee its liability, and please make sure you know what you are doing if you are using the software on other platforms.
