@@ -8,6 +8,8 @@
 [![Tampermonkey](https://img.shields.io/badge/Tampermonkey-compatible-green)](https://www.tampermonkey.net/)
 [![Greasemonkey](https://img.shields.io/badge/Greasemonkey-compatible-green)](https://www.greasespot.net/)
 
+This document is also available in [简体中文(Chinese Simplified version)](https://github.com/c-jeremy/pkus-xny-ultra/blob/main/README-zh-CN.md).
+
 ## Mechanism
 This repository contains a collection of user scripts (Tampermonkey/Greasemonkey) that enhance and automate the PKUS XNY system (https://bdfz.xnykcxt.com:5002/) for educational purposes.
 
