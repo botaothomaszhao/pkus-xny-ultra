@@ -27,7 +27,7 @@
 | 文件名 | 描述 |
 |-----------|-------------|
 | `ask-gemini.user.js` | 在图片上长按以调用 Google 的 Gemini 模型进行图片相关的问答。脚本会显示一个悬浮 UI，允许选择模型，并使用您自己的 Gemini API 密钥进行推理。*请注意：使用此脚本需要能够访问国际互联网的环境。* |
-| `auto-login.user.js` | 在 XNY 系统的登录页面上自动查找并点击登录按钮，简化登录流程。 |
+| `auto-login.user.js` | 在新能源系统的登录页面上自动查找并点击登录按钮，简化登录流程。 |
 | `del-unused.user.js` | 自动从 DOM 中移除具有特定类名（silder, tag, time）的元素，无论是在页面加载时还是动态生成时，都能保持界面整洁。 |
 | `fav-path.user.js` | 为导航路径添加了一个“收藏夹”系统，包括用于保存、查看和删除收藏位置的用户界面。 |
 | `font-noto-serif.user.js` | 全局应用“思源宋体 (Noto Serif Simplified Chinese)”字体到所有文本元素，提升可读性和美观度。 |
