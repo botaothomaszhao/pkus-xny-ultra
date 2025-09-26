@@ -6,6 +6,8 @@
 
 // @version      3.2
 
+// @license MIT
+
 // @description  将指定元素的背景修改为纯黑色，实现极简的暗黑风格，并为侧边栏添加平滑切换动画。
 
 // @author       c-jeremy
@@ -282,7 +284,7 @@
 
             border-radius: 0px !important;
 
-            height: 70px !important;
+           // height: 70px !important;
 
         }
 
@@ -292,6 +294,10 @@
 
             display: block !important;
 
+        }
+
+        body .ant-row-flex, body .tips1, body .name-box {
+            color: #000 !important;
         }
 
     `);
