@@ -52,13 +52,9 @@
 
         body .folder,
 
-        body .roll-box,
+        body .treeBox,
 
         body .wrap,
-
-        body .folderName.active,
-
-        body .folderName.active:hover,
 
         body .ant-tree-node-selected,
 
@@ -300,6 +296,21 @@
             color: #000 !important;
         }
 
+        body .folderName {
+            color: #000000 !important;
+        }
+        body .folderName.active {
+            background-color: #eeeeee !important;
+            color: #000000 !important;
+        }
+
+        body .ant-badge {
+            color: #000000 !important;
+        }
+
+        body .title {
+            background-color: transparent !important;
+        }
     `);
 
     // --- 平滑移动动画逻辑 ---
