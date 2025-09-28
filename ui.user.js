@@ -10,7 +10,7 @@
 
 // @description  将指定元素的背景修改为纯黑色，实现极简的暗黑风格，并为侧边栏添加平滑切换动画。
 
-// @author       c-jeremy
+// @author       c-jeremy & ZhongChuTaFei
 
 // @match        *://bdfz.xnykcxt.com:5002/*
 
