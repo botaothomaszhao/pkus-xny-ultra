@@ -24,7 +24,7 @@
 
     // --- CONFIGURATION ---
 
-    const containerSelector = '.content'; // The stable parent element to observe.
+    const containerSelector = 'body'; // The stable parent element to observe.
 
     const canvasSelector = '.board.answerCanvas'; // The target element for our fix.
 
