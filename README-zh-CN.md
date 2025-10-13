@@ -8,6 +8,9 @@
 [![Tampermonkey](https://img.shields.io/badge/Tampermonkey-compatible-green)](https://www.tampermonkey.net/)
 [![Greasemonkey](https://img.shields.io/badge/Greasemonkey-compatible-green)](https://www.greasespot.net/)
 
+> [!TIP]
+> 当前最新版本是`v2.0`，其融合了基本各个功能。请注意，其并不与v1的脚本兼容；安装前请卸载v1的所有脚本。
+
 ## 工作原理
 本仓库包含一系列用户脚本（适用于 Tampermonkey/Greasemonkey），用于增强和自动化北大附中新能源课程系统 (北大附中高三备考系统，https://bdfz.xnykcxt.com:5002/stu/ )，以服务于教育目的。
 
