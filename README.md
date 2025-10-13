@@ -10,6 +10,9 @@
 
 This document is also available in [简体中文(Chinese Simplified version)](https://github.com/c-jeremy/pkus-xny-ultra/blob/main/README-zh-CN.md).
 
+> [!TIPS]
+> `v2.0`, which combined all functionalities, is published. Note that it is **NOT COMPATIBLE** with v1 scripts.
+
 ## Mechanism
 This repository contains a collection of user scripts (Tampermonkey/Greasemonkey) that enhance and automate the PKUS XNY system (https://bdfz.xnykcxt.com:5002/) for educational purposes.
 
