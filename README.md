@@ -10,7 +10,7 @@
 
 This document is also available in [简体中文(Chinese Simplified version)](https://github.com/c-jeremy/pkus-xny-ultra/blob/main/README-zh-CN.md).
 
-> [!TIPS]
+> [!TIP]
 > `v2.0`, which combined all functionalities, is published. Note that it is **NOT COMPATIBLE** with v1 scripts.
 
 ## Mechanism
