@@ -34,6 +34,7 @@
 | `del-unused.user.js` | 自动从 DOM 中移除具有特定类名（silder, tag, time）的元素，无论是在页面加载时还是动态生成时，都能保持界面整洁。 |
 | `fav-path.user.js` | 为导航路径添加了一个“收藏夹”系统，包括用于保存、查看和删除收藏位置的用户界面。 |
 | `font-noto-serif.user.js` | 全局应用“思源宋体 (Noto Serif Simplified Chinese)”字体到所有文本元素，提升可读性和美观度。 |
+| `force-download.user.js` | 让预览pdf组件显示通常被隐藏的下载等按钮。 |
 | `handwriting-fix.user.js` | 通过仅在动态加载的画布上禁用不必要的滚动，修复了手写板画布的滚动/抖动问题，改善了绘图体验。 |
 | `hard-refresh.user.js` | 添加一个悬浮按钮，用于执行真正的“硬刷新”：登出用户，清除所有网站存储、服务工作线程和 Cookie，然后重新加载页面。*因为新能源系统存在一个 Bug，即新发布的分数和自阅弹窗不重新登录就无法显示。* |
 | `path-replay.user.js` | 记录并重放最近一次的导航路径，允许在登录或刷新后一键恢复到最后访问的位置。 |
