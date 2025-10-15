@@ -349,7 +349,7 @@
                 <div id="settings-list"></div>
                 <div class="settings-footer">
                     <p style="color:black">Note: 修改设置后需手动刷新页面方可生效。</p>
-                    <p>This software is developed under the joint effort of @c-jeremy, Aaron Tang (\"ts\"), and @ZhongChuTaFei.</p>
+                    <p>This software is developed under the joint effort of @c-jeremy, Aaron Tang ("ts"), and @ZhongChuTaFei.</p>
                     <p>Special credits given to Gemini 2.5 Pro & Claude 4.5 Sonnet.</p>
                     <p>Special thanks to Geeker LStar, who although never contributed to this project, played a vital role in making this all possible.</p>
                 </div>
@@ -425,4 +425,46 @@
         let singleClickTimer = null, isAnimating = false;
         function performLogoutRequest() { return new Promise((resolve) => { GM_xmlhttpRequest({ method: 'GET', url: 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout', headers: { 'Accept': 'application/json' }, onload: () => resolve(); onerror: () => resolve(); }); }); }
         function initiateReboot() { isAnimating = true; pillMenu.classList.add('animating'); requestAnimationFrame(() => { pillMenu.style.animation = 'pill-implode 0.5s cubic-bezier(0.4, 0, 1, 1)'; setTimeout(()=>{ location.reload(); }, 600); }); }
-        function handleClick(e) { if (isAnimating || e.target.closest('.pill-button') || e.target.closest('.message-text')) return; if (pillN... (truncated)
+        function handleClick(e) { if (isAnimating || e.target.closest('.pill-button') || e.target.closest('.message-text')) return; if (pillMenu.classList.contains('show-message') || pillMenu.classList.contains('show-suggestion')) { hidePillMessage(); } clearTimeout(singleClickTimer); singleClickTimer = setTimeout(() => { requestAnimationFrame(() => pillMenu.classList.toggle('expanded')); }, 200); }
+        pillMenu.addEventListener('click', handleClick);
+        pillMenu.addEventListener('dblclick', async (e) => { e.stopPropagation(); e.preventDefault(); if (isAnimating || e.target.closest('.pill-button')) return; clearTimeout(singleClickTimer); initiateReboot(); });
+        ['mousedown', 'touchstart', 'touchend', 'touchmove'].forEach(evt => { pillMenu.addEventListener(evt, (ev) => { ev.stopPropagation(); }, { passive: false }); });
+        pillMenu.tabIndex = 0; pillMenu.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); pillMenu.classList.toggle('expanded'); } });
+        window.addEventListener('load', () => { setTimeout(() => { if (!pillMenu.classList.contains('expanded')) { pillMenu.style.willChange = 'auto'; } }, 1000); });
+    }
+
+    /* -------------------- 智能提示逻辑 -------------------- */
+    let hintDismissTimer = null; let idleCheckTimer = null;
+    function hidePillMessage() { clearTimeout(hintDismissTimer); const pillMenu = document.getElementById('pillMenu'); if (pillMenu) { pillMenu.classList.remove('show-message', 'show-suggestion'); const msgEl = pillMenu.querySelector('.message-text'); if (msgEl) msgEl.innerHTML = ''; } }
+    async function setupSmartHints() { const pillMenu = document.getElementById('pillMenu'); if (!pillMenu) return; const msgTextEl = pillMenu.querySelector('.message-text'); const showPillMessage = ({ text, duration = 0, isSuggestion = false }) => { hidePillMessage(); msgTextEl.innerHTML = text; pillMenu.classList.add(isSuggestion ? 'show-suggestion' : 'show-message'); if (duration > 0) { hintDismissTimer = setTimeout(hidePillMessage, duration); } };
+        const handleGreeting = async () => { const greetingsDone = await GM_getValue(GREETINGS_DONE_KEY, false); if (!greetingsDone) { setTimeout(() => { msgTextEl.onclick = () => { window.open('https://github.com/Jeremy-Cai/BDFZ-XNY', '_blank'); hidePillMessage(); }; showPillMessage({ text: '初次见面，请多关照', duration: 8000 }); GM_setValue(GREETINGS_DONE_KEY, true); }, 1500); } };
+        const idleCheck = async () => { clearTimeout(idleCheckTimer); idleCheckTimer = setTimeout(async () => { const pillMenu = document.getElementById('pillMenu'); if (!pillMenu || pillMenu.classList.contains('show-message')) { return; } const path = captureCurrentPath(); const isAtRoot = !path || path.length < 2; const pathExists = await GM_getValue(PATH_STORAGE_KEY, null); const reloadBtn = pillMenu.querySelector('button[title="Reload"]'); if (reloadBtn) reloadBtn.style.display = pathExists ? '' : 'none'; if (isAtRoot && !document.getElementById('favorites-drawer')?.classList.contains('open')) { showPillMessage({ text: '去哪里？', duration: 8000, isSuggestion: true }); } }, 2000); };
+        window.addEventListener('load', () => { handleGreeting(); idleCheck(); });
+        document.body.addEventListener('click', (event) => { if (event.target.closest('.menu, .folder, .ant-tree-treenode, .drawer-overlay')) { setTimeout(idleCheck, 500); } }, true);
+    }
+
+    function setupMenuIndicator() { const initialObserver = new MutationObserver((mutations, obs) => { const menu = document.querySelector('.menu'); if (menu) { setupSlidingIndicator(menu); obs.disconnect(); } }); initialObserver.observe(document.body, { childList: true, subtree: true }); function setupSlidingIndicator(menu) { if (menu.querySelector('.menu-active-indicator')) return; const indicator = document.createElement('div'); indicator.className = 'menu-active-indicator'; menu.appendChild(indicator); const observer = new MutationObserver(() => { const active = menu.querySelector('div.active'); if (!active) return; indicator.style.top = (active.offsetTop - menu.offsetTop) + 'px'; indicator.style.height = active.offsetHeight + 'px'; }); observer.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); } }
+
+    function setupAutoLogin() { window.addEventListener('load', function() { if (location.pathname === '/stu/' && location.hash === '#/login') { var loginButton = document.querySelector('.ant-btn-lg'); if (loginButton && loginButton.innerText.trim() === "开始使用") { console.log('找到了登录按钮，正在尝试点击...'); setTimeout(function() { loginButton.click(); }, 750); } else { console.log('未找到指定的登录按钮。'); } } else { console.log('当前不是登录页，不执行自动登录。'); } }); }
+
+    function initializeHandwritingFixObserver() { const containerSelector = 'body', canvasSelector = '.board.answerCanvas', fixedAttribute = 'data-tampermonkey-fixed'; function applyFix(element) { if (element.hasAttribute(fixedAttribute)) { return; } element.addEventListener('touchmove', function(event) { event.preventDefault(); event.stopPropagation(); }, { passive: false }); element.style.overscrollBehaviorY = 'contain'; element.setAttribute(fixedAttribute, 'true'); }
+        const container = document.querySelector(containerSelector); if (!container) { setTimeout(initializeHandwritingFixObserver, 500); return; } const observer = new MutationObserver(function(mutations) { for (const mutation of mutations) { if (mutation.addedNodes.length > 0) { mutation.addedNodes.forEach(node => { if (node.nodeType === 1) { if (node.matches && node.matches(canvasSelector)) { applyFix(node); } if (node.querySelectorAll) { node.querySelectorAll(canvasSelector).forEach(applyFix); } } }); } } }); observer.observe(container, { childList: true, subtree: true }); document.querySelectorAll(canvasSelector).forEach(applyFix); }
+
+    /* -------------------- 脚本主入口 -------------------- */
+    (async function main() {
+        settings = await getSettings();
+        injectPillAndDrawers();
+        setupPillBehavior();
+        setupMenuIndicator();
+        attachGuardianListeners();
+        setupXHRInterceptor();
+        initializePdfIframeObserver();
+        initializeAnswerAreaObserver();
+        setupMenuDoubleClick();
+        if (settings.autoLogin) { setupAutoLogin(); }
+        if (settings.enableHandwritingFix) { initializeHandwritingFixObserver(); }
+        if (settings.enableSmartHints) { setupSmartHints(); }
+        setupSettingsListener();
+    })();
+
+})();
