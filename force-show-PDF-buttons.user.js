@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         force-show-PDF-buttons
+// @name         强制显示PDF完整操作栏
 // @namespace    https://github.com/botaothomaszhao
 // @version      1.2.0
 // @license      MIT
-// @author       botaothomaszhao
+// @author       c-jeremy botaothomaszhao
 // @description  Force show hidden PDF toolbar buttons (download/print, etc.) inside embedded PDF iframes. Lightweight, no polling retries; works on Via and Edge.
 // @match        *://bdfz.xnykcxt.com:5002/stu/*
 // @run-at       document-start
