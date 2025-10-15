@@ -327,89 +327,236 @@ function modifyContentData(data) {
 
 /* -------------------- XHR 请求拦截器 -------------------- */
 function setupXHRInterceptor() {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    const originalSend = XMLHttpRequest.prototype.send;
-
-    XMLHttpRequest.prototype.open = function(method, url) {
-        if (typeof url === 'string' && url.endsWith('enchance')) { /* ATTENTION: 这里务必注意！新能源课程系统网站原始API有拼写错误，该API路径就是enchance，而不是enhance，严禁修改。*/
-            this._isMockTarget = true;
-        } else if (typeof url === 'string' && url.includes('catalog/entity')) {
-            this._isCatalogTarget = true;
-        } else if (url && typeof url === 'string' && url.endsWith('/content')) {
-            this._isContentTarget = true;
+    // For Via/Android WebView: inject hooks into page context (not isolated userscript world)
+    // This ensures XHR/fetch interception works reliably across different browsers
+    let interceptorReady = false;
+    
+    // Listen for catalog data events from page context
+    // Using document instead of window for better cross-world visibility on Android WebView
+    document.addEventListener('xnyultra-catalog-loaded', function(e) {
+        try {
+            const responseText = e.detail.responseText;
+            const response = JSON.parse(responseText);
+            const activeMainMenu = document.querySelector('.menu > div.active');
+            const mainMenuContext = activeMainMenu ? cleanInnerText(activeMainMenu) : '课程';
+            const activeSubject = document.querySelector('.folderName.active');
+            const subjectContext = activeSubject ? cleanInnerText(activeSubject) : '未知科目';
+            processCatalogData(response, mainMenuContext, subjectContext);
+        } catch (e) {
+            console.error('目录数据处理失败:', e);
         }
-        originalOpen.apply(this, arguments);
-    };
-
-    XMLHttpRequest.prototype.send = function() {
-        // 1. 处理 Mock 请求（这种请求会提前结束，需要 return）
-        if (this._isMockTarget && settings.enableMockEnhance) {
-            console.log('⚡️ XHR Interceptor: Mocking request to', this.responseURL);
-            const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
-            const mockResponseJSON = JSON.stringify(mockResponse);
-            Object.defineProperties(this, {
-                status: { value: 200, writable: false },
-                statusText: { value: 'OK', writable: false },
-                response: { value: mockResponseJSON, writable: false },
-                responseText: { value: mockResponseJSON, writable: false },
-                readyState: { value: 4, writable: false }
-            });
-            this.dispatchEvent(new Event('readystatechange'));
-            this.dispatchEvent(new ProgressEvent('load'));
-            this.dispatchEvent(new ProgressEvent('loadend'));
-            return;
+    });
+    
+    // Listen for readiness probe from injected script
+    document.addEventListener('xnyultra-ready', function() {
+        interceptorReady = true;
+    });
+    
+    // Wait briefly for interceptor to signal ready; if CSP blocks inline script, flag it
+    setTimeout(function() {
+        if (!interceptorReady) {
+            console.warn('XHR/fetch interceptor may be blocked by CSP; features may have limited functionality');
         }
-
-        // 2. 独立处理“强制答案”请求
-        if (this._isContentTarget && settings.enableAnswerForce) {
-            const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
-            const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
-
-            Object.defineProperty(this, 'responseText', {
-                get: function() {
-                    const realResponseText = originalDescriptorText.get.call(this);
-                    try {
-                        const data = JSON.parse(realResponseText);
-                        const modifiedData = modifyContentData(data);
-                        return JSON.stringify(modifiedData);
-                    } catch (e) { return realResponseText; }
-                },
-                configurable: true
-            });
-
-            Object.defineProperty(this, 'response', {
-                get: function() {
-                    const realResponse = originalDescriptorResponse.get.call(this);
-                    try {
-                        const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
-                        return modifyContentData(data);
-                    } catch (e) { return realResponse; }
-                },
-                configurable: true
-            });
-        }
-
-        // 3. 独立处理“搜索目录”请求
-        if (this._isCatalogTarget) {
-            this.addEventListener('load', function() {
-                if (this.status === 200) {
-                    try {
-                        const response = JSON.parse(this.responseText);
-                        const activeMainMenu = document.querySelector('.menu > div.active');
-                        const mainMenuContext = activeMainMenu ? cleanInnerText(activeMainMenu) : '课程';
-                        const activeSubject = document.querySelector('.folderName.active');
-                        const subjectContext = activeSubject ? cleanInnerText(activeSubject) : '未知科目';
-                        processCatalogData(response, mainMenuContext, subjectContext);
-                    } catch (e) {
-                        console.error('目录数据处理失败:', e);
-                    }
+    }, 300);
+    
+    // Inject interception logic into page context
+    const script = document.createElement('script');
+    script.textContent = `
+    (function() {
+        'use strict';
+        // Get settings from userscript context (passed via window)
+        const getSettings = function() {
+            return window.__xnyultra_settings || {
+                enableMockEnhance: false,
+                enableAnswerForce: false
+            };
+        };
+        
+        // Modify content data for answer force feature
+        function modifyContentData(data) {
+            try {
+                if (data && Array.isArray(data.extra)) {
+                    data.extra.forEach(item => {
+                        if (item && item.content) {
+                            const content = item.content;
+                            const keysToEnable = [
+                                "previewAnswer", "answerWayHandle", "answerWayPhoto",
+                                "answerWayTalking", "answerWayVideo", "answerWayKeyboard",
+                                "questionTalkingSwitch"
+                            ];
+                            keysToEnable.forEach(key => {
+                                if (typeof content[key] !== 'undefined') { content[key] = 1; }
+                            });
+                            if (typeof content.mustDoSwitch !== 'undefined') {
+                                content.mustDoSwitch = 0;
+                            }
+                        }
+                    });
                 }
-            });
+                return data;
+            } catch (e) {
+                console.error('[Content Modifier] Error:', e);
+                return data;
+            }
         }
-
-        // 4. 最终总是调用原始的 send 方法
-        originalSend.apply(this, arguments);
-    };
+        
+        // Intercept XHR
+        const originalOpen = XMLHttpRequest.prototype.open;
+        const originalSend = XMLHttpRequest.prototype.send;
+        
+        XMLHttpRequest.prototype.open = function(method, url) {
+            if (typeof url === 'string' && url.endsWith('enchance')) {
+                this._isMockTarget = true;
+            } else if (typeof url === 'string' && url.includes('catalog/entity')) {
+                this._isCatalogTarget = true;
+            } else if (url && typeof url === 'string' && url.endsWith('/content')) {
+                this._isContentTarget = true;
+            }
+            originalOpen.apply(this, arguments);
+        };
+        
+        XMLHttpRequest.prototype.send = function() {
+            const settings = getSettings();
+            
+            // 1. Mock enchance requests
+            if (this._isMockTarget && settings.enableMockEnhance) {
+                const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
+                const mockResponseJSON = JSON.stringify(mockResponse);
+                Object.defineProperties(this, {
+                    status: { value: 200, writable: false },
+                    statusText: { value: 'OK', writable: false },
+                    response: { value: mockResponseJSON, writable: false },
+                    responseText: { value: mockResponseJSON, writable: false },
+                    readyState: { value: 4, writable: false }
+                });
+                this.dispatchEvent(new Event('readystatechange'));
+                this.dispatchEvent(new ProgressEvent('load'));
+                this.dispatchEvent(new ProgressEvent('loadend'));
+                return;
+            }
+            
+            // 2. Force answer mode for content requests
+            if (this._isContentTarget && settings.enableAnswerForce) {
+                const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
+                const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
+                
+                Object.defineProperty(this, 'responseText', {
+                    get: function() {
+                        const realResponseText = originalDescriptorText.get.call(this);
+                        try {
+                            const data = JSON.parse(realResponseText);
+                            const modifiedData = modifyContentData(data);
+                            return JSON.stringify(modifiedData);
+                        } catch (e) { return realResponseText; }
+                    },
+                    configurable: true
+                });
+                
+                Object.defineProperty(this, 'response', {
+                    get: function() {
+                        const realResponse = originalDescriptorResponse.get.call(this);
+                        try {
+                            const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
+                            return modifyContentData(data);
+                        } catch (e) { return realResponse; }
+                    },
+                    configurable: true
+                });
+            }
+            
+            // 3. Catalog data: dispatch event to userscript world using document (not window)
+            if (this._isCatalogTarget) {
+                this.addEventListener('load', function() {
+                    if (this.status === 200) {
+                        try {
+                            // Dispatch on document for better visibility across isolated worlds on Via/Android WebView
+                            document.dispatchEvent(new CustomEvent('xnyultra-catalog-loaded', {
+                                detail: { responseText: this.responseText }
+                            }));
+                        } catch (e) {
+                            console.error('Failed to dispatch catalog event:', e);
+                        }
+                    }
+                });
+            }
+            
+            originalSend.apply(this, arguments);
+        };
+        
+        // Intercept fetch() with same logic as XHR
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            const settings = getSettings();
+            const urlStr = typeof url === 'string' ? url : (url instanceof Request ? url.url : '');
+            
+            // Mock enchance requests via fetch
+            if (urlStr.endsWith('enchance') && settings.enableMockEnhance) {
+                const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
+                return Promise.resolve(new Response(JSON.stringify(mockResponse), {
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { 'Content-Type': 'application/json' }
+                }));
+            }
+            
+            // Force answer mode for content requests via fetch
+            if (urlStr.endsWith('/content') && settings.enableAnswerForce) {
+                return originalFetch.apply(this, arguments).then(response => {
+                    return response.clone().text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            const modifiedData = modifyContentData(data);
+                            return new Response(JSON.stringify(modifiedData), {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers
+                            });
+                        } catch (e) {
+                            return response;
+                        }
+                    });
+                }).catch(err => {
+                    console.error('Fetch error:', err);
+                    throw err;
+                });
+            }
+            
+            // Catalog data via fetch
+            if (urlStr.includes('catalog/entity')) {
+                return originalFetch.apply(this, arguments).then(response => {
+                    response.clone().text().then(responseText => {
+                        try {
+                            document.dispatchEvent(new CustomEvent('xnyultra-catalog-loaded', {
+                                detail: { responseText: responseText }
+                            }));
+                        } catch (e) {
+                            console.error('Failed to dispatch catalog event:', e);
+                        }
+                    });
+                    return response;
+                }).catch(err => {
+                    console.error('Fetch error:', err);
+                    throw err;
+                });
+            }
+            
+            return originalFetch.apply(this, arguments);
+        };
+        
+        // Signal that hooks are installed
+        window.__xnyultra_xhr_hooked = true;
+        document.dispatchEvent(new CustomEvent('xnyultra-ready'));
+    })();
+    `;
+    
+    // Pass settings to page context before injecting script
+    const settingsScript = document.createElement('script');
+    settingsScript.textContent = `window.__xnyultra_settings = ${JSON.stringify(settings)};`;
+    (document.head || document.documentElement).appendChild(settingsScript);
+    settingsScript.remove();
+    
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
 }
 
 function processCatalogData(response, mainMenuContext, subjectContext) {
@@ -983,25 +1130,61 @@ const path = captureCurrentPath();
         document.querySelectorAll(canvasSelector).forEach(applyFix);
     }
 
+    /* -------------------- UI 挂载健壮性辅助函数 -------------------- */
+    // Via/Android WebView may run document-start very early; retry if DOM not ready
+    async function ensureUIMounted(maxRetries = 10) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Attempt to inject UI
+                injectPillAndDrawers();
+                setupPillBehavior();
+                
+                // Verify pill menu exists
+                if (document.getElementById('pillMenu')) {
+                    return true; // Success
+                }
+                
+                // If pill menu doesn't exist, wait and retry
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+            } catch (e) {
+                console.error(`UI mount attempt ${attempt} failed:`, e);
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+            }
+        }
+        console.error('Failed to mount UI after max retries');
+        return false;
+    }
+
     /* -------------------- 脚本主入口 -------------------- */
     (async function main() {
         settings = await getSettings();
 
-        // DEPRECATED: updateConditionalStyles(settings);
-        injectPillAndDrawers();
-        setupPillBehavior();
-        setupMenuIndicator();
-        attachGuardianListeners();
-        setupXHRInterceptor();
-        initializePdfIframeObserver();
-        initializeAnswerAreaObserver();
-        setupMenuDoubleClick();
+        // Ensure UI mounts reliably on Via/Android WebView even at very early document-start
+        await ensureUIMounted();
+        
+        // Wrap DOM-dependent initializers in try/catch to prevent single failures from aborting
+        try { setupMenuIndicator(); } catch (e) { console.error('setupMenuIndicator failed:', e); }
+        try { attachGuardianListeners(); } catch (e) { console.error('attachGuardianListeners failed:', e); }
+        try { setupXHRInterceptor(); } catch (e) { console.error('setupXHRInterceptor failed:', e); }
+        try { initializePdfIframeObserver(); } catch (e) { console.error('initializePdfIframeObserver failed:', e); }
+        try { initializeAnswerAreaObserver(); } catch (e) { console.error('initializeAnswerAreaObserver failed:', e); }
+        try { setupMenuDoubleClick(); } catch (e) { console.error('setupMenuDoubleClick failed:', e); }
 
-        if (settings.autoLogin) { setupAutoLogin(); }
-        if (settings.enableHandwritingFix) { initializeHandwritingFixObserver(); }
-        if (settings.enableSmartHints) { setupSmartHints(); }
+        if (settings.autoLogin) { 
+            try { setupAutoLogin(); } catch (e) { console.error('setupAutoLogin failed:', e); }
+        }
+        if (settings.enableHandwritingFix) { 
+            try { initializeHandwritingFixObserver(); } catch (e) { console.error('initializeHandwritingFixObserver failed:', e); }
+        }
+        if (settings.enableSmartHints) { 
+            try { setupSmartHints(); } catch (e) { console.error('setupSmartHints failed:', e); }
+        }
 
-        setupSettingsListener();
+        try { setupSettingsListener(); } catch (e) { console.error('setupSettingsListener failed:', e); }
     })();
 
 })();
