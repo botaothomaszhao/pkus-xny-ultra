@@ -8,7 +8,7 @@
 [![Tampermonkey](https://img.shields.io/badge/Tampermonkey-compatible-green)](https://www.tampermonkey.net/)
 [![Greasemonkey](https://img.shields.io/badge/Greasemonkey-compatible-green)](https://www.greasespot.net/)
 
-This document is also available in [简体中文(Chinese Simplified version)](https://github.com/c-jeremy/pkus-xny-ultra/blob/main/README-zh-CN.md).
+This document is also available in [简体中文(Chinese Simplified version)](./README-zh-CN.md).
 
 > [!TIP]
 > `v2.0`, which combined all functionalities, is published. Note that it is **NOT COMPATIBLE** with v1 scripts.
@@ -37,6 +37,7 @@ Our enhancement is implemented through [Tampermonkey](http://tampermonkey.net). 
 | `fav-path.user.js` | Adds a 'favorites' system for navigation paths, including UI for saving, viewing, and deleting favorite locations. |
 | `font-noto-serif.user.js` | Globally applies the Noto Serif Simplified Chinese font to all text elements, improving readability and aesthetics. |
 | `force-download.user.js` | Display buttons such as downloads that are usually hidden when viewing PDF. |
+| `force-show-PDF-buttons.user.js` | Same as above, but available on Via browser. |
 | `handwriting-fix.user.js` | Fixes handwriting canvas scrolling/glitch issues by disabling unwanted scrolling on dynamically loaded canvases only, improving the drawing experience. |
 | `hard-refresh.user.js` | Adds a floating button for a true 'hard refresh': logs user out, clears all web storage, service workers, and cookies, and reloads the page. *The reason for this is because that XNY system has the bug that newly published scores and self-review modals cannot be shown without re-logging in.* |
 | `path-replay.user.js` | Records and replays the most recent navigation path, allowing one-tap restoration to the last location after login or refresh. |
