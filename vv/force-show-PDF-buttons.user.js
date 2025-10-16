@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         强制显示PDF完整操作栏
-// @namespace    https://github.com/botaothomaszhao
-// @version      1.2.0
-// @license      MIT
+// @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
+// @version      vv.1
+// @license      GPL-3.0
+// @description  让预览PDF组件显示通常被隐藏的下载等操作栏按钮。后果自负。
 // @author       c-jeremy botaothomaszhao
-// @description  Force show hidden PDF toolbar buttons (download/print, etc.) inside embedded PDF iframes. Lightweight, no polling retries; works on Via and Edge.
 // @match        *://bdfz.xnykcxt.com:5002/stu/*
 // @run-at       document-start
 // @grant        none

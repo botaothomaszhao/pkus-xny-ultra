@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         目录搜索
-// @namespace    http://tampermonkey.net/
-// @version      1.0.1
-// @description  课程目录 Spotlight 搜索：右下圆形按钮入口，支持拼音/首字母搜索并回放点击路径。
+// @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
+// @version      vv.1
+// @license      GPL-3.0
+// @description  课程目录搜索，支持拼音/首字母搜索并回放点击路径。
 // @author       c-jeremy botaothomaszhao
 // @match        *://bdfz.xnykcxt.com:5002/stu/*
 // @grant        GM_addStyle
