@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1
+// @version      vv.1.1
 // @license      GPL-3.0
 // @description  自动删除 class 为 silder、tag、name 的元素
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        none
-// @run-at       document-start
+// @run-at       document-body
 // ==/UserScript==
 
 (function() {
