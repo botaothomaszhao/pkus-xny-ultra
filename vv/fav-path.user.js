@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         路径收藏夹
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1
+// @version      vv.1.1
 // @license      GPL-3.0
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
@@ -161,22 +161,58 @@
 
     async function renderFavoritesList() { const favorites = await getFavorites(); favoritesList.innerHTML = ''; if (favorites.length === 0) { favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹是空的<br>点击“+”按钮添加吧</li>'; return; } favorites.forEach((fav, index) => { const li = document.createElement('li'); const fullPath = fav.path.map(p => p.text).join(' / '); li.innerHTML = `<div class="item-text-content"><span class="item-title">${fav.title}</span><span class="item-fullpath">${fullPath}</span></div><div class="item-actions"><button class="action-btn edit" title="编辑名称"><svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button><button class="action-btn delete" title="删除此收藏"><svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg></button></div>`; const textContentDiv = li.querySelector('.item-text-content'); const titleSpan = li.querySelector('.item-title'); const editBtn = li.querySelector('.edit'); const deleteBtn = li.querySelector('.delete'); li.addEventListener('click', async (e) => { if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return; closeFavoritesDrawer(); try { const lastClickedElement = await replayPath(fav.path); await checkForNextStep(lastClickedElement); } catch (error) { console.error("Replay or next step check failed:", error); } }); deleteBtn.addEventListener('click', () => deleteFavorite(index)); editBtn.addEventListener('click', () => { const input = document.createElement('input'); input.type = 'text'; input.className = 'title-edit-input'; input.value = fav.title; textContentDiv.replaceChild(input, titleSpan); input.focus(); input.select(); const saveEdit = async () => { const newTitle = input.value.trim(); if (newTitle && newTitle !== fav.title) { const c = await getFavorites(); c[index].title = newTitle; await saveFavorites(c); fav.title = newTitle; } titleSpan.textContent = fav.title; textContentDiv.replaceChild(titleSpan, input); }; input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); }); input.addEventListener('blur', saveEdit); }); favoritesList.appendChild(li); }); }
 
-    // 5. --- 初始化UI (无变化) ---
+    // 5. --- 初始化UI (更新图标) ---
 
     function initialize() {
 
-        const addBtn = document.createElement('button'); addBtn.className = 'fav-btn'; addBtn.id = 'add-favorite-btn'; addBtn.title = '收藏当前路径'; addBtn.innerHTML = `<div class="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></div>`;
+        const addBtn = document.createElement('button');
+        addBtn.className = 'fav-btn';
+        addBtn.id = 'add-favorite-btn';
+        addBtn.title = '收藏当前路径';
+        // 使用 features 脚本中“添加收藏”图标，但调整为 fav-path 使用的大小（icon 宽高 24）
+        addBtn.innerHTML = `<div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- bookmark + plus (Add to bookmarks) -->
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="8" x2="12" y2="14"></line>
+                <line x1="9" y1="11" x2="15" y2="11"></line>
+            </svg>
+        </div>`;
 
-        const showBtn = document.createElement('button'); showBtn.className = 'fav-btn'; showBtn.id = 'show-favorites-btn'; showBtn.title = '查看收藏夹'; showBtn.innerHTML = `<div class="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>`;
+        const showBtn = document.createElement('button');
+        showBtn.className = 'fav-btn';
+        showBtn.id = 'show-favorites-btn';
+        showBtn.title = '查看收藏夹';
+        // 使用 features 脚本中“收藏夹/书签”图标，同样为 fav-path 的尺寸
+        showBtn.innerHTML = `<div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- bookmark (open bookmarks) -->
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </div>`;
 
-        favoritesOverlay = document.createElement('div'); favoritesOverlay.className = 'drawer-overlay'; favoritesDrawer = document.createElement('div'); favoritesDrawer.id = 'favorites-drawer'; favoritesDrawer.className = 'bottom-sheet-drawer'; favoritesDrawer.innerHTML = `<div class="drawer-header"><h2>收藏夹</h2></div><div class="drawer-content"><ul></ul></div>`; favoritesList = favoritesDrawer.querySelector('.drawer-content ul');
+        favoritesOverlay = document.createElement('div');
+        favoritesOverlay.className = 'drawer-overlay';
+        favoritesDrawer = document.createElement('div');
+        favoritesDrawer.id = 'favorites-drawer';
+        favoritesDrawer.className = 'bottom-sheet-drawer';
+        favoritesDrawer.innerHTML = `<div class="drawer-header"><h2>路径收藏夹</h2></div><div class="drawer-content"><ul id="favorites-list"></ul></div>`;
+        favoritesList = favoritesDrawer.querySelector('#favorites-list');
 
-        nextStepOverlay = document.createElement('div'); nextStepOverlay.className = 'drawer-overlay'; nextStepDrawer = document.createElement('div'); nextStepDrawer.id = 'next-step-drawer'; nextStepDrawer.className = 'bottom-sheet-drawer'; nextStepDrawer.innerHTML = `<div class="drawer-header"><h2>下一步…</h2></div><div class="drawer-content"><ul></ul></div>`; nextStepList = nextStepDrawer.querySelector('.drawer-content ul');
+        nextStepOverlay = document.createElement('div');
+        nextStepOverlay.className = 'drawer-overlay';
+        nextStepDrawer = document.createElement('div');
+        nextStepDrawer.id = 'next-step-drawer';
+        nextStepDrawer.className = 'bottom-sheet-drawer';
+        nextStepDrawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div><div class="drawer-content"><ul id="next-step-list"></ul></div>`;
+        nextStepList = nextStepDrawer.querySelector('#next-step-list');
 
         document.body.append(addBtn, showBtn, favoritesOverlay, favoritesDrawer, nextStepOverlay, nextStepDrawer);
 
-        addBtn.addEventListener('click', addCurrentPathToFavorites); showBtn.addEventListener('click', openFavoritesDrawer); favoritesOverlay.addEventListener('click', closeFavoritesDrawer); nextStepOverlay.addEventListener('click', closeNextStepDrawer);
-
+        addBtn.addEventListener('click', addCurrentPathToFavorites);
+        showBtn.addEventListener('click', openFavoritesDrawer);
+        favoritesOverlay.addEventListener('click', closeFavoritesDrawer);
+        nextStepOverlay.addEventListener('click', closeNextStepDrawer);
     }
 
     initialize();
