@@ -8,7 +8,7 @@
 // @match        *://bdfz.xnykcxt.com:5002/stu/*
 // @grant        GM_addStyle
 // @grant        GM_notification
-// @run-at       document-start
+// @run-at       document-body
 // @require      https://unpkg.com/pinyin-match@1.2.8/dist/main.js
 // ==/UserScript==
 
