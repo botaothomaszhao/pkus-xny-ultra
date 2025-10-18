@@ -14,11 +14,7 @@
     'use strict';
 
     // 只删除没有 pos-relative 的目标元素
-    const selectors = [
-        '.tag',
-        '.time',
-        '.result2:not(.pos-relative)'
-    ];
+    const selectors = ['.tag', '.time', '.result2:not(.pos-relative)'];
 
     function removeTargetElements(root = document) {
         let totalRemoved = 0;
@@ -51,12 +47,9 @@
     window.addEventListener('load', () => removeTargetElements());
 
     const observer = new MutationObserver(mutations => {
-        mutations.forEach(m =>
-            m.addedNodes.forEach(function (node) {
-                if (node.nodeType === 1)
-                    removeTargetElements(node)
-            })
-        )
+        mutations.forEach(m => m.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) removeTargetElements(node)
+        }))
     });
     observer.observe(document.body, {childList: true, subtree: true});
 })();

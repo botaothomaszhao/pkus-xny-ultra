@@ -5,7 +5,7 @@
 // @license      GPL-3.0
 // @description  课程目录搜索，支持拼音/首字母搜索并回放点击路径。
 // @author       c-jeremy botaothomaszhao
-// @match        *://bdfz.xnykcxt.com:5002/stu/*
+// @match        https://bdfz.xnykcxt.com:5002/stu/*
 // @grant        GM_addStyle
 // @grant        GM_notification
 // @run-at       document-body
