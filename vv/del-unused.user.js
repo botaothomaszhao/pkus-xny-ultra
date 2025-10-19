@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.2
+// @version      vv.2
 // @license      GPL-3.0
 // @description  自动删除指定的元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框
 // @author       c-jeremy botaothomaszhao
