@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2
 // @license      GPL-3.0
-// @description  仅在页面首次加载和页面尺寸变化时自动收起/打开侧边栏
+// @description  在页面首次加载和页面尺寸变化时自动收起/展开侧边栏
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        none
@@ -53,7 +53,8 @@
         return nodes[0] || null;
     }
 
-    function isSidebarOpen(sidebarEl) {
+    function isSidebarOpen() {
+        const sidebarEl = document.querySelector(SIDEBAR_SELECTOR);
         if (!sidebarEl) return false;
         const rect = sidebarEl.getBoundingClientRect();
         // 侧栏宽度明显大于 6px 且可见，则视为打开
@@ -61,8 +62,7 @@
     }
 
     async function toggleTo(targetOpen) {
-        const sidebarEl = document.querySelector(SIDEBAR_SELECTOR);
-        const current = isSidebarOpen(sidebarEl);
+        const current = isSidebarOpen();
         if (current === targetOpen) return;
         const btn = findToggleButton();
         if (!btn) {
@@ -72,12 +72,12 @@
         try {
             btn.click();
             // 等待 DOM 做出响应
-            await new Promise(r => setTimeout(r, 180));
-            const newState = isSidebarOpen(document.querySelector(SIDEBAR_SELECTOR));
+            //await new Promise(r => setTimeout(r, 180));
+            /*const newState = isSidebarOpen();
             if (newState !== targetOpen) {
                 // 再尝试一次（某些实现需要两次）
                 btn.click();
-            }
+            }*/
         } catch (e) {
             console.error('Auto-collapse-bdfz: 切换侧边栏失败', e);
         }
@@ -90,8 +90,8 @@
             // 宽度小于高度时收起（竖屏默认收起）
             return w >= h;
         } else {*/
-            // 基于阈值（当窗口宽度 >= THRESHOLD_WIDTH 时打开）
-            return w >= THRESHOLD_WIDTH;
+        // 基于阈值（当窗口宽度 >= THRESHOLD_WIDTH 时打开）
+        return w >= THRESHOLD_WIDTH;
         //}
     }
 
@@ -146,7 +146,7 @@
     setTimeout(() => scheduleDecision(), 600);
 
     // 监听 resize 与 ResizeObserver（两者兼备）
-    window.addEventListener('resize', scheduleDecision, { passive: true });
+    window.addEventListener('resize', scheduleDecision, {passive: true});
     try {
         const ro = new ResizeObserver(scheduleDecision);
         ro.observe(document.documentElement);
@@ -157,5 +157,5 @@
     // 绑定手动检测（可选）
     //bindManualToggleDetector();
 
-    console.info('Auto-collapse-bdfz: 启动。MODE=', 'THRESHOLD_WIDTH=', THRESHOLD_WIDTH, 'SIDEBAR_WIDTH=', SIDEBAR_WIDTH);
+    console.info('Auto-collapse-bdfz: 启动。', 'THRESHOLD_WIDTH=', THRESHOLD_WIDTH, 'SIDEBAR_WIDTH=', SIDEBAR_WIDTH);
 })();
