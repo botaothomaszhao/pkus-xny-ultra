@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         强制刷新
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.2
+// @version      vv.1.3
 // @license      GPL-3.0
-// @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。
+// @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_xmlhttpRequest
@@ -266,6 +266,7 @@
         }
     }
 
+    // 保留原有的 onClickHandler 逻辑（用于长按时触发）
     async function onClickHandler() {
         if (container.classList.contains('loading')) return;
         container.classList.add('loading');
@@ -283,5 +284,103 @@
         }); }, 50);
     }
 
-    button.addEventListener('click', onClickHandler);
+    // 新增：短按逻辑（只保存路径并 reload），长按触发现有强制刷新逻辑
+    const LONG_PRESS_MS = 2000;
+    let pressTimer = null;
+    let longPressTriggered = false;
+
+    async function handleShortPress() {
+        if (container.classList.contains('loading')) return;
+        container.classList.add('loading');
+        button.disabled = true;
+        try {
+            await savePathForReplay('用户短按刷新');
+        } catch (e) {
+            console.warn('保存路径时出错，仍继续进行短按刷新：', e);
+        }
+        // 立刻 reload（回放逻辑在页面加载时仍会执行）
+        try {
+            window.location.reload();
+        } catch (e) {
+            try { window.location.href = window.location.href; } catch (e2) { window.location.replace(window.location.href); }
+        }
+    }
+
+    function clearPressTimer() {
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    }
+
+    async function triggerLongPress() {
+        longPressTriggered = true;
+        // Use the existing onClickHandler which already saves the path and calls nukeAndReload
+        try {
+            await onClickHandler();
+        } catch (e) {
+            console.error('长按触发强制刷新失败：', e);
+            container.classList.remove('loading');
+            button.disabled = false;
+        }
+    }
+
+    // Prevent default click event from firing (we handle via pointer events)
+    button.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }, { capture: true });
+
+    // Pointer events handle both mouse and touch
+    button.addEventListener('pointerdown', (e) => {
+        if (container.classList.contains('loading')) return;
+        longPressTriggered = false;
+        clearPressTimer();
+        pressTimer = setTimeout(() => {
+            triggerLongPress();
+        }, LONG_PRESS_MS);
+    });
+
+    button.addEventListener('pointerup', (e) => {
+        if (container.classList.contains('loading')) {
+            clearPressTimer();
+            return;
+        }
+        // If long press already triggered, do nothing on pointerup
+        if (longPressTriggered) {
+            clearPressTimer();
+            longPressTriggered = false;
+            return;
+        }
+        // Short press
+        clearPressTimer();
+        handleShortPress().catch(err => {
+            console.error('短按刷新失败：', err);
+            container.classList.remove('loading');
+            button.disabled = false;
+        });
+    });
+
+    ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(evt => {
+        button.addEventListener(evt, (e) => {
+            clearPressTimer();
+            longPressTriggered = false;
+        });
+    });
+
+    // Keyboard activation (treat Enter/Space as short press)
+    button.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            // emulate short press
+            handleShortPress().catch(err => {
+                console.error('键盘触发短按刷新失败：', err);
+                container.classList.remove('loading');
+                button.disabled = false;
+            });
+        }
+    });
+
+    // 保持原始点击处理程序引用（但不直接绑定到 click）
+    // button.addEventListener('click', onClickHandler);
 })();
