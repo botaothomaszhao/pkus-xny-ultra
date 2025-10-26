@@ -14,7 +14,6 @@
 // ==/UserScript==
 
 (function () {
-
     'use strict';
 
     const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 使用在 v3.1 中引入的、安全的新键
@@ -49,12 +48,9 @@
         .action-btn.delete:hover{color:#ef4444}
         .action-btn .icon{width:20px;height:20px;display:block}
         #next-step-drawer .drawer-content li{background:#fff;border-radius:10px;padding:16px;margin-top:10px;cursor:pointer;border:1px solid #f0f0f0;transition:background-color .2s ease}
-        #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}`
-    );
+        #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}`);
 
     // 2. --- 核心功能 (路径捕获、存储、回放逻辑保持稳定) ---
-
-    // ... 这些函数已经过验证，无需改动 ...
 
     function cleanInnerText(el) {
         if (!el) return "";
