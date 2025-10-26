@@ -91,24 +91,31 @@
     container.appendChild(button);
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => { document.body.appendChild(container); });
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.appendChild(container);
+        });
     } else {
         document.body.appendChild(container);
     }
 
     // 路径捕获与回放（基于 selector + 可见文本）
 
-    function cleanInnerText(el) { if (!el) return ""; const clone = el.cloneNode(true); clone.querySelectorAll("i, svg, path").forEach(n => n.remove()); return clone.textContent.trim(); }
+    function cleanInnerText(el) {
+        if (!el) return "";
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll("i, svg, path").forEach(n => n.remove());
+        return clone.textContent.trim();
+    }
 
     function captureCurrentPath() {
         const path = [];
 
         const root = document.querySelector('div.menu > div.active');
-        if (root) path.push({ selector: "div.menu > div", text: cleanInnerText(root) });
+        if (root) path.push({selector: "div.menu > div", text: cleanInnerText(root)});
 
         const activeFolder = document.querySelector('div.folderName.active');
         if (activeFolder) {
-            path.push({ selector: "div.folderName", text: cleanInnerText(activeFolder) });
+            path.push({selector: "div.folderName", text: cleanInnerText(activeFolder)});
 
             const searchContext = activeFolder.closest('div.infinite-list-wrapper') || document;
             const uniqueNodes = new Map();
@@ -116,7 +123,7 @@
             searchContext.querySelectorAll("span.ant-tree-node-content-wrapper-open, span.ant-tree-node-content-wrapper.ant-tree-node-selected")
                 .forEach(node => {
                     const text = cleanInnerText(node);
-                    if (text) uniqueNodes.set(text, { selector: "span.ant-tree-node-content-wrapper", text: text });
+                    if (text) uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
                 });
 
             path.push(...Array.from(uniqueNodes.values()));
@@ -125,7 +132,7 @@
         return path.length > 0 ? path : null;
     }
 
-    async function savePathForReplay(reason = 'hard-refresh') {
+    async function savePathForReplay() {
         try {
             const path = captureCurrentPath();
             if (path && path.length > 0) {
@@ -149,7 +156,9 @@
             const path = JSON.parse(pathJSON);
             console.log('检测到刷新前保存的回放路径，尝试回放：', path);
 
-            function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+            function sleep(ms) {
+                return new Promise(r => setTimeout(r, ms));
+            }
 
             async function clickBySelectorAndText(sel, expectedText) {
                 for (let attempts = 0; attempts < 50; attempts++) {
@@ -190,13 +199,69 @@
 
     if (document.readyState === 'loading') {
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => { replaySavedPathIfAny(); }, 300);
+            setTimeout(() => {
+                replaySavedPathIfAny();
+            }, 300);
         });
     } else {
-        setTimeout(() => { replaySavedPathIfAny(); }, 300);
+        setTimeout(() => {
+            replaySavedPathIfAny();
+        }, 300);
     }
 
     // 主流程：先保存路径，然后清理并刷新
+    async function sendLogoutRequest() {
+        const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
+        return new Promise((resolve) => {
+            // 尝试使用 GM_xmlhttpRequest 并显式允许携带 Cookie（via 需要 withCredentials）
+            try {
+                if (typeof GM_xmlhttpRequest === 'function') {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url,
+                        headers: { 'Accept': 'application/json, text/plain, */*', 'Cache-Control': 'no-cache' },
+                        timeout: 5000,
+                        // 关键：在 Via 中保证发送 cookie
+                        withCredentials: true,
+                        onload: (response) => {
+                            console.log('GM_xmlhttpRequest logout onload', response && response.status);
+                            resolve(response);
+                        },
+                        onerror: (err) => {
+                            console.warn('GM_xmlhttpRequest logout error, fallback to fetch', err);
+                            resolve(null);
+                        },
+                        ontimeout: () => {
+                            console.warn('GM_xmlhttpRequest logout timeout, fallback to fetch');
+                            resolve(null);
+                        }
+                    });
+                    return;
+                }
+            } catch (e) {
+                console.warn('call to GM_xmlhttpRequest threw', e);
+            }
+
+            // 回退：使用标准 fetch 并携带凭证（cookie）
+            try {
+                fetch(url, {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-cache',
+                    headers: { 'Accept': 'application/json, text/plain, */*' }
+                }).then(res => {
+                    console.log('fetch logout result', res && res.status);
+                    resolve(res);
+                }).catch(err => {
+                    console.warn('fetch logout failed', err);
+                    resolve(null);
+                });
+            } catch (e) {
+                console.warn('fetch threw', e);
+                resolve(null);
+            }
+        });
+    }
 
     async function nukeAndReload() {
         if (!container.classList.contains('loading')) {
@@ -207,17 +272,11 @@
         try {
             console.log('开始执行 Hard Refresh...');
             console.log('正在向服务器发送登出请求...');
-            await new Promise((resolve) => {
-                GM_xmlhttpRequest({
-                    method: 'GET',
-                    url: 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout',
-                    headers: { 'Accept': 'application/json, text/plain, */*', 'Cache-Control': 'no-cache' },
-                    timeout: 5000,
-                    onload: (response) => { console.log('服务器登出请求完成'); resolve(response); },
-                    onerror: (error) => { console.warn('服务器登出请求失败，继续执行清理'); resolve(error); },
-                    ontimeout: () => { console.warn('服务器登出请求超时，继续执行清理'); resolve(); }
-                });
-            });
+            try {
+                await sendLogoutRequest();
+            } catch (e) {
+                console.warn('发送登出请求时发生意外错误：', e);
+            }
 
             console.log('正在清理 Service Workers...');
             if ('serviceWorker' in navigator) {
@@ -260,7 +319,11 @@
                 try {
                     window.location.reload();
                 } catch (e) {
-                    try { window.location.href = window.location.href; } catch (e2) { window.location.replace(window.location.href); }
+                    try {
+                        window.location.href = window.location.href;
+                    } catch (e2) {
+                        window.location.replace(window.location.href);
+                    }
                 }
             }, 500);
         }
@@ -272,29 +335,26 @@
         container.classList.add('loading');
         button.disabled = true;
         try {
-            await savePathForReplay('用户点击强制刷新');
+            await savePathForReplay();
         } catch (e) {
             console.warn('保存路径时出错，仍继续进行刷新：', e);
         }
 
-        setTimeout(() => { nukeAndReload().catch(err => {
-            console.error('nukeAndReload failed:', err);
-            container.classList.remove('loading');
-            button.disabled = false;
-        }); }, 50);
+        setTimeout(() => {
+            nukeAndReload().catch(err => {
+                console.error('nukeAndReload failed:', err);
+                container.classList.remove('loading');
+                button.disabled = false;
+            });
+        }, 50);
     }
-
-    // 新增：短按逻辑（只保存路径并 reload），长按触发现有强制刷新逻辑
-    const LONG_PRESS_MS = 2000;
-    let pressTimer = null;
-    let longPressTriggered = false;
 
     async function handleShortPress() {
         if (container.classList.contains('loading')) return;
         container.classList.add('loading');
         button.disabled = true;
         try {
-            await savePathForReplay('用户短按刷新');
+            await savePathForReplay();
         } catch (e) {
             console.warn('保存路径时出错，仍继续进行短按刷新：', e);
         }
@@ -302,77 +362,132 @@
         try {
             window.location.reload();
         } catch (e) {
-            try { window.location.href = window.location.href; } catch (e2) { window.location.replace(window.location.href); }
+            try {
+                window.location.href = window.location.href;
+            } catch (e2) {
+                window.location.replace(window.location.href);
+            }
         }
     }
+
+// 优化后的按键处理逻辑（替换原有 pointer/keyboard 相关事件处理部分）
+    const LONG_PRESS_MS = 2000;
+    let pressTimer = null;
+    let longPressTriggered = false;
+    let activePointerId = null;
+    let startX = 0, startY = 0;
+    const MOVE_THRESHOLD = 10; // px
+    let keyActive = false;
 
     function clearPressTimer() {
         if (pressTimer) {
             clearTimeout(pressTimer);
             pressTimer = null;
         }
+        if (activePointerId !== null) {
+            try {
+                if (button.releasePointerCapture) button.releasePointerCapture(activePointerId);
+            } catch (e) { /* ignore */
+            }
+            activePointerId = null;
+        }
+        startX = startY = 0;
     }
 
+// 使用已有的 triggerLongPress/onClickHandler/handleShortPress 逻辑
     async function triggerLongPress() {
+        if (longPressTriggered) return;
         longPressTriggered = true;
-        // Use the existing onClickHandler which already saves the path and calls nukeAndReload
         try {
             await onClickHandler();
         } catch (e) {
             console.error('长按触发强制刷新失败：', e);
             container.classList.remove('loading');
             button.disabled = false;
+        } finally {
+            // 保证状态在结束后被重置（在 onClickHandler 内也有保护）
+            longPressTriggered = false;
+            clearPressTimer();
         }
     }
 
-    // Prevent default click event from firing (we handle via pointer events)
-    button.addEventListener('click', function (e) {
+// 阻止原生 click 以避免重复触发
+    button.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-    }, { capture: true });
+    }, {capture: true});
 
-    // Pointer events handle both mouse and touch
+// pointerdown: 开始计时并尝试捕获指针
     button.addEventListener('pointerdown', (e) => {
         if (container.classList.contains('loading')) return;
-        longPressTriggered = false;
         clearPressTimer();
+        longPressTriggered = false;
+        activePointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        try {
+            if (button.setPointerCapture) button.setPointerCapture(activePointerId);
+        } catch (err) { /* ignore */
+        }
+
         pressTimer = setTimeout(() => {
             triggerLongPress();
         }, LONG_PRESS_MS);
-    });
+    }, {passive: true});
 
-    button.addEventListener('pointerup', (e) => {
+// pointermove: 超过阈值则取消长按计时（避免拖拽触发）
+    button.addEventListener('pointermove', (e) => {
+        if (activePointerId === null || e.pointerId !== activePointerId) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
+            longPressTriggered = false;
+            clearPressTimer();
+        }
+    }, {passive: true});
+
+// pointerup: 根据是否已触发长按决定短按或不做任何事
+    button.addEventListener('pointerup', () => {
         if (container.classList.contains('loading')) {
             clearPressTimer();
             return;
         }
-        // If long press already triggered, do nothing on pointerup
+        // release capture if any
+        try {
+            if (activePointerId !== null && button.releasePointerCapture) button.releasePointerCapture(activePointerId);
+        } catch (err) { /* ignore */
+        }
+
+        // 如果长按已经触发，则忽略本次 pointerup
         if (longPressTriggered) {
             clearPressTimer();
             longPressTriggered = false;
             return;
         }
-        // Short press
+
+        // 短按处理
         clearPressTimer();
         handleShortPress().catch(err => {
             console.error('短按刷新失败：', err);
             container.classList.remove('loading');
             button.disabled = false;
         });
-    });
+    }, {passive: true});
 
+// 取消场景统一清理
     ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(evt => {
-        button.addEventListener(evt, (e) => {
-            clearPressTimer();
+        button.addEventListener(evt, () => {
             longPressTriggered = false;
+            clearPressTimer();
         });
     });
 
-    // Keyboard activation (treat Enter/Space as short press)
+// 键盘：按下 Enter/Space 触发一次短按，按住不重复触发；keyup 恢复状态
     button.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
+            if (keyActive) return;
+            keyActive = true;
             e.preventDefault();
-            // emulate short press
             handleShortPress().catch(err => {
                 console.error('键盘触发短按刷新失败：', err);
                 container.classList.remove('loading');
@@ -381,6 +496,9 @@
         }
     });
 
-    // 保持原始点击处理程序引用（但不直接绑定到 click）
-    // button.addEventListener('click', onClickHandler);
+    button.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            keyActive = false;
+        }
+    });
 })();
