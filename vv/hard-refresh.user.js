@@ -210,58 +210,99 @@
     }
 
     // 主流程：先保存路径，然后清理并刷新
+    // javascript
     async function sendLogoutRequest() {
         const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
-        return new Promise((resolve) => {
-            // 尝试使用 GM_xmlhttpRequest 并显式允许携带 Cookie（via 需要 withCredentials）
-            try {
-                if (typeof GM_xmlhttpRequest === 'function') {
-                    GM_xmlhttpRequest({
-                        method: 'GET',
-                        url,
-                        headers: { 'Accept': 'application/json, text/plain, */*', 'Cache-Control': 'no-cache' },
-                        timeout: 5000,
-                        // 关键：在 Via 中保证发送 cookie
-                        withCredentials: true,
-                        onload: (response) => {
-                            console.log('GM_xmlhttpRequest logout onload', response && response.status);
-                            resolve(response);
-                        },
-                        onerror: (err) => {
-                            console.warn('GM_xmlhttpRequest logout error, fallback to fetch', err);
-                            resolve(null);
-                        },
-                        ontimeout: () => {
-                            console.warn('GM_xmlhttpRequest logout timeout, fallback to fetch');
+        const TIMEOUT_MS = 5000;
+
+        // fetch with timeout, resolves response or null on failure/timeout
+        function fetchWithTimeout(u, opts, timeout) {
+            return new Promise((resolve) => {
+                let done = false;
+                const timer = setTimeout(() => {
+                    if (!done) {
+                        done = true;
+                        console.warn('fetch timeout');
+                        resolve(null);
+                    }
+                }, timeout);
+
+                try {
+                    fetch(u, opts).then(res => {
+                        if (!done) {
+                            done = true;
+                            clearTimeout(timer);
+                            resolve(res);
+                        }
+                    }).catch(err => {
+                        if (!done) {
+                            done = true;
+                            clearTimeout(timer);
+                            console.warn('fetch failed', err);
                             resolve(null);
                         }
                     });
-                    return;
+                } catch (e) {
+                    if (!done) {
+                        done = true;
+                        clearTimeout(timer);
+                        console.warn('fetch threw', e);
+                        resolve(null);
+                    }
                 }
-            } catch (e) {
-                console.warn('call to GM_xmlhttpRequest threw', e);
-            }
+            });
+        }
 
-            // 回退：使用标准 fetch 并携带凭证（cookie）
+        // 先用 fetch（保证携带 cookie）
+        try {
+            const res = await fetchWithTimeout(url, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json, text/plain, */*' }
+            }, TIMEOUT_MS);
+
+            if (res) {
+                console.log('fetch logout result', res && res.status);
+                return res;
+            }
+            console.warn('fetch returned null, falling back to XHR');
+        } catch (e) {
+            console.warn('fetch attempt threw', e);
+        }
+
+        // 回退：使用原生 XMLHttpRequest 并开启 withCredentials
+        return new Promise((resolve) => {
             try {
-                fetch(url, {
-                    method: 'GET',
-                    credentials: 'include',
-                    cache: 'no-cache',
-                    headers: { 'Accept': 'application/json, text/plain, */*' }
-                }).then(res => {
-                    console.log('fetch logout result', res && res.status);
-                    resolve(res);
-                }).catch(err => {
-                    console.warn('fetch logout failed', err);
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.withCredentials = true;
+                xhr.timeout = TIMEOUT_MS;
+                xhr.setRequestHeader('Accept', 'application/json, text/plain, */*');
+
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        console.log('XHR logout result', xhr.status);
+                        resolve({ status: xhr.status, xhr });
+                    }
+                };
+                xhr.ontimeout = function () {
+                    console.warn('XHR timeout');
                     resolve(null);
-                });
+                };
+                xhr.onerror = function (err) {
+                    console.warn('XHR error', err);
+                    resolve(null);
+                };
+
+                xhr.send();
             } catch (e) {
-                console.warn('fetch threw', e);
+                console.warn('XHR threw', e);
                 resolve(null);
             }
         });
     }
+
 
     async function nukeAndReload() {
         if (!container.classList.contains('loading')) {
@@ -276,13 +317,6 @@
                 await sendLogoutRequest();
             } catch (e) {
                 console.warn('发送登出请求时发生意外错误：', e);
-            }
-
-            console.log('正在清理 Service Workers...');
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(registrations.map(r => r.unregister()));
-                console.log('已清理 Service Workers 数量:', registrations.length);
             }
 
             console.log('正在清理 Cache Storage...');
