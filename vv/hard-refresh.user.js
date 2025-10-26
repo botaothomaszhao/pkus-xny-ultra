@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         强制刷新
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.3
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
 // @author       c-jeremy botaothomaszhao
@@ -290,7 +290,7 @@
     }
 
     // 优化后的按键处理：pointer + 键盘（长按触发一次）
-    const LONG_PRESS_MS = 2000;
+    const LONG_PRESS_MS = 3000;
     let pressTimer = null;
     let longPressTriggered = false;
     let activePointerId = null;

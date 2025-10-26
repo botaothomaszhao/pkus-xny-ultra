@@ -27,7 +27,7 @@
 
     let lastDecision = null; // true=open, false=closed, null=unknown
     let debounceTimer = null;
-    
+
     function isVisible(el) {
         if (!el) return false;
         const s = getComputedStyle(el);
@@ -61,13 +61,6 @@
         }
         try {
             btn.click();
-            // 等待 DOM 做出响应
-            //await new Promise(r => setTimeout(r, 180));
-            /*const newState = isSidebarOpen();
-            if (newState !== targetOpen) {
-                // 再尝试一次（某些实现需要两次）
-                btn.click();
-            }*/
         } catch (e) {
             console.error('Auto-collapse-bdfz: 切换侧边栏失败', e);
         }
@@ -121,8 +114,6 @@
         const ro = new ResizeObserver(scheduleDecision);
         ro.observe(document.documentElement);
     } catch (e) {
-        // 不支持则无所谓
     }
 
-    console.info('Auto-collapse-bdfz: 启动。', 'THRESHOLD_WIDTH=', THRESHOLD_WIDTH, 'SIDEBAR_WIDTH=', SIDEBAR_WIDTH);
 })();

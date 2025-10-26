@@ -14,10 +14,10 @@
 (function () {
     'use strict';
 
-    /* ------------------------------------------------------------
+    /*
        CSS：与 path-replay 的圆形按钮尺寸/风格一致（48px 圆），
        icon 居中优化，并包含搜索 overlay 的样式
-    ------------------------------------------------------------ */
+       */
     GM_addStyle(`
         /* 按钮容器（与 path-replay 保持一致位置与尺寸） */
         #search-spotlight-container { position: fixed; bottom: 110px; right: 25px; z-index: 2147483646; width: 48px; height: 48px; }
@@ -80,7 +80,8 @@
                 if (typeof url === 'string' && url.includes('catalog/entity')) {
                     this._isCatalogTarget = true;
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) { /* ignore */
+            }
             return origOpen.apply(this, arguments);
         };
 
@@ -194,7 +195,12 @@
 
         const icon = document.createElement('div');
         icon.className = 'icon';
-        icon.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+        icon.innerHTML = `
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        `;
         btn.appendChild(icon);
         container.appendChild(btn);
         document.body.appendChild(container);
@@ -215,7 +221,10 @@
         overlay.innerHTML = `
             <div class="search-spotlight-card" role="dialog" aria-modal="true">
                 <div class="search-input-wrapper">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                     <input type="text" class="search-spotlight-input" placeholder="搜索课程目录 (支持拼音或拼音首字母)..." autocomplete="off" />
                 </div>
                 <ul class="search-results-list"></ul>
