@@ -1,8 +1,9 @@
 // ==UserScript==
-// @name         BDFZ: 相册/相机选择（简化）
-// @namespace    https://github.com/botaothomaszhao
-// @version      2.2
-// @description  拦截 .paizhao-btn 的按钮点击，提供“从相册/使用相机拍照(内置)”；相册=直接打开系统文件选择并回填原 input，相机=MediaDevices 拍照并回填到该 input。精简逻辑：点击“从相册选择”时立即关闭菜单并同步唤起文件选择器，避免菜单残留或闪烁；移除了复杂的 history/back 处理。
+// @name         拍照上传照片
+// @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
+// @version      vv.2.1
+// @license      GPL-3.0
+// @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”，在网页内实现拍照功能，解决Via浏览器capture字段不生效问题
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        none
 // @run-at       document-body
@@ -24,7 +25,6 @@
   }
 
   // 在用户激活的事件处理里同步唤起系统文件选择器。
-  // 如果原始 input 可见则优先点击它以保留网站的原有处理；如果原始 input 被隐藏/不可交互则使用临时 input 回退。
   function openSystemFilePickerAndCopyTo(origInput) {
     if (!origInput) return;
     const accept = origInput.getAttribute('data-bdfz_orig_accept') || origInput.getAttribute('accept') || '';
@@ -300,7 +300,7 @@
     }
   }
 
-  // 监听 click/pointerdown/mousedown 四类事件以覆盖不同环境
+  // 监听 click/pointerdown/mousedown 三类事件以覆盖不同环境
   document.addEventListener('click', onPaizhaoTrigger, true);
   document.addEventListener('pointerdown', onPaizhaoTrigger, true);
   document.addEventListener('mousedown', onPaizhaoTrigger, true);
