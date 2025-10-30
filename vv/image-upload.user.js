@@ -12,6 +12,21 @@
 (function () {
     'use strict';
 
+    // 辅助：批量应用样式
+    function setStyles(el, styles) {
+        for (const k in styles) {
+            try { el.style[k] = styles[k]; } catch (_) {}
+        }
+    }
+
+    // 辅助：安全移除指定 id 元素
+    function removeIfExists(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            try { el.remove(); } catch (_) {}
+        }
+    }
+
     // 历史/popstate 管理（用于拦截返回键）
     let chooserHistoryPushed = false;
     let chooserPopHandler = null;
@@ -25,14 +40,10 @@
         input.dispatchEvent(new Event('change', {bubbles: true}));
     }
 
-    function makeFileFromBlob(blob, filename = `photo_${Date.now()}.jpg`) {
-        return new File([blob], filename, {type: blob.type || 'image/jpeg', lastModified: Date.now()});
-    }
-
     // 在用户激活的事件处理里同步唤起系统文件选择器。
     function openSystemFilePickerAndCopyTo(origInput) {
         if (!origInput) return;
-        const accept = origInput.getAttribute('data-bdfz_orig_accept') || origInput.getAttribute('accept') || '';
+        const accept = origInput.getAttribute('data-orig-accept') || origInput.getAttribute('accept') || '';
         const multiple = origInput.hasAttribute('multiple');
 
         // 创建临时 input（fallback），不使用 display:none
@@ -90,31 +101,25 @@
     // 简单的选择菜单：保持非常轻量，点击从相册时立即移除菜单并同步打开文件选择器
     function showChoiceMenu(origInput) {
         if (!origInput) return;
-        if (document.getElementById('bdfz-upload-chooser')) return;
+        if (document.getElementById('upload-chooser')) return;
 
         const overlay = document.createElement('div');
-        overlay.id = 'bdfz-upload-chooser';
-        Object.assign(overlay.style, {
+        overlay.id = 'upload-chooser';
+        setStyles(overlay, {
             position: 'fixed', left: '0', top: '0', right: '0', bottom: '0',
-            zIndex: 2147483646, background: 'rgba(0,0,0,0.12)',
+            zIndex: '2147483646', background: 'rgba(0,0,0,0.12)',
             display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
             padding: '10px', boxSizing: 'border-box'
         });
 
         const panel = document.createElement('div');
-        Object.assign(panel.style, {
-            width: '100%', maxWidth: '720px', borderRadius: '12px', background: '#fff', overflow: 'hidden'
-        });
+        setStyles(panel, {width: '100%', maxWidth: '720px', borderRadius: '12px', background: '#fff', overflow: 'hidden'});
 
         function makeButton(text, bg) {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = text;
-            Object.assign(b.style, {
-                width: '100%', padding: '14px', border: 'none',
-                borderTop: '1px solid rgba(0,0,0,0.06)', background: bg || '#fff',
-                fontSize: '16px', cursor: 'pointer'
-            });
+            setStyles(b, {width: '100%', padding: '14px', border: 'none', borderTop: '1px solid rgba(0,0,0,0.06)', background: bg || '#fff', fontSize: '16px', cursor: 'pointer'});
             return b;
         }
 
@@ -126,6 +131,20 @@
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
 
+        // 使 overlay 可聚焦以捕获键盘事件，并注册 Esc 键处理器到该弹窗
+        try {
+            overlay.tabIndex = -1;
+            overlay.focus();
+        } catch (_) {}
+        const chooserKeyHandler = (e) => {
+            const isEsc = e.key === 'Escape' || e.key === 'Esc';
+            if (!isEsc) return;
+            try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+            closeOverlayAndRestoreHistory();
+        };
+        overlay.addEventListener('keydown', chooserKeyHandler, true);
+        overlay._keyHandler = chooserKeyHandler;
+
         // push history state so that back button will close menu (we will later remove this pushed state)
         try {
             chooserPopHandler = function () {
@@ -136,18 +155,12 @@
                 }
 
                 // If overlay still exists, close it (user pressed back)
-                const o = document.getElementById('bdfz-upload-chooser');
-                if (o) {
-                    try {
-                        o.remove();
-                    } catch (_) {
-                    }
-                }
+                removeIfExists('upload-chooser');
                 // cleanup listener because menu is closed
                 removeChooserPopHandler();
             };
             window.addEventListener('popstate', chooserPopHandler);
-            history.pushState({bdfzUploadChooser: true}, '');
+            history.pushState({uploadChooser: true}, '');
             chooserHistoryPushed = true;
         } catch (err) {
             // pushState might fail in some environments; that's okay — we'll still try to behave normally
@@ -163,18 +176,15 @@
 
         // helper to close overlay and restore history (if we pushed one)
         function closeOverlayAndRestoreHistory() {
-            try {
-                const o = document.getElementById('bdfz-upload-chooser');
-                if (o) o.remove();
-            } catch (_) {
-            }
+            // 移除注册的键盘处理器
+            try { if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true); } catch (_) {}
+            removeIfExists('upload-chooser');
             if (chooserHistoryPushed) {
                 // prevent our popstate handler from reacting to the history.back() we'll call now
                 suppressNextPop = true;
                 try {
                     history.back();
-                } catch (_) { /* ignore */
-                }
+                } catch (_) { /* ignore */ }
             }
             removeChooserPopHandler();
         }
@@ -214,39 +224,27 @@
             return;
         }
 
-        if (document.getElementById('bdfz-media-overlay')) return;
+        if (document.getElementById('media-overlay')) return;
 
         const overlay = document.createElement('div');
-        overlay.id = 'bdfz-media-overlay';
-        Object.assign(overlay.style, {
-            position: 'fixed', left: '0', top: '0', right: '0', bottom: '0',
-            zIndex: 2147483647, background: 'rgba(0,0,0,0.85)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', color: '#fff'
-        });
+        overlay.id = 'media-overlay';
+        setStyles(overlay, {position: 'fixed', left: '0', top: '0', right: '0', bottom: '0', zIndex: '2147483647', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', color: '#fff'});
 
         overlay.innerHTML = `
       <div style="width:100%;max-width:720px;aspect-ratio:3/4;background:#000;position:relative;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center">
-        <video id="bdfz-media-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
-        <canvas id="bdfz-media-canvas" style="display:none"></canvas>
+        <video id="media-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
+        <canvas id="media-canvas" style="display:none"></canvas>
       </div>
     `;
 
         const controls = document.createElement('div');
-        Object.assign(controls.style, {
-            display: 'flex', width: '100%', maxWidth: '720px',
-            justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginTop: '6px'
-        });
+        setStyles(controls, {display: 'flex', width: '100%', maxWidth: '720px', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginTop: '6px'});
 
         function makeBtn(text, bg) {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = text;
-            Object.assign(b.style, {
-                flex: '1', padding: '12px', fontSize: '15px',
-                borderRadius: '8px', border: 'none', cursor: 'pointer',
-                background: bg, color: '#fff'
-            });
+            setStyles(b, {flex: '1', padding: '12px', fontSize: '15px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: bg, color: '#fff'});
             return b;
         }
 
@@ -263,8 +261,8 @@
         overlay.appendChild(controls);
         document.body.appendChild(overlay);
 
-        const video = overlay.querySelector('#bdfz-media-video');
-        const canvas = overlay.querySelector('#bdfz-media-canvas');
+        const video = overlay.querySelector('#media-video');
+        const canvas = overlay.querySelector('#media-canvas');
 
         let stream = null;
         let facingMode = 'environment';
@@ -287,18 +285,24 @@
         }
 
         function cleanup() {
-            try {
-                if (stream) stream.getTracks().forEach(t => t.stop());
-            } catch (_) {
-            }
-            try {
-                overlay.remove();
-            } catch (_) {
-            }
+            try { if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true); } catch (_) {}
+            try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+            try { overlay.remove(); } catch (_) {}
         }
 
-        // expose cleanup so global Escape handler can close media overlay
-        overlay._bdfzCleanup = cleanup;
+        // expose cleanup so overlay 内部或外部能关闭 media overlay
+        overlay._cleanup = cleanup;
+
+        // 使 overlay 可聚焦以捕获键盘事件，并注册 Esc 键处理器到该弹窗
+        try { overlay.tabIndex = -1; overlay.focus(); } catch (_) {}
+        const mediaKeyHandler = (e) => {
+            const isEsc = e.key === 'Escape' || e.key === 'Esc';
+            if (!isEsc) return;
+            try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+            cleanup();
+        };
+        overlay.addEventListener('keydown', mediaKeyHandler, true);
+        overlay._keyHandler = mediaKeyHandler;
 
         async function captureOnce() {
             const vw = video.videoWidth || 1280;
@@ -359,7 +363,10 @@
 
         btnConfirm.addEventListener('click', () => {
             if (!lastBlob) return;
-            const file = makeFileFromBlob(lastBlob);
+            const file = new File([lastBlob], `photo_${Date.now()}.jpg`, {
+                type: lastBlob.type || 'image/jpeg',
+                lastModified: Date.now()
+            });
             copyFilesToInput([file], origInput);
             cleanup();
         });
@@ -369,10 +376,7 @@
             facingMode = (facingMode === 'environment') ? 'user' : 'environment';
             await startStream();
         });
-
-        overlay.addEventListener('click', (ev) => {
-            if (ev.target === overlay) cleanup();
-        });
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) cleanup(); });
 
         startStream().catch(err => {
             console.error('getUserMedia error', err);
@@ -380,37 +384,6 @@
             cleanup();
         });
     }
-
-    // 全局 ESC 捕获：关闭相机或选择器并恢复历史
-    document.addEventListener('keydown', (e) => {
-        const isEsc = e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27;
-        if (!isEsc) return;
-        try {
-            const media = document.getElementById('bdfz-media-overlay');
-            if (media) {
-                if (typeof media._bdfzCleanup === 'function') {
-                    try { media._bdfzCleanup(); } catch (_) {}
-                } else {
-                    try { media.remove(); } catch (_) {}
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-            }
-
-            const chooser = document.getElementById('bdfz-upload-chooser');
-            if (chooser) {
-                try { chooser.remove(); } catch (_) {}
-                if (chooserHistoryPushed) {
-                    suppressNextPop = true;
-                    try { history.back(); } catch (_) {}
-                }
-                removeChooserPopHandler();
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        } catch (_) {}
-    }, true);
 
     // 事件委托：拦截 .paizhao-btn 的点击（支持 shadow DOM）
     function findPaizhaoContextFromEvent(e) {
@@ -453,7 +426,7 @@
             }
             showChoiceMenu(input);
         } catch (err) {
-            console.error('bdfz-media: onPaizhaoTrigger error', err);
+            console.error('image-upload: onPaizhaoTrigger error', err);
         }
     }
 

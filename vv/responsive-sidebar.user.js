@@ -56,13 +56,13 @@
         if (current === targetOpen) return;
         const btn = findToggleButton();
         if (!btn) {
-            console.warn('Auto-collapse-bdfz: 找不到 .put 切换按钮，无法自动切换。');
+            console.warn('Auto-collapse: 找不到 .put 切换按钮，无法自动切换。');
             return;
         }
         try {
             btn.click();
         } catch (e) {
-            console.error('Auto-collapse-bdfz: 切换侧边栏失败', e);
+            console.error('Auto-collapse: 切换侧边栏失败', e);
         }
     }
 
