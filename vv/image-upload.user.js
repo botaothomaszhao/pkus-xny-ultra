@@ -12,6 +12,11 @@
 (function () {
   'use strict';
 
+  // 历史/popstate 管理（用于拦截返回键）
+  let chooserHistoryPushed = false;
+  let chooserPopHandler = null;
+  let suppressNextPop = false;
+
   // 把 File 塞回指定 input 并触发 change
   function copyFilesToInput(files, input) {
     const dt = new DataTransfer();
@@ -62,6 +67,16 @@
       temp.click();
     } catch (err) {}
   }
+  
+  // 清理 popstate 监听
+  function removeChooserPopHandler() {
+    if (chooserPopHandler) {
+      try { window.removeEventListener('popstate', chooserPopHandler); } catch (_) {}
+      chooserPopHandler = null;
+    }
+    chooserHistoryPushed = false;
+    suppressNextPop = false;
+  }
 
   // 简单的选择菜单：保持非常轻量，点击从相册时立即移除菜单并同步打开文件选择器
   function showChoiceMenu(origInput) {
@@ -102,10 +117,44 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
+    // push history state so that back button will close menu (we will later remove this pushed state)
+    try {
+      chooserPopHandler = function (ev) {
+        // If we are programmatically suppressing this pop (caused by our own history.back()), ignore
+        if (suppressNextPop) { suppressNextPop = false; return; }
+
+        // If overlay still exists, close it (user pressed back)
+        const o = document.getElementById('bdfz-upload-chooser');
+        if (o) {
+          try { o.remove(); } catch (_) {}
+        }
+        // cleanup listener because menu is closed
+        removeChooserPopHandler();
+      };
+      window.addEventListener('popstate', chooserPopHandler);
+      history.pushState({ bdfzUploadChooser: true }, '');
+      chooserHistoryPushed = true;
+    } catch (err) {
+      // pushState might fail in some environments; that's okay — we'll still try to behave normally
+      chooserHistoryPushed = false;
+      if (chooserPopHandler) { try { window.removeEventListener('popstate', chooserPopHandler); } catch (_) {} chooserPopHandler = null; }
+    }
+
+    // helper to close overlay and restore history (if we pushed one)
+    function closeOverlayAndRestoreHistory() {
+      try { const o = document.getElementById('bdfz-upload-chooser'); if (o) o.remove(); } catch (_) {}
+      if (chooserHistoryPushed) {
+        // prevent our popstate handler from reacting to the history.back() we'll call now
+        suppressNextPop = true;
+        try { history.back(); } catch (_) { /* ignore */ }
+      }
+      removeChooserPopHandler();
+    }
+
     // 点击背景区域关闭菜单
     overlay.addEventListener('click', (ev) => {
       if (ev.target === overlay) {
-        try { overlay.remove(); } catch (_) {}
+        closeOverlayAndRestoreHistory();
       }
     });
 
@@ -113,7 +162,8 @@
     btnGallery.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      try { overlay.remove(); } catch (_) {}
+      closeOverlayAndRestoreHistory();
+      //try { overlay.remove(); } catch (_) {}
       try {
         openSystemFilePickerAndCopyTo(origInput);
       } catch (err) {
@@ -125,7 +175,8 @@
     btnCamera.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      try { overlay.remove(); } catch (_) {}
+      closeOverlayAndRestoreHistory();
+      //try { overlay.remove(); } catch (_) {}
       openCameraOverlay(origInput);
     });
   }
@@ -302,7 +353,4 @@
 
   // 监听 click/pointerdown/mousedown 三类事件以覆盖不同环境
   document.addEventListener('click', onPaizhaoTrigger, true);
-  document.addEventListener('pointerdown', onPaizhaoTrigger, true);
-  document.addEventListener('mousedown', onPaizhaoTrigger, true);
-
 })();
