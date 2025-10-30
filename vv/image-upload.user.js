@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BDFZ: 相册/相机选择（简化）
 // @namespace    https://github.com/botaothomaszhao
-// @version      2.0
-// @description  拦截 .paizhao-btn 的按钮点击，提供“从相册/使用相机拍照(内置)”；相册=直接点击原始 input，相机=MediaDevices 拍照并回填到该 input。
+// @version      2.2
+// @description  拦截 .paizhao-btn 的按钮点击，提供“从相册/使用相机拍照(内置)”；相册=直接打开系统文件选择并回填原 input，相机=MediaDevices 拍照并回填到该 input。精简逻辑：点击“从相册选择”时立即关闭菜单并同步唤起文件选择器，避免菜单残留或闪烁；移除了复杂的 history/back 处理。
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        none
 // @run-at       document-body
@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  // 把拍到的 File 塞回指定 input 并触发 change
+  // 把 File 塞回指定 input 并触发 change
   function copyFilesToInput(files, input) {
     const dt = new DataTransfer();
     for (const f of files) dt.items.add(f);
@@ -23,12 +23,50 @@
     return new File([blob], filename, { type: blob.type || 'image/jpeg', lastModified: Date.now() });
   }
 
-  // 简单的选择菜单
+  // 在用户激活的事件处理里同步唤起系统文件选择器。
+  // 如果原始 input 可见则优先点击它以保留网站的原有处理；如果原始 input 被隐藏/不可交互则使用临时 input 回退。
+  function openSystemFilePickerAndCopyTo(origInput) {
+    if (!origInput) return;
+    const accept = origInput.getAttribute('data-bdfz_orig_accept') || origInput.getAttribute('accept') || '';
+    const multiple = origInput.hasAttribute('multiple');
+
+    // 创建临时 input（fallback），不使用 display:none
+    const temp = document.createElement('input');
+    temp.type = 'file';
+    if (accept) temp.setAttribute('accept', accept);
+    if (multiple) temp.setAttribute('multiple', '');
+    Object.assign(temp.style, {
+      position: 'fixed',
+      left: '-9999px',
+      top: '0',
+      width: '1px',
+      height: '1px',
+      opacity: '0',
+      zIndex: '2147483647',
+    });
+    document.body.appendChild(temp);
+
+    const onChange = () => {
+      try {
+        if (temp.files && temp.files.length) {
+          copyFilesToInput(Array.from(temp.files), origInput);
+        }
+      } finally {
+        temp.removeEventListener('change', onChange);
+        setTimeout(() => { try { temp.remove(); } catch (_) {} }, 0);
+      }
+    };
+    temp.addEventListener('change', onChange, { once: true });
+
+    try {
+      temp.click();
+    } catch (err) {}
+  }
+
+  // 简单的选择菜单：保持非常轻量，点击从相册时立即移除菜单并同步打开文件选择器
   function showChoiceMenu(origInput) {
     if (!origInput) return;
     if (document.getElementById('bdfz-upload-chooser')) return;
-
-    console.log("bdfz-media: showChoiceMenu", origInput);
 
     const overlay = document.createElement('div');
     overlay.id = 'bdfz-upload-chooser';
@@ -57,36 +95,42 @@
     }
 
     const btnGallery = makeButton('从相册选择');
-    const btnCamera = makeButton('使用相机拍照(内置)');
-    //const btnCancel = makeButton('取消', '#f5f5f5');
+    const btnCamera = makeButton('从相机拍照');
 
     panel.appendChild(btnGallery);
     panel.appendChild(btnCamera);
-    //panel.appendChild(btnCancel);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
-    function closeMenu() {
-      try { overlay.remove(); } catch (_) {}
-    }
+    // 点击背景区域关闭菜单
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) {
+        try { overlay.remove(); } catch (_) {}
+      }
+    });
 
+    // 从相册：立即移除菜单（同步），然后在同一用户事件处理链里唤起文件选择器，避免闪烁或菜单残留
     btnGallery.addEventListener('click', (e) => {
       e.stopPropagation();
-      closeMenu();
-      try { origInput.click(); } catch (err) { console.warn('打开系统相册失败', err); }
+      e.preventDefault();
+      try { overlay.remove(); } catch (_) {}
+      try {
+        openSystemFilePickerAndCopyTo(origInput);
+      } catch (err) {
+        console.warn('打开系统相册失败', err);
+      }
     });
 
+    // 相机：立即移除菜单并打开内置相机覆盖层
     btnCamera.addEventListener('click', (e) => {
       e.stopPropagation();
-      closeMenu();
+      e.preventDefault();
+      try { overlay.remove(); } catch (_) {}
       openCameraOverlay(origInput);
     });
-
-    //btnCancel.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); });
-    overlay.addEventListener('click', () => { closeMenu(); });
   }
 
-  // 相机拍照覆盖层（仅一套实现）
+  // 相机拍照覆盖层（保持原有实现）
   function openCameraOverlay(origInput) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('当前浏览器不支持拍照');
@@ -215,9 +259,8 @@
     startStream().catch(err => { console.error('getUserMedia error', err); alert('无法访问摄像头'); cleanup(); });
   }
 
-  // 事件委托：更稳健地拦截 .paizhao-btn 按钮点击（支持 shadow DOM、pointer/touch）
+  // 事件委托：拦截 .paizhao-btn 的点击（支持 shadow DOM）
   function findPaizhaoContextFromEvent(e) {
-    // 尝试使用 composedPath() 来支持 shadow DOM
     try {
       const path = (e.composedPath && e.composedPath()) || (e.path && e.path.slice());
       if (path && path.length) {
@@ -232,7 +275,6 @@
       // ignore
     }
 
-    // 退回到普通的 DOM 向上查找
     let el = e.target;
     while (el) {
       if (el.classList && el.classList.contains && el.classList.contains('paizhao-btn')) return el;
@@ -243,25 +285,14 @@
 
   function onPaizhaoTrigger(e) {
     try {
-      // 调试日志：记录事件类型与目标，便于定位为何未触发
-      try { console.debug('bdfz-media: onPaizhaoTrigger', e.type, e.target && (e.target.tagName + (e.target.className ? ' .' + e.target.className : ''))); } catch (e_) {}
-
       const root = findPaizhaoContextFromEvent(e);
       if (!root) return;
-      // 找到容器内的按钮（确保是点击到按钮区域）
-      // 若点击在输入框本身或其它位置也处理为打开选择
       const btn = (e.target && e.target.closest && e.target.closest('.paizhao-btn button')) || root.querySelector('button');
       if (!btn) return;
 
       const input = root.querySelector('input[type="file"]');
-      if (!input) {
-        try { console.debug('bdfz-media: found paizhao root but no input', root); } catch (e_) {}
-        return;
-      }
+      if (!input) return;
 
-      try { console.debug('bdfz-media: paizhao trigger, input found', input); } catch (e_) {}
-
-      // 阻止默认并弹出自定义菜单
       try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
       showChoiceMenu(input);
     } catch (err) {
@@ -269,10 +300,9 @@
     }
   }
 
-  // 监听 click/pointerdown/touchend/mousedown 四类事件以覆盖不同环境
+  // 监听 click/pointerdown/mousedown 四类事件以覆盖不同环境
   document.addEventListener('click', onPaizhaoTrigger, true);
   document.addEventListener('pointerdown', onPaizhaoTrigger, true);
-  document.addEventListener('touchend', onPaizhaoTrigger, true);
   document.addEventListener('mousedown', onPaizhaoTrigger, true);
-  
+
 })();
