@@ -58,11 +58,11 @@
 
     const btnGallery = makeButton('从相册选择');
     const btnCamera = makeButton('使用相机拍照(内置)');
-    const btnCancel = makeButton('取消', '#f5f5f5');
+    //const btnCancel = makeButton('取消', '#f5f5f5');
 
     panel.appendChild(btnGallery);
     panel.appendChild(btnCamera);
-    panel.appendChild(btnCancel);
+    //panel.appendChild(btnCancel);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -82,7 +82,7 @@
       openCameraOverlay(origInput);
     });
 
-    btnCancel.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); });
+    //btnCancel.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); });
     overlay.addEventListener('click', () => { closeMenu(); });
   }
 
@@ -274,43 +274,5 @@
   document.addEventListener('pointerdown', onPaizhaoTrigger, true);
   document.addEventListener('touchend', onPaizhaoTrigger, true);
   document.addEventListener('mousedown', onPaizhaoTrigger, true);
-
-  // 直接绑定已存在或新近添加的 .paizhao-btn（短时轮询备份，避免 MutationObserver）
-  function bindPaizhaoButtonsOnce() {
-    try {
-      const nodes = document.querySelectorAll && document.querySelectorAll('.paizhao-btn');
-      if (!nodes || !nodes.length) return;
-      for (const n of nodes) {
-        try {
-          if (n.dataset && n.dataset.bdfz_bound === '1') continue;
-          const btn = n.querySelector && n.querySelector('button');
-          const input = n.querySelector && n.querySelector('input[type="file"]');
-          if (btn && input) {
-            const handler = (e) => {
-              try { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); } catch (err) {}
-              showChoiceMenu(input);
-            };
-            // bind multiple early events to outrun page handlers
-            btn.addEventListener('click', handler, true);
-            btn.addEventListener('pointerdown', handler, true);
-            btn.addEventListener('touchend', handler, true);
-            // mark bound
-            try { n.dataset.bdfz_bound = '1'; } catch (e) {}
-          }
-        } catch (err) {}
-      }
-    } catch (err) {}
-  }
-
-  // 短时轮询，确保从页面加载后能绑定动态插入的按钮（5 秒内每 200ms）
-  (function quickBindLoop() {
-    let attempts = 0;
-    const max = 25; // ~5s
-    const id = setInterval(() => {
-      try { bindPaizhaoButtonsOnce(); } catch (e) {}
-      attempts++;
-      if (attempts >= max) clearInterval(id);
-    }, 200);
-  })();
-
+  
 })();
