@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         拍照上传照片
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
-// @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”，在网页内实现拍照功能，解决Via浏览器capture字段不生效问题
+// @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”。改进相机界面：放弃强制 4:3 显示，使用摄像头原始预览尺寸按高度占满屏幕（左右留黑边），确保“所见即所得”——拍照后的图片尺寸和拍照前在屏幕上看到的一致。调整 UI：右上叉增大，拍照/切换/底部按钮的显示逻辑修复。保留文件注入逻辑。
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        none
 // @run-at       document-body
@@ -12,26 +12,19 @@
 (function () {
     'use strict';
 
-    // 辅助：批量应用样式
     function setStyles(el, styles) {
         for (const k in styles) {
             try { el.style[k] = styles[k]; } catch (_) {}
         }
     }
-
-    // 辅助：安全移除指定 id 元素
     function removeIfExists(id) {
         const el = document.getElementById(id);
-        if (el) {
-            try { el.remove(); } catch (_) {}
-        }
+        if (el) try { el.remove(); } catch (_) {}
     }
 
-    // 历史/popstate 管理（用于拦截返回键）
     let chooserHistoryPushed = false;
     let suppressNextPop = false;
 
-    // 把 File 塞回指定 input 并触发 change
     function copyFilesToInput(files, input) {
         const dt = new DataTransfer();
         for (const f of files) dt.items.add(f);
@@ -39,71 +32,43 @@
         input.dispatchEvent(new Event('change', {bubbles: true}));
     }
 
-    // 在用户激活的事件处理里同步唤起系统文件选择器。
     function openSystemFilePickerAndCopyTo(origInput) {
         if (!origInput) return;
         const accept = origInput.getAttribute('data-orig-accept') || origInput.getAttribute('accept') || '';
         const multiple = origInput.hasAttribute('multiple');
 
-        // 创建临时 input（fallback），不使用 display:none
         const temp = document.createElement('input');
         temp.type = 'file';
         if (accept) temp.setAttribute('accept', accept);
         if (multiple) temp.setAttribute('multiple', '');
         Object.assign(temp.style, {
-            position: 'fixed',
-            left: '-9999px',
-            top: '0',
-            width: '1px',
-            height: '1px',
-            opacity: '0',
-            zIndex: '2147483647',
+            position: 'fixed', left: '-9999px', top: '0', width: '1px', height: '1px', opacity: '0', zIndex: '2147483647',
         });
         document.body.appendChild(temp);
 
         const onChange = () => {
             try {
-                if (temp.files && temp.files.length) {
-                    copyFilesToInput(Array.from(temp.files), origInput);
-                }
+                if (temp.files && temp.files.length) copyFilesToInput(Array.from(temp.files), origInput);
             } finally {
                 temp.removeEventListener('change', onChange);
-                setTimeout(() => {
-                    try {
-                        temp.remove();
-                    } catch (_) {
-                    }
-                }, 0);
+                setTimeout(() => { try { temp.remove(); } catch (_) {} }, 0);
             }
         };
         temp.addEventListener('change', onChange, {once: true});
-
-        try {
-            temp.click();
-        } catch (err) {
-        }
+        try { temp.click(); } catch (err) {}
     }
+
     function chooserPopHandler() {
-                // If we are programmatically suppressing this pop (caused by our own history.back()), ignore
-                if (suppressNextPop) {
-                    suppressNextPop = false;
-                    return;
-                }
-
-                // If overlay still exists, close it (user pressed back)
-                removeIfExists('upload-chooser');
-                // cleanup listener because menu is closed
-                removeChooserPopHandler();
-            };
-
-    // 清理 popstate 监听
+        if (suppressNextPop) { suppressNextPop = false; return; }
+        removeIfExists('upload-chooser');
+        removeChooserPopHandler();
+    }
     function removeChooserPopHandler() {
         window.removeEventListener('popstate', chooserPopHandler);
         chooserHistoryPushed = false;
         suppressNextPop = false;
     }
 
-    // 简单的选择菜单：保持非常轻量，点击从相册时立即移除菜单并同步打开文件选择器
     function showChoiceMenu(origInput) {
         if (!origInput) return;
         if (document.getElementById('upload-chooser')) return;
@@ -136,11 +101,7 @@
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
 
-        // 使 overlay 可聚焦以捕获键盘事件，并注册 Esc 键处理器到该弹窗
-        try {
-            overlay.tabIndex = -1;
-            overlay.focus();
-        } catch (_) {}
+        try { overlay.tabIndex = -1; overlay.focus(); } catch (_) {}
         const chooserKeyHandler = (e) => {
             const isEsc = e.key === 'Escape' || e.key === 'Esc';
             if (!isEsc) return;
@@ -150,137 +111,288 @@
         overlay.addEventListener('keydown', chooserKeyHandler, true);
         overlay._keyHandler = chooserKeyHandler;
 
-        // push history state so that back button will close menu (we will later remove this pushed state)
         try {
             window.addEventListener('popstate', chooserPopHandler);
             history.pushState({uploadChooser: true}, '');
             chooserHistoryPushed = true;
         } catch (err) {
-            // pushState might fail in some environments; that's okay — we'll still try to behave normally
             chooserHistoryPushed = false;
             window.removeEventListener('popstate', chooserPopHandler);
         }
 
-        // helper to close overlay and restore history (if we pushed one)
         function closeOverlayAndRestoreHistory() {
-            // 移除注册的键盘处理器
             try { if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true); } catch (_) {}
             removeIfExists('upload-chooser');
             if (chooserHistoryPushed) {
-                // prevent our popstate handler from reacting to the history.back() we'll call now
                 suppressNextPop = true;
-                try {
-                    history.back();
-                } catch (_) { /* ignore */ }
+                try { history.back(); } catch (_) {}
             }
             removeChooserPopHandler();
         }
 
-        // 点击背景区域关闭菜单
-        overlay.addEventListener('click', (ev) => {
-            if (ev.target === overlay) {
-                closeOverlayAndRestoreHistory();
-            }
-        });
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) closeOverlayAndRestoreHistory(); });
 
-        // 从相册：立即移除菜单（同步），然后在同一用户事件处理链里唤起文件选择器，避免闪烁或菜单残留
         btnGallery.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
+            e.stopPropagation(); e.preventDefault();
             closeOverlayAndRestoreHistory();
-            try {
-                openSystemFilePickerAndCopyTo(origInput);
-            } catch (err) {
-                console.warn('打开系统相册失败', err);
-            }
+            try { openSystemFilePickerAndCopyTo(origInput); } catch (err) { console.warn('打开系统相册失败', err); }
         });
 
-        // 相机：立即移除菜单并打开内置相机覆盖层
         btnCamera.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
+            e.stopPropagation(); e.preventDefault();
             closeOverlayAndRestoreHistory();
             openCameraOverlay(origInput);
         });
     }
 
-    // 相机拍照覆盖层（保持原有实现）
+    // 关键改动说明 (故事化叙述):
+    // 我放弃了之前强制把画面变为 4:3 的做法，改为使用摄像头的原始预览尺寸来渲染预览区域，
+    // 并把预览区域按高度撑满屏幕（height:100vh），宽度据视频原始纵横比自动计算并居中，
+    // 这样“所见即所得”：拍照时从 video 的真实像素尺寸生成图片，且图片与拍照前屏幕上看到的构图一致。
+    // 为实现这一点，我在 startStream 成功后会根据 video.videoWidth/video.videoHeight 去调整 frame 的实际显示尺寸（按 height:100vh 缩放）。
+    // 我还把右上叉放大了一些，确保拍照后的预览和切换摄像头按钮行为一致：拍照后隐藏切换按钮和快门；重拍时恢复。
+    // 下面是具体实现（已直接写入脚本）。
+
     function openCameraOverlay(origInput) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert('当前浏览器不支持拍照');
             return;
         }
-
         if (document.getElementById('media-overlay')) return;
 
         const overlay = document.createElement('div');
         overlay.id = 'media-overlay';
-        setStyles(overlay, {position: 'fixed', left: '0', top: '0', right: '0', bottom: '0', zIndex: '2147483647', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', color: '#fff'});
+        setStyles(overlay, {
+            position: 'fixed', left: '0', top: '0', right: '0', bottom: '0',
+            zIndex: '2147483647', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0', boxSizing: 'border-box'
+        });
 
-        overlay.innerHTML = `
-      <div style="width:100%;max-width:720px;aspect-ratio:3/4;background:#000;position:relative;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center">
-        <video id="media-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
-        <canvas id="media-canvas" style="display:none"></canvas>
-      </div>
-    `;
+        const container = document.createElement('div');
+        container.id = 'media-container';
+        setStyles(container, {
+            position: 'relative',
+            width: '100%',
+            height: '100vh', // fill screen height
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            boxSizing: 'border-box'
+        });
 
-        const controls = document.createElement('div');
-        setStyles(controls, {display: 'flex', width: '100%', maxWidth: '720px', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginTop: '6px'});
+        // frame: 不再强制某一比例，改为按 video 原始比例调整宽度（height 固定 100vh）
+        const frame = document.createElement('div');
+        frame.id = 'media-frame';
+        setStyles(frame, {
+            height: '100vh',
+            width: 'auto', // will be computed after video metadata available
+            background: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+        });
 
-        function makeBtn(text, bg) {
+        const video = document.createElement('video');
+        video.id = 'media-video';
+        video.autoplay = true;
+        video.playsInline = true;
+        setStyles(video, {width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block'});
+
+        const canvas = document.createElement('canvas');
+        canvas.id = 'media-canvas';
+        setStyles(canvas, {display: 'none', width: '100%', height: '100%'});
+
+        frame.appendChild(video);
+        frame.appendChild(canvas);
+
+        // 右侧控件区（覆盖黑边）
+        const rightBar = document.createElement('div');
+        rightBar.id = 'media-rightbar';
+        setStyles(rightBar, {
+            position: 'absolute',
+            right: '8px',
+            top: '0',
+            bottom: '0',
+            width: '96px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '18px',
+            padding: '18px 6px',
+            boxSizing: 'border-box',
+            pointerEvents: 'auto'
+        });
+
+        // 右上叉（增大）
+        const btnCancel = document.createElement('button');
+        btnCancel.type = 'button';
+        btnCancel.id = 'btn-cancel';
+        btnCancel.title = '取消';
+        setStyles(btnCancel, {
+            position: 'absolute', right: '12px', top: '12px',
+            width: '48px', height: '48px', borderRadius: '24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none', background: 'rgba(0,0,0,0.36)', color: '#fff', cursor: 'pointer', padding: '6px', boxSizing: 'border-box'
+        });
+        btnCancel.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+        function makeIconButtonWithSVG(svgContent, sizeW = 44, sizeH = 44, title) {
             const b = document.createElement('button');
             b.type = 'button';
-            b.textContent = text;
-            setStyles(b, {flex: '1', padding: '12px', fontSize: '15px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: bg, color: '#fff'});
+            b.title = title || '';
+            setStyles(b, {
+                width: sizeW + 'px', height: sizeH + 'px', borderRadius: (sizeW/2) + 'px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.28)',
+                color: '#fff', cursor: 'pointer', padding: '6px', boxSizing: 'border-box'
+            });
+            b.innerHTML = svgContent;
             return b;
         }
 
-        const btnSwitch = makeBtn('切换摄像头', '#2d9c59');
-        const btnCapture = makeBtn('拍照', '#1f8ef1');
-        const btnRetake = makeBtn('重拍', '#666');
-        const btnConfirm = makeBtn('确定', '#f39c12');
-        const btnCancel = makeBtn('取消', '#e74c3c');
+        // 双半圆箭头 SVG（flip）
+        const flipSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M21 12a9 9 0 0 0-9-9" />' +
+            '<path d="M3 12a9 9 0 0 0 9 9" />' +
+            '<polyline points="16 3 21 3 21 8" />' +
+            '<polyline points="8 21 3 21 3 16" />' +
+            '</svg>';
+        const btnSwitch = makeIconButtonWithSVG(flipSvg, 52, 52, '切换摄像头');
 
-        controls.appendChild(btnSwitch);
-        controls.appendChild(btnCapture);
-        controls.appendChild(btnCancel);
+        // 缩小快门（保持合适尺寸）
+        const btnShutter = document.createElement('button');
+        btnShutter.type = 'button';
+        btnShutter.id = 'btn-shutter';
+        setStyles(btnShutter, {
+            width: '56px', height: '56px', borderRadius: '28px',
+            background: '#fff', border: '4px solid rgba(255,255,255,0.85)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.35)', cursor: 'pointer', padding: '0'
+        });
 
-        overlay.appendChild(controls);
+        // 底部区域：重拍/确认（更宽）
+        const bottomBar = document.createElement('div');
+        bottomBar.id = 'media-bottombar';
+        setStyles(bottomBar, {
+            position: 'absolute',
+            bottom: '22px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: '18px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: '3',
+            pointerEvents: 'auto'
+        });
+
+        const btnRetake = document.createElement('button');
+        btnRetake.type = 'button';
+        btnRetake.id = 'btn-retake';
+        btnRetake.textContent = '重拍';
+        setStyles(btnRetake, {
+            padding: '12px 40px', borderRadius: '8px', border: 'none',
+            background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '16px', cursor: 'pointer'
+        });
+
+        const btnConfirm = document.createElement('button');
+        btnConfirm.type = 'button';
+        btnConfirm.id = 'btn-confirm';
+        btnConfirm.textContent = '确定';
+        setStyles(btnConfirm, {
+            padding: '12px 40px', borderRadius: '8px', border: 'none',
+            background: '#fff', color: '#000', fontSize: '16px', cursor: 'pointer'
+        });
+
+        rightBar.appendChild(btnSwitch);
+        rightBar.appendChild(btnShutter);
+
+        bottomBar.appendChild(btnRetake);
+        bottomBar.appendChild(btnConfirm);
+
+        container.appendChild(frame);
+        container.appendChild(rightBar);
+        container.appendChild(btnCancel);
+        overlay.appendChild(container);
+        overlay.appendChild(bottomBar);
         document.body.appendChild(overlay);
-
-        const video = overlay.querySelector('#media-video');
-        const canvas = overlay.querySelector('#media-canvas');
 
         let stream = null;
         let facingMode = 'environment';
         let lastBlob = null;
+        let isPreview = false;
 
+        function stopStreamTracks() { try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
+
+        // 调整 frame 宽度以保持 video 的原始纵横比并使高度为 100vh（所见即所得）
+        function adjustFrameToVideo() {
+            try {
+                const vw = video.videoWidth;
+                const vh = video.videoHeight;
+                if (!vw || !vh) return;
+                const scale = (window.innerHeight) / vh; // we set height to 100vh, so scale = height/vh
+                const displayWidth = Math.round(vw * scale);
+                frame.style.width = displayWidth + 'px';
+                // ensure video fills frame
+                setStyles(video, {width: '100%', height: '100%', objectFit: 'cover', display: 'block'});
+                // hide canvas if any
+                canvas.style.display = 'none';
+            } catch (_) {}
+        }
+
+        // Start stream and ensure video shows immediately. After metadataloaded or playing, adjust frame.
         async function startStream() {
-            if (stream) {
-                stream.getTracks().forEach(t => t.stop());
-                stream = null;
-            }
-            stream = await navigator.mediaDevices.getUserMedia({
+            stopStreamTracks();
+            const constraints = {
                 video: {
-                    facingMode: {ideal: facingMode},
-                    width: {ideal: 1280},
-                    height: {ideal: 720}
-                }, audio: false
-            });
+                    facingMode: { ideal: facingMode },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            };
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (err) {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facingMode } }, audio: false });
+            }
             video.srcObject = stream;
-            await video.play();
+            video.style.display = 'block';
+            canvas.style.display = 'none';
+
+            // wait for metadata to know videoWidth/videoHeight
+            await new Promise((resolve) => {
+                if (video.readyState >= 1 && video.videoWidth && video.videoHeight) return resolve();
+                const onMeta = () => { video.removeEventListener('loadedmetadata', onMeta); resolve(); };
+                video.addEventListener('loadedmetadata', onMeta, {once: true});
+                // fallback: if loadedmetadata doesn't fire, try play event
+                setTimeout(resolve, 600);
+            });
+
+            // ensure play called
+            await video.play().catch((e) => { console.warn('video.play() rejected', e); });
+
+            // adjust frame so displayed preview matches intrinsic aspect ratio scaled to height
+            adjustFrameToVideo();
+
+            isPreview = false;
+            // ensure UI state
+            btnShutter.style.display = '';
+            btnSwitch.style.display = '';
+            btnRetake.style.display = 'none';
+            btnConfirm.style.display = 'none';
         }
 
         function cleanup() {
             try { if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true); } catch (_) {}
-            try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+            stopStreamTracks();
             try { overlay.remove(); } catch (_) {}
         }
 
-        // expose cleanup so overlay 内部或外部能关闭 media overlay
         overlay._cleanup = cleanup;
 
-        // 使 overlay 可聚焦以捕获键盘事件，并注册 Esc 键处理器到该弹窗
         try { overlay.tabIndex = -1; overlay.focus(); } catch (_) {}
         const mediaKeyHandler = (e) => {
             const isEsc = e.key === 'Escape' || e.key === 'Esc';
@@ -292,13 +404,20 @@
         overlay._keyHandler = mediaKeyHandler;
 
         async function captureOnce() {
+            // For WYSIWYG: capture the exact visible area of video as displayed.
+            // video intrinsic size: video.videoWidth x video.videoHeight
+            // displayed size: frame clientWidth x frame clientHeight (frame height == window.innerHeight)
+            // We'll compute scale factor and draw full intrinsic video (so saved image corresponds to what was shown,
+            // because displayed area is a scaled version of intrinsic)
             const vw = video.videoWidth || 1280;
             const vh = video.videoHeight || 720;
             canvas.width = vw;
             canvas.height = vh;
             const ctx = canvas.getContext('2d');
+            // draw the full intrinsic image (the displayed composition is a scaled crop/cover of this),
+            // because we adjusted frame to match intrinsic aspect ratio scaled to height, the full intrinsic corresponds to what's shown.
             ctx.drawImage(video, 0, 0, vw, vh);
-            return new Promise((resolve) => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.95));
+            return new Promise((resolve) => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 1));
         }
 
         function showPreview(blob) {
@@ -311,41 +430,50 @@
                 ctx.drawImage(img, 0, 0);
                 video.style.display = 'none';
                 canvas.style.display = 'block';
-                controls.innerHTML = '';
-                controls.appendChild(btnRetake);
-                controls.appendChild(btnConfirm);
-                controls.appendChild(btnCancel);
+                isPreview = true;
+                lastBlob = blob;
+                // hide switch & shutter while previewing
+                btnSwitch.style.display = 'none';
+                btnShutter.style.display = 'none';
+                // show bottom buttons
+                btnRetake.style.display = 'inline-block';
+                btnConfirm.style.display = 'inline-block';
                 URL.revokeObjectURL(url);
             };
-            img.onerror = () => {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (_) {
-                }
-            };
+            img.onerror = () => { try { URL.revokeObjectURL(url); } catch (_) {} };
             img.src = url;
         }
 
-        btnCapture.addEventListener('click', async () => {
-            btnCapture.disabled = true;
-            const blob = await captureOnce();
-            btnCapture.disabled = false;
-            if (!blob) {
-                alert('拍照失败');
-                return;
+        // initialize visibility
+        btnRetake.style.display = 'none';
+        btnConfirm.style.display = 'none';
+
+        btnShutter.addEventListener('click', async () => {
+            btnShutter.disabled = true;
+            try {
+                const blob = await captureOnce();
+                if (!blob) { alert('拍照失败'); return; }
+                showPreview(blob);
+            } finally {
+                btnShutter.disabled = false;
             }
-            lastBlob = blob;
-            showPreview(blob);
         });
 
         btnRetake.addEventListener('click', async () => {
+            lastBlob = null;
             canvas.style.display = 'none';
             video.style.display = 'block';
-            controls.innerHTML = '';
-            controls.appendChild(btnSwitch);
-            controls.appendChild(btnCapture);
-            controls.appendChild(btnCancel);
-            if (!stream) await startStream();
+            isPreview = false;
+            btnRetake.style.display = 'none';
+            btnConfirm.style.display = 'none';
+            btnSwitch.style.display = '';
+            btnShutter.style.display = '';
+            // restart stream if stopped or re-adjust frame to current video dims
+            if (!stream) {
+                await startStream();
+            } else {
+                adjustFrameToVideo();
+            }
         });
 
         btnConfirm.addEventListener('click', () => {
@@ -359,35 +487,45 @@
         });
 
         btnCancel.addEventListener('click', cleanup);
+
         btnSwitch.addEventListener('click', async () => {
             facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-            await startStream();
+            try {
+                await startStream();
+            } catch (err) {
+                console.error('切换摄像头失败', err);
+                alert('无法切换摄像头');
+            }
         });
+
         overlay.addEventListener('click', (ev) => { if (ev.target === overlay) cleanup(); });
 
+        // start stream initially
         startStream().catch(err => {
             console.error('getUserMedia error', err);
             alert('无法访问摄像头');
             cleanup();
         });
+
+        // on resize, re-adjust frame width to keep video height = viewport height
+        window.addEventListener('resize', () => {
+            try {
+                if (video && video.videoWidth && video.videoHeight && !isPreview) adjustFrameToVideo();
+            } catch (_) {}
+        });
     }
 
-    // 事件委托：拦截 .paizhao-btn 的点击（支持 shadow DOM）
+    // event delegation for .paizhao-btn
     function findPaizhaoContextFromEvent(e) {
         try {
             const path = (e.composedPath && e.composedPath()) || (e.path && e.path.slice());
             if (path && path.length) {
                 for (const node of path) {
                     if (!node || !node.classList) continue;
-                    if (node.classList && node.classList.contains && node.classList.contains('paizhao-btn')) {
-                        return node;
-                    }
+                    if (node.classList.contains && node.classList.contains('paizhao-btn')) return node;
                 }
             }
-        } catch (err) {
-            // ignore
-        }
-
+        } catch (err) {}
         let el = e.target;
         while (el) {
             if (el.classList && el.classList.contains && el.classList.contains('paizhao-btn')) return el;
@@ -402,21 +540,15 @@
             if (!root) return;
             const btn = (e.target && e.target.closest && e.target.closest('.paizhao-btn button')) || root.querySelector('button');
             if (!btn) return;
-
             const input = root.querySelector('input[type="file"]');
             if (!input) return;
-
-            try {
-                e.preventDefault();
-                e.stopPropagation();
-            } catch (err) {
-            }
+            try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
             showChoiceMenu(input);
         } catch (err) {
             console.error('image-upload: onPaizhaoTrigger error', err);
         }
     }
 
-    // 监听 click/pointerdown/mousedown 三类事件以覆盖不同环境
     document.addEventListener('click', onPaizhaoTrigger, true);
+
 })();
