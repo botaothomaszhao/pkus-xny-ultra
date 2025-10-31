@@ -29,7 +29,6 @@
 
     // 历史/popstate 管理（用于拦截返回键）
     let chooserHistoryPushed = false;
-    let chooserPopHandler = null;
     let suppressNextPop = false;
 
     // 把 File 塞回指定 input 并触发 change
@@ -84,16 +83,22 @@
         } catch (err) {
         }
     }
+    function chooserPopHandler() {
+                // If we are programmatically suppressing this pop (caused by our own history.back()), ignore
+                if (suppressNextPop) {
+                    suppressNextPop = false;
+                    return;
+                }
+
+                // If overlay still exists, close it (user pressed back)
+                removeIfExists('upload-chooser');
+                // cleanup listener because menu is closed
+                removeChooserPopHandler();
+            };
 
     // 清理 popstate 监听
     function removeChooserPopHandler() {
-        if (chooserPopHandler) {
-            try {
-                window.removeEventListener('popstate', chooserPopHandler);
-            } catch (_) {
-            }
-            chooserPopHandler = null;
-        }
+        window.removeEventListener('popstate', chooserPopHandler);
         chooserHistoryPushed = false;
         suppressNextPop = false;
     }
@@ -147,31 +152,13 @@
 
         // push history state so that back button will close menu (we will later remove this pushed state)
         try {
-            chooserPopHandler = function () {
-                // If we are programmatically suppressing this pop (caused by our own history.back()), ignore
-                if (suppressNextPop) {
-                    suppressNextPop = false;
-                    return;
-                }
-
-                // If overlay still exists, close it (user pressed back)
-                removeIfExists('upload-chooser');
-                // cleanup listener because menu is closed
-                removeChooserPopHandler();
-            };
             window.addEventListener('popstate', chooserPopHandler);
             history.pushState({uploadChooser: true}, '');
             chooserHistoryPushed = true;
         } catch (err) {
             // pushState might fail in some environments; that's okay — we'll still try to behave normally
             chooserHistoryPushed = false;
-            if (chooserPopHandler) {
-                try {
-                    window.removeEventListener('popstate', chooserPopHandler);
-                } catch (_) {
-                }
-                chooserPopHandler = null;
-            }
+            window.removeEventListener('popstate', chooserPopHandler);
         }
 
         // helper to close overlay and restore history (if we pushed one)
