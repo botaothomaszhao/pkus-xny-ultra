@@ -91,7 +91,7 @@
         }
     }
 
-// history 管理
+    // history 管理
     let chooserHistoryPushed = false;
     let suppressNextPop = false;
 
@@ -100,7 +100,6 @@
             suppressNextPop = false;
             return;
         }
-        chooserHistoryPushed = false;
         removeIf('upload-chooser', true);
         removeIf('media-overlay', true);
         removeChooserPopHandler();
@@ -112,7 +111,28 @@
         suppressNextPop = false;
     }
 
-// 显示选择菜单
+    function registerEsc(overlay) {
+        // Esc 关闭
+        try {
+            overlay.tabIndex = -1;
+            overlay.focus();
+        } catch (_) {
+        }
+        const keyHandler = (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                } catch (_) {
+                }
+                overlay._cleanup();
+            }
+        };
+        overlay.addEventListener('keydown', keyHandler, true);
+        overlay._keyHandler = keyHandler;
+    }
+
+    // 显示选择菜单
     function showChoiceMenu(origInput) {
         if (!origInput) return;
         if (document.getElementById('upload-chooser')) return;
@@ -135,24 +155,7 @@
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
 
-        // Esc 关闭
-        try {
-            overlay.tabIndex = -1;
-            overlay.focus();
-        } catch (_) {
-        }
-        const keyHandler = (e) => {
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                try {
-                    e.preventDefault();
-                    e.stopPropagation();
-                } catch (_) {
-                }
-                closeOverlayAndRestoreHistory();
-            }
-        };
-        overlay.addEventListener('keydown', keyHandler, true);
-        overlay._keyHandler = keyHandler;
+        registerEsc(overlay);
 
         try {
             window.addEventListener('popstate', chooserPopHandler);
@@ -163,7 +166,7 @@
             window.removeEventListener('popstate', chooserPopHandler);
         }
 
-        function closeOverlayAndRestoreHistory(fromPop) {
+        function cleanup(fromPop) {
             try {
                 if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true);
             } catch (_) {
@@ -179,24 +182,29 @@
             removeChooserPopHandler();
         }
 
-        overlay._cleanup = closeOverlayAndRestoreHistory;
+        overlay._cleanup = cleanup;
 
-        // 按要求移除背景点击关闭：不绑定 overlay click
+        overlay.addEventListener('click', (ev) => {
+            if (ev.target === overlay) {
+                cleanup();
+            }
+        });
 
         btnGallery.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            closeOverlayAndRestoreHistory();
+            cleanup();
             try {
                 openSystemFilePickerAndCopyTo(origInput);
             } catch (err) {
                 console.warn('打开系统相册失败', err);
             }
         });
+
         btnCamera.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            closeOverlayAndRestoreHistory(true);
+            cleanup(true);
             openCameraOverlay(origInput);
         });
     }
@@ -273,7 +281,10 @@
         document.body.appendChild(overlay);
 
         // 状态
-        let stream = null, facingMode = 'environment', lastBlob = null, isPreview = false;
+        let stream = null;
+        let facingMode = 'environment';
+        let lastBlob = null;
+        let isPreview = false;
 
         function stopStream() {
             try {
@@ -331,24 +342,7 @@
             isPreview = false;
         }
 
-        // 支持 Esc 关闭
-        try {
-            overlay.tabIndex = -1;
-            overlay.focus();
-        } catch (_) {
-        }
-        const mediaKeyHandler = (e) => {
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                try {
-                    e.preventDefault();
-                    e.stopPropagation();
-                } catch (_) {
-                }
-                cleanup();
-            }
-        };
-        overlay.addEventListener('keydown', mediaKeyHandler, true);
-        overlay._keyHandler = mediaKeyHandler;
+        registerEsc(overlay);
 
         try {
             window.addEventListener('popstate', chooserPopHandler);
@@ -377,7 +371,6 @@
             }
             removeChooserPopHandler();
         }
-
         overlay._cleanup = cleanup;
 
         // 捕获一帧真实像素并生成 Blob
