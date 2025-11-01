@@ -88,11 +88,11 @@
     button.appendChild(refreshIcon);
     container.appendChild(button);
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => document.body.appendChild(container));
-    } else {
+    //if (document.readyState === 'loading') {
+    //    document.addEventListener('DOMContentLoaded', () => document.body.appendChild(container));
+    //} else {
         document.body.appendChild(container);
-    }
+    //}
 
     // 路径捕获与回放
     function cleanInnerText(el) {
@@ -185,7 +185,7 @@
         }, 300);
     }
 
-    // sendLogoutRequest: 放弃 GM_xmlhttpRequest，优先使用 fetch + AbortController
+    // sendLogoutRequest: 使用 fetch + AbortController
     async function sendLogoutRequest() {
         const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
         const TIMEOUT_MS = 5000;
@@ -204,7 +204,6 @@
             clearTimeout(id);
             return res;
         } catch (e) {
-            // fetch 失败或超时，回退到 XHR
         }
     }
 
@@ -294,7 +293,6 @@
     let pressTimer = null;
     let longPressTriggered = false;
     let activePointerId = null;
-    let keyActive = false;
 
     function clearPressTimer() {
         if (pressTimer) {
@@ -367,22 +365,6 @@
             longPressTriggered = false;
             clearPressTimer();
         });
-    });
-
-    button.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            if (keyActive) return;
-            keyActive = true;
-            e.preventDefault();
-            handleShortPress().catch(() => {
-                container.classList.remove('loading');
-                button.disabled = false;
-            });
-        }
-    });
-
-    button.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') keyActive = false;
     });
 
 })();
