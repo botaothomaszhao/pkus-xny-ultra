@@ -102,11 +102,11 @@
     // 启动逻辑：仅在首次加载和尺寸变化时响应（不使用大量 DOM 变更监听）
     window.addEventListener('load', () => {
         // 初次加载时稍微延迟，给框架渲染机会
-        setTimeout(() => scheduleDecision(), 250);
+        setTimeout(scheduleDecision, 250);
     });
 
     // also run shortly after script injection in case load already fired
-    setTimeout(() => scheduleDecision(), 600);
+    setTimeout(scheduleDecision, 600);
 
     // 监听 resize 与 ResizeObserver（两者兼备）
     window.addEventListener('resize', scheduleDecision, {passive: true});

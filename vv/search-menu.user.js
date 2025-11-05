@@ -80,7 +80,7 @@
                 if (typeof url === 'string' && url.includes('catalog/entity')) {
                     this._isCatalogTarget = true;
                 }
-            } catch (e) { /* ignore */
+            } catch (e) {
             }
             return origOpen.apply(this, arguments);
         };
@@ -337,7 +337,7 @@
         injectButton();
         // 也尝试在 load 完成时再注入一次以确保在所有场景可见
         window.addEventListener('load', () => {
-            setTimeout(() => injectButton(), 300);
+            setTimeout(injectButton, 300);
         });
     })();
 })();

@@ -174,16 +174,13 @@
         }
     }
 
+    console.log(window.location.href)
     if (document.readyState === 'loading') {
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                replaySavedPathIfAny();
-            }, 300);
+            if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
         });
     } else {
-        setTimeout(() => {
-            replaySavedPathIfAny();
-        }, 300);
+        if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
     }
 
     // sendLogoutRequest: 使用 fetch + AbortController
@@ -241,10 +238,13 @@
         } finally {
             setTimeout(() => {
                 try {
+                    window.location.replace("https://bdfz.xnykcxt.com:5002/stu/#/login")
+                    // todo: remove loading?
                     window.location.reload();
                 } catch (e) {
                     try {
-                        window.location.href = window.location.href;
+                        window.location.reload();
+                        //window.location.href = window.location.href;
                     } catch (e2) {
                         window.location.replace(window.location.href);
                     }
@@ -281,11 +281,12 @@
         try {
             window.location.reload();
         } catch (e) {
-            try {
+            window.location.replace(window.location.href);
+            /*try {
                 window.location.href = window.location.href;
             } catch (e2) {
                 window.location.replace(window.location.href);
-            }
+            }*/
         }
     }
 
@@ -366,6 +367,48 @@
             longPressTriggered = false;
             clearPressTimer();
         });
+    });
+
+    // 在 pagehide/pageshow 时清理残留的 loading 状态，避免刷新/回退时持续或短暂旋转
+    window.addEventListener('pagehide', () => {
+        try {
+            container.classList.remove('loading');
+            button.disabled = false;
+        } catch (e) {
+        }
+    });
+    window.addEventListener('pageshow', (e) => {
+        try {
+            container.classList.remove('loading');
+            button.disabled = false;
+        } catch (e) {
+        }
+    });
+
+    //function observeUrlChange() {
+        let oldHref = window.location.href;
+
+        const observer = new MutationObserver(() => {
+            if (oldHref !== window.location.href) {
+                if (oldHref.includes("/stu/#/login") && !window.location.href.includes("/stu/#/login")) {
+                    console.log("从登录页跳转，尝试回放路径...");
+                    setTimeout(replaySavedPathIfAny, 500);
+                }
+                oldHref = window.location.href;
+                //if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    //}
+
+    window.addEventListener('hashchange', () => {
+        console.log("hashchange 事件触发");
+        console.log(window.location.href)
+        if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
     });
 
 })();
