@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         强制刷新
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.1
+// @version      vv.2.2
 // @license      GPL-3.0
 // @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
 // @author       c-jeremy botaothomaszhao
@@ -9,6 +9,7 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @run-at       document-body
 // ==/UserScript==
 
 (function () {
@@ -19,7 +20,7 @@
             position: fixed;
             bottom: 50px;
             right: 25px;
-            z-index: 21474647;
+            z-index: 2147483647;
             width: 48px;
             height: 48px;
         }
@@ -87,12 +88,7 @@
     `;
     button.appendChild(refreshIcon);
     container.appendChild(button);
-
-    //if (document.readyState === 'loading') {
-    //    document.addEventListener('DOMContentLoaded', () => document.body.appendChild(container));
-    //} else {
-        document.body.appendChild(container);
-    //}
+    document.body.appendChild(container);
 
     // 路径捕获与回放
     function cleanInnerText(el) {
@@ -133,6 +129,7 @@
     }
 
     async function replaySavedPathIfAny() {
+        console.log("尝试回放保存的路径...");
         try {
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
@@ -156,15 +153,19 @@
                 return false;
             }
 
-            const startButton = Array.from(document.querySelectorAll("button span")).find(s => s.innerText && s.innerText.trim() === "开始使用");
+            /*const startButton = Array.from(document.querySelectorAll("button span")).find(s => s.innerText && s.innerText.trim() === "开始使用");
             if (startButton) {
                 startButton.click();
                 await sleep(500);
-            }
+            }*/
 
             for (const step of path) {
                 const ok = await clickBySelectorAndText(step.selector, step.text);
                 if (ok) await sleep(250);
+                else {
+                    console.log(`无法找到匹配的元素: selector=${step.selector}, text=${step.text}`);
+                    break;
+                }
             }
 
             //await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(null));
@@ -289,7 +290,7 @@
     }
 
     // 优化后的按键处理：pointer + 键盘（长按触发一次）
-    const LONG_PRESS_MS = 3000;
+    const LONG_PRESS_MS = 2500;
     let pressTimer = null;
     let longPressTriggered = false;
     let activePointerId = null;

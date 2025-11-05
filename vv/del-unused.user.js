@@ -43,7 +43,6 @@
         } else {
             restore(el);
         }
-        console.log("processResult2:", el, el.hasAttribute(hideAttr) ? "hidden" : "visible");
     }
 
     function removeTargetElements(root = document) {
@@ -95,7 +94,6 @@
             if (m.removedNodes && m.removedNodes.length) {
                 m.removedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
-                    console.log("remove" + node)
                     const r = node.closest && node.closest(imgBoxSelector);
                     if (r) {
                         processResult2(r);

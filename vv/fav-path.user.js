@@ -179,8 +179,6 @@
 
     // 4. --- UI 交互与渲染 (收藏夹部分无变化) ---
 
-    // ... 所有收藏夹的功能函数 (open/close/add/delete/render) 保持稳定 ...
-
     let favoritesDrawer, favoritesOverlay, favoritesList;
 
     function openFavoritesDrawer() {
