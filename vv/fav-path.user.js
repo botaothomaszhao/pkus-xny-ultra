@@ -9,7 +9,6 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
-// @grant        GM_notification
 // @run-at       document-body
 // ==/UserScript==
 
@@ -19,7 +18,6 @@
     const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 使用在 v3.1 中引入的、安全的新键
 
     // 1. --- CSS样式 (无变化) ---
-
     GM_addStyle(`
         .fav-btn{position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;background-color:#fff;border:none;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s cubic-bezier(.25,.8,.25,1);color:#333}
         .fav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
@@ -51,7 +49,6 @@
         #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}`);
 
     // 2. --- 核心功能 (路径捕获、存储、回放逻辑保持稳定) ---
-
     function cleanInnerText(el) {
         if (!el) return "";
         const clone = el.cloneNode(true);
@@ -113,7 +110,6 @@
         }
         for (const step of path) {
             if (!(await click(step.selector, step.text))) {
-                GM_notification({title: '导航失败', text: `无法找到 "${step.text}"`, timeout: 5000});
                 throw new Error('Replay failed');
             }
             await new Promise(r => setTimeout(r, 250));
@@ -155,7 +151,6 @@
     async function checkForNextStep(lastElement) {
         if (!lastElement) return;
 
-        // --- 核心修复 ---
         // 使用更可靠的 role 属性来定位父级 <li> 容器
         const parentLi = lastElement.closest('li[role="treeitem"]');
         if (!parentLi) {
@@ -178,7 +173,6 @@
     }
 
     // 4. --- UI 交互与渲染 (收藏夹部分无变化) ---
-
     let favoritesDrawer, favoritesOverlay, favoritesList;
 
     function openFavoritesDrawer() {
@@ -195,21 +189,25 @@
     async function addCurrentPathToFavorites() {
         const path = captureCurrentPath();
         if (!path || path.length === 0) {
-            GM_notification({title: '收藏失败', text: '无法捕获当前路径。', timeout: 4000});
+            // GM_notification({title: '收藏失败', text: '无法捕获当前路径。', timeout: 4000});
+            console.warn('收藏失败: 无法捕获当前路径。');
             return;
         }
         if (path.length < 2 && (document.querySelector('.folderName') || document.querySelector('.ant-tree'))) {
-            GM_notification({title: '收藏失败', text: '请先进入一个具体的课程目录。', timeout: 4000});
+            // GM_notification({title: '收藏失败', text: '请先进入一个具体的课程目录。', timeout: 4000});
+            console.warn('收藏失败: 请先进入一个具体的课程目录。');
             return;
         }
         const favorites = await getFavorites();
         if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) {
-            GM_notification({title: '提示', text: '该路径已在收藏夹中。', timeout: 3000});
+            // GM_notification({title: '提示', text: '该路径已在收藏夹中。', timeout: 3000});
+            console.info('提示: 该路径已在收藏夹中。');
             return;
         }
         favorites.push({title: path[path.length - 1].text, path: path});
         await saveFavorites(favorites);
-        GM_notification({title: '收藏成功！', text: `已将“${path[path.length - 1].text}”加入收藏夹。`, timeout: 3000});
+        // GM_notification({title: '收藏成功！', text: `已将“${path[path.length - 1].text}”加入收藏夹。`, timeout: 3000});
+        console.info(`收藏成功：已将“${path[path.length - 1].text}”加入收藏夹。`);
     }
 
     async function deleteFavorite(index) {
@@ -274,7 +272,6 @@
     }
 
     // 5. --- 初始化UI (更新图标) ---
-
     function initialize() {
 
         const addBtn = document.createElement('button');

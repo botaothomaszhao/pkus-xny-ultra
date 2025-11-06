@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         强制刷新
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
 // @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
 // @author       c-jeremy botaothomaszhao
@@ -70,6 +70,10 @@
         }
     `);
 
+    function notLogin(url = window.location.href) {
+        return !url.includes("/stu/#/login")
+    }
+
     const REPLAY_STORAGE_KEY = 'vv_hard_refresh_replay_path_v1';
 
     const container = document.createElement('div');
@@ -122,7 +126,8 @@
     async function savePathForReplay() {
         try {
             const path = captureCurrentPath();
-            await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path || null));
+             // 防止在登录页面触发保存空路径
+            if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
         } catch (e) {
             console.warn('保存回放路径失败：', e);
         }
@@ -153,12 +158,6 @@
                 return false;
             }
 
-            /*const startButton = Array.from(document.querySelectorAll("button span")).find(s => s.innerText && s.innerText.trim() === "开始使用");
-            if (startButton) {
-                startButton.click();
-                await sleep(500);
-            }*/
-
             for (const step of path) {
                 const ok = await clickBySelectorAndText(step.selector, step.text);
                 if (ok) await sleep(250);
@@ -167,7 +166,6 @@
                     break;
                 }
             }
-
             //await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(null));
         } catch (e) {
             console.error('回放过程中发生错误：', e);
@@ -177,10 +175,10 @@
     console.log(window.location.href)
     if (document.readyState === 'loading') {
         window.addEventListener('DOMContentLoaded', () => {
-            if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
+            if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
         });
     } else {
-        if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
+        if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
     }
 
     // sendLogoutRequest: 使用 fetch + AbortController
@@ -238,13 +236,12 @@
         } finally {
             setTimeout(() => {
                 try {
+                    container.classList.remove('loading');
+                    button.disabled = false;
                     window.location.replace("https://bdfz.xnykcxt.com:5002/stu/#/login")
-                    // todo: remove loading?
-                    window.location.reload();
                 } catch (e) {
                     try {
                         window.location.reload();
-                        //window.location.href = window.location.href;
                     } catch (e2) {
                         window.location.replace(window.location.href);
                     }
@@ -282,11 +279,6 @@
             window.location.reload();
         } catch (e) {
             window.location.replace(window.location.href);
-            /*try {
-                window.location.href = window.location.href;
-            } catch (e2) {
-                window.location.replace(window.location.href);
-            }*/
         }
     }
 
@@ -377,7 +369,7 @@
         } catch (e) {
         }
     });
-    window.addEventListener('pageshow', (e) => {
+    window.addEventListener('pageshow', () => {
         try {
             container.classList.remove('loading');
             button.disabled = false;
@@ -385,30 +377,30 @@
         }
     });
 
-    //function observeUrlChange() {
-        let oldHref = window.location.href;
+    let oldHref = window.location.href;
 
-        const observer = new MutationObserver(() => {
-            if (oldHref !== window.location.href) {
-                if (oldHref.includes("/stu/#/login") && !window.location.href.includes("/stu/#/login")) {
-                    console.log("从登录页跳转，尝试回放路径...");
-                    setTimeout(replaySavedPathIfAny, 500);
-                }
-                oldHref = window.location.href;
-                //if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
-            }
-        });
+    function replayIfLogin(){
+        if (!notLogin(oldHref) && notLogin()) {
+            setTimeout(replaySavedPathIfAny, 500);
+        }
+        oldHref = window.location.href;
+    }
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    //}
-
-    window.addEventListener('hashchange', () => {
-        console.log("hashchange 事件触发");
-        console.log(window.location.href)
-        if (!window.location.href.includes('/stu/#/login')) setTimeout(replaySavedPathIfAny, 300);
+    window.addEventListener('popstate', () => {
+        replayIfLogin();
     });
+
+    const originalPushState = history.pushState;
+    history.pushState = function(state, title, url) {
+        originalPushState.apply(this, arguments);
+        replayIfLogin();
+    };
+
+    // 拦截 replaceState
+    const originalReplaceState = history.replaceState;
+    history.replaceState = function(state, title, url) {
+        originalReplaceState.apply(this, arguments);
+        replayIfLogin();
+    };
 
 })();
