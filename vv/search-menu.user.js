@@ -6,6 +6,7 @@
 // @description  课程目录搜索，支持拼音/首字母搜索并回放点击路径。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/stu/*
+// @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_addStyle
 // @run-at       document-body
 // @require      https://unpkg.com/pinyin-match@1.2.8/dist/main.js
@@ -335,9 +336,5 @@
         setupXHRInterceptorForCatalog();
         // 注入按钮（按钮始终可见）
         injectButton();
-        // 也尝试在 load 完成时再注入一次以确保在所有场景可见
-        window.addEventListener('load', () => {
-            setTimeout(injectButton, 300);
-        });
     })();
 })();

@@ -6,6 +6,7 @@
 // @description  在页面首次加载和页面尺寸变化时自动收起/展开侧边栏
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
+// @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        none
 // ==/UserScript==
 

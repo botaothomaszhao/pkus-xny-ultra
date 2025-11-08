@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         强制刷新
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.3
+// @version      vv.2.4
 // @license      GPL-3.0
 // @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
+// @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -74,7 +75,7 @@
         return !url.includes("/stu/#/login")
     }
 
-    const REPLAY_STORAGE_KEY = 'vv_hard_refresh_replay_path_v1';
+    const REPLAY_STORAGE_KEY = 'hard_refresh_replay_path';
 
     const container = document.createElement('div');
     container.id = 'hard-refresh-container';
@@ -126,7 +127,7 @@
     async function savePathForReplay() {
         try {
             const path = captureCurrentPath();
-             // 防止在登录页面触发保存空路径
+            // 防止在登录页面触发保存空路径
             if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
         } catch (e) {
             console.warn('保存回放路径失败：', e);
@@ -160,8 +161,7 @@
 
             for (const step of path) {
                 const ok = await clickBySelectorAndText(step.selector, step.text);
-                if (ok) await sleep(250);
-                else {
+                if (ok) await sleep(250); else {
                     console.log(`无法找到匹配的元素: selector=${step.selector}, text=${step.text}`);
                     break;
                 }
@@ -379,7 +379,7 @@
 
     let oldHref = window.location.href;
 
-    function replayIfLogin(){
+    function replayIfLogin() {
         if (!notLogin(oldHref) && notLogin()) {
             setTimeout(replaySavedPathIfAny, 500);
         }
@@ -391,16 +391,26 @@
     });
 
     const originalPushState = history.pushState;
-    history.pushState = function(state, title, url) {
+    history.pushState = function (state, title, url) {
         originalPushState.apply(this, arguments);
         replayIfLogin();
     };
 
     // 拦截 replaceState
     const originalReplaceState = history.replaceState;
-    history.replaceState = function(state, title, url) {
+    history.replaceState = function (state, title, url) {
         originalReplaceState.apply(this, arguments);
         replayIfLogin();
     };
+
+    window.addEventListener('beforeunload', savePathForReplay);
+
+    document.addEventListener('click', (event) => {
+        if (!event.isTrusted) return;
+        const navContainer = event.target.closest('.menu, .folder');
+        if (navContainer) {
+            setTimeout(savePathForReplay, 100);
+        }
+    }, true);
 
 })();

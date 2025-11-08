@@ -5,6 +5,7 @@
 // @license      GPL-3.0
 // @description  自动删除指定的元素；对 .result2 不直接删除，而是隐藏并在检测到图片后恢复以兼容上传流程。
 // @match        https://bdfz.xnykcxt.com:5002/*
+// @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        none
 // @run-at       document-body
 // ==/UserScript==

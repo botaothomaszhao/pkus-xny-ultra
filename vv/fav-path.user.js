@@ -6,6 +6,7 @@
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
+// @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -15,7 +16,7 @@
 (function () {
     'use strict';
 
-    const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 使用在 v3.1 中引入的、安全的新键
+    const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 想改名，但是不想删已有记录，不改了。。。
 
     // 1. --- CSS样式 (无变化) ---
     GM_addStyle(`
