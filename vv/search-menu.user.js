@@ -15,12 +15,8 @@
 (function () {
     'use strict';
 
-    /*
-       CSS：与 path-replay 的圆形按钮尺寸/风格一致（48px 圆），
-       icon 居中优化，并包含搜索 overlay 的样式
-       */
     GM_addStyle(`
-        /* 按钮容器（与 path-replay 保持一致位置与尺寸） */
+        /* 按钮容器 */
         #search-spotlight-container { position: fixed; bottom: 110px; right: 25px; z-index: 2147483646; width: 48px; height: 48px; }
         #search-spotlight-btn { width: 100%; height: 100%; background-color: #ffffff; border: none; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 0; }
         #search-spotlight-btn:hover { transform: scale(1.05); transition: transform .12s ease; }
@@ -67,7 +63,6 @@
         };
     }
 
-    /* -------------------- 数据与入口变量 -------------------- */
     let searchableItems = []; // { title, displayPath, replayablePath }
     const MAX_DISPLAY = 50;
 
@@ -331,10 +326,7 @@
         });
     }
 
-    /* -------------------- 初始化 -------------------- */
-    (function main() {
-        setupXHRInterceptorForCatalog();
-        // 注入按钮（按钮始终可见）
-        injectButton();
-    })();
+    setupXHRInterceptorForCatalog();
+    injectButton();
+
 })();

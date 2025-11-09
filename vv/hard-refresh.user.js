@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2.4
 // @license      GPL-3.0
-// @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。点击前会先记录当前路径，刷新完成后尝试自动重放该路径。短按仅reload，长按触发强制清理并reload（保留回放逻辑）。
+// @description  提供强制服务器登出、彻底清除所有客户端数据并强制刷新的功能。短按仅reload，长按触发强制清理并reload。页面重载后会重放之前的路径
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -172,15 +172,6 @@
         }
     }
 
-    console.log(window.location.href)
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', () => {
-            if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
-        });
-    } else {
-        if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
-    }
-
     // sendLogoutRequest: 使用 fetch + AbortController
     async function sendLogoutRequest() {
         const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
@@ -314,6 +305,14 @@
             longPressTriggered = false;
             clearPressTimer();
         }
+    }
+
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', () => {
+            if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
+        });
+    } else {
+        if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
     }
 
     button.addEventListener('click', (e) => {

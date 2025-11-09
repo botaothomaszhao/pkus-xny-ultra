@@ -18,10 +18,7 @@
 
     // 侧边栏固定宽度
     const SIDEBAR_WIDTH = 200; // px
-    const MIN_CONTENT_WIDTH = 600; // 当 MODE === 'threshold' 时使用，可根据喜好改小或改大
-
-    // 判定模式：'threshold' 使用像素阈值；'portrait' 使用宽度 < 高度 判断（竖屏时收起）
-    //const MODE = 'threshold'; // 'threshold' or 'portrait'
+    const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px
 
     // 防抖延迟（resize 后等待 ms）
     const DEBOUNCE_MS = 150;
@@ -69,14 +66,7 @@
 
     function computeShouldOpen() {
         const w = document.documentElement.clientWidth || window.innerWidth;
-        /*const h = document.documentElement.clientHeight || window.innerHeight;
-        if (MODE === 'portrait') {
-            // 宽度小于高度时收起（竖屏默认收起）
-            return w >= h;
-        } else {*/
-        // 基于阈值（当窗口宽度 >= THRESHOLD_WIDTH 时打开）
         return w >= SIDEBAR_WIDTH + MIN_CONTENT_WIDTH;
-        //}
     }
 
     async function decideAndApply() {
@@ -101,13 +91,13 @@
     }
 
     // 启动逻辑：仅在首次加载和尺寸变化时响应（不使用大量 DOM 变更监听）
-    window.addEventListener('load', () => {
-        // 初次加载时稍微延迟，给框架渲染机会
-        setTimeout(scheduleDecision, 250);
-    });
-
-    // also run shortly after script injection in case load already fired
-    setTimeout(scheduleDecision, 600);
+    if (document.readyState === 'loading') {
+        window.addEventListener('load', () => {
+            setTimeout(scheduleDecision, 300);
+        });
+    } else {
+        setTimeout(scheduleDecision, 600);
+    }
 
     // 监听 resize 与 ResizeObserver（两者兼备）
     window.addEventListener('resize', scheduleDecision, {passive: true});

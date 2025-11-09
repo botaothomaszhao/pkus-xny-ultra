@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2.2
 // @license      GPL-3.0
-// @description  自动删除指定的元素；对 .result2 不直接删除，而是隐藏并在检测到图片后恢复以兼容上传流程。
+// @description  自动删除指定的元素；隐藏空图片框，并在检测到有图片后恢复。
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        none

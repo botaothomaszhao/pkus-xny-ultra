@@ -272,9 +272,8 @@
         });
     }
 
-    // 5. --- 初始化UI (更新图标) ---
+    // 5. --- 初始化UI ---
     function initialize() {
-
         const addBtn = document.createElement('button');
         addBtn.className = 'fav-btn';
         addBtn.id = 'add-favorite-btn';
