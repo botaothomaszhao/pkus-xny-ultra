@@ -270,6 +270,16 @@
         btnConfirm.className = 'iu-confirm';
         btnConfirm.textContent = '确定';
 
+        // 保持按钮文字水平显示，避免在竖屏/容器布局变化时文字被旋转或换行
+const _btnTextFixStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  whiteSpace: 'nowrap',                   // 不换行，保证文字横向排布
+};
+Object.assign(btnRetake.style, _btnTextFixStyle);
+Object.assign(btnConfirm.style, _btnTextFixStyle);
+
         rightBar.appendChild(btnSwitch);
         rightBar.appendChild(btnShutter);
         bottomBar.appendChild(btnRetake);
