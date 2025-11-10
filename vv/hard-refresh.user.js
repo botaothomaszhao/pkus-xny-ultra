@@ -126,6 +126,7 @@
 
     async function savePathForReplay() {
         try {
+            if(!notLogin()) return;
             const path = captureCurrentPath();
             // 防止在登录页面触发保存空路径
             if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
@@ -307,14 +308,6 @@
         }
     }
 
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', () => {
-            if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
-        });
-    } else {
-        if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
-    }
-
     button.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -380,9 +373,17 @@
 
     function replayIfLogin() {
         if (!notLogin(oldHref) && notLogin()) {
-            setTimeout(replaySavedPathIfAny, 500);
+            setTimeout(replaySavedPathIfAny, 300);
         }
         oldHref = window.location.href;
+    }
+
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', () => {
+            if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
+        });
+    } else {
+        if (notLogin()) setTimeout(replaySavedPathIfAny, 300);
     }
 
     window.addEventListener('popstate', () => {
