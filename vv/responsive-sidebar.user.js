@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自动收起侧边栏
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  在页面首次加载和页面尺寸变化时自动收起/展开侧边栏
 // @author       botaothomaszhao
@@ -13,7 +13,6 @@
 (function () {
     'use strict';
 
-    // 配置区（根据需要修改）
     const SIDEBAR_SELECTOR = '.treeBox';
 
     // 侧边栏固定宽度
@@ -50,8 +49,7 @@
     }
 
     async function toggleTo(targetOpen) {
-        const current = isSidebarOpen();
-        if (current === targetOpen) return;
+        if (isSidebarOpen() === targetOpen) return;
         const btn = findToggleButton();
         if (!btn) {
             console.warn('Auto-collapse: 找不到 .put 切换按钮，无法自动切换。');
@@ -106,5 +104,16 @@
         ro.observe(document.documentElement);
     } catch (e) {
     }
+
+    // 点击导航条时，如果侧边栏已收起则展开，否则根据屏幕宽度自动决定
+    window.addEventListener('click', (event) => {
+        if(event.target. ){// todo: 点击的是导航条元素
+            if(!isSidebarOpen()){
+                toggleTo(true);
+            } else {
+                decideAndApply();
+            }
+        }
+    },true);
 
 })();
