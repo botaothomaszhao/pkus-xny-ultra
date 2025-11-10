@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2.1
 // @license      GPL-3.0
-// @description  在页面首次加载和页面尺寸变化时自动收起/展开侧边栏
+// @description  跟随页面尺寸变化时自动收起/展开侧边栏，或通过点击最左侧导航条展开
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -36,19 +36,19 @@
 
     function findToggleButton() {
         const nodes = Array.from(document.querySelectorAll(".put"));
-        for (const n of nodes) if (isVisible(n)) return n;
+        for (const n of nodes) {
+            if (isVisible(n)) return n;
+        }
         return nodes[0] || null;
     }
 
     function isSidebarOpen() {
         const sidebarEl = document.querySelector(SIDEBAR_SELECTOR);
-        if (!sidebarEl) return false;
-        const rect = sidebarEl.getBoundingClientRect();
-        // 侧栏宽度明显大于 6px 且可见，则视为打开
-        return rect.width > 6 && isVisible(sidebarEl);
+        return isVisible(sidebarEl);
     }
 
-    async function toggleTo(targetOpen) {
+    function toggleTo(targetOpen) {
+        lastDecision = targetOpen;
         if (isSidebarOpen() === targetOpen) return;
         const btn = findToggleButton();
         if (!btn) {
@@ -67,53 +67,41 @@
         return w >= SIDEBAR_WIDTH + MIN_CONTENT_WIDTH;
     }
 
-    async function decideAndApply() {
-        const shouldOpen = computeShouldOpen();
-        if (lastDecision === shouldOpen) return; // 决策没变则不动作（避免重复点击），且在用户操作后不会改变
-        lastDecision = shouldOpen;
-
-        const sidebar = document.querySelector(SIDEBAR_SELECTOR);
-        if (!sidebar) {
-            // 如果页面尚未渲染出侧栏，做一次延迟重试（但不持续观察 DOM）
-            setTimeout(() => scheduleDecision(), 600);
-            return;
-        }
-        await toggleTo(shouldOpen);
-    }
-
-    function scheduleDecision() {
+    function decideAndApply() {
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            decideAndApply().catch(console.error);
+        debounceTimer = setTimeout(function () {
+            const shouldOpen = computeShouldOpen();
+            if (lastDecision === shouldOpen) return; // 决策没变则不动作（避免重复点击），且在用户操作后不会改变
+            toggleTo(shouldOpen);
         }, DEBOUNCE_MS);
     }
 
     // 启动逻辑：仅在首次加载和尺寸变化时响应（不使用大量 DOM 变更监听）
     if (document.readyState === 'loading') {
         window.addEventListener('load', () => {
-            setTimeout(scheduleDecision, 300);
+            setTimeout(decideAndApply, 300);
         });
     } else {
-        setTimeout(scheduleDecision, 600);
+        setTimeout(decideAndApply, 600);
     }
 
     // 监听 resize 与 ResizeObserver（两者兼备）
-    window.addEventListener('resize', scheduleDecision, {passive: true});
+    window.addEventListener('resize', decideAndApply, {passive: true});
     try {
-        const ro = new ResizeObserver(scheduleDecision);
+        const ro = new ResizeObserver(decideAndApply);
         ro.observe(document.documentElement);
     } catch (e) {
     }
 
     // 点击导航条时，如果侧边栏已收起则展开，否则根据屏幕宽度自动决定
     window.addEventListener('click', (event) => {
-        if(event.target. ){// todo: 点击的是导航条元素
-            if(!isSidebarOpen()){
+        if (event.target.closest('.nav .menu')) {
+            if (!isSidebarOpen()) {
                 toggleTo(true);
-            } else {
+            } else if (event.target.closest('.active')) {
                 decideAndApply();
             }
         }
-    },true);
+    }, true);
 
 })();
