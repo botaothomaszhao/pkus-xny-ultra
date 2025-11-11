@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         路径收藏夹
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.1
+// @version      vv.2.0
 // @license      GPL-3.0
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
@@ -47,7 +47,8 @@
         .action-btn.delete:hover{color:#ef4444}
         .action-btn .icon{width:20px;height:20px;display:block}
         #next-step-drawer .drawer-content li{background:#fff;border-radius:10px;padding:16px;margin-top:10px;cursor:pointer;border:1px solid #f0f0f0;transition:background-color .2s ease}
-        #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}`);
+        #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}
+    `);
 
     // 2. --- 核心功能 (路径捕获、存储、回放逻辑保持稳定) ---
     function cleanInnerText(el) {
@@ -69,12 +70,14 @@
         }
         const searchContext = activeFolder ? (activeFolder.closest('div.infinite-list-wrapper') || document) : document;
         const uniqueNodes = new Map();
-        searchContext.querySelectorAll("span.ant-tree-node-content-wrapper-open, span.ant-tree-node-content-wrapper.ant-tree-node-selected").forEach(node => {
+        const nodes = searchContext.querySelectorAll("span.ant-tree-node-content-wrapper-open, span.ant-tree-node-content-wrapper.ant-tree-node-selected");
+        for (const node of nodes){
             const text = cleanInnerText(node);
             if (text) {
                 uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
+                if(node.matches(".ant-tree-node-selected")) break; // 部分修复，不会保存后续的
             }
-        });
+        }
         path.push(...Array.from(uniqueNodes.values()));
         return path.length > 0 ? path : null;
     }
@@ -104,11 +107,6 @@
             return false;
         }
 
-        const btn = Array.from(document.querySelectorAll("button span")).find(s => s.innerText.trim() === "开始使用");
-        if (btn) {
-            btn.click();
-            await new Promise(r => setTimeout(r, 500));
-        }
         for (const step of path) {
             if (!(await click(step.selector, step.text))) {
                 throw new Error('Replay failed');
@@ -190,7 +188,6 @@
     async function addCurrentPathToFavorites() {
         const path = captureCurrentPath();
         if (!path || path.length === 0) {
-            // GM_notification({title: '收藏失败', text: '无法捕获当前路径。', timeout: 4000});
             console.warn('收藏失败: 无法捕获当前路径。');
             return;
         }
@@ -201,13 +198,10 @@
         }
         const favorites = await getFavorites();
         if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) {
-            // GM_notification({title: '提示', text: '该路径已在收藏夹中。', timeout: 3000});
-            console.info('提示: 该路径已在收藏夹中。');
             return;
         }
         favorites.push({title: path[path.length - 1].text, path: path});
         await saveFavorites(favorites);
-        // GM_notification({title: '收藏成功！', text: `已将“${path[path.length - 1].text}”加入收藏夹。`, timeout: 3000});
         console.info(`收藏成功：已将“${path[path.length - 1].text}”加入收藏夹。`);
     }
 
