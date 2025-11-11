@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         路径收藏夹
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.0
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
@@ -69,16 +69,46 @@
             path.push({selector: "div.folderName", text: cleanInnerText(activeFolder)});
         }
         const searchContext = activeFolder ? (activeFolder.closest('div.infinite-list-wrapper') || document) : document;
+        const selected = searchContext.querySelector('.ant-tree-node-selected');
+        const entries = [];
+
+        if (selected) {
+            // 从选中节点向上收集属于“展开父节点”或“选中本身”的 span，最后 reverse 为从顶到底
+            let li = selected.closest('li[role="treeitem"]');
+            while (li) {
+                const wrapper = li.querySelector(':scope > span.ant-tree-node-content-wrapper');
+                if (wrapper) {
+                    if (wrapper.classList.contains('ant-tree-node-content-wrapper-open') || wrapper.classList.contains('ant-tree-node-selected')) {
+                        entries.push(wrapper);
+                    }
+                }
+                // 向上寻找包含当前 li 的最近的已展开父 li
+                li = li.parentElement ? li.parentElement.closest('li[role="treeitem"].ant-tree-treenode-switcher-open') : null;
+            }
+            entries.reverse(); // 顶层 -> 目标
+        } else return null
+        // 映射为存储结构并合并到 path
+        for (const el of entries) {
+            const text = cleanInnerText(el);
+            if (text) path.push({ selector: "span.ant-tree-node-content-wrapper", text });
+        }
+        /*
         const uniqueNodes = new Map();
-        const nodes = searchContext.querySelectorAll("span.ant-tree-node-content-wrapper-open, span.ant-tree-node-content-wrapper.ant-tree-node-selected");
+        const nodes = searchContext.querySelectorAll(".ant-tree-node-content-wrapper-open, .ant-tree-node-selected");
         for (const node of nodes){
             const text = cleanInnerText(node);
             if (text) {
-                uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
-                if(node.matches(".ant-tree-node-selected")) break; // 部分修复，不会保存后续的
+                if(node.matches(".ant-tree-node-selected")) {
+                    uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
+                    break;
+                }
+                const father = node.closest(".ant-tree-treenode-switcher-open");
+                if (father && father.querySelector(".ant-tree-node-selected")){
+                    uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
+                }
             }
         }
-        path.push(...Array.from(uniqueNodes.values()));
+        path.push(...Array.from(uniqueNodes.values()));*/
         return path.length > 0 ? path : null;
     }
 
