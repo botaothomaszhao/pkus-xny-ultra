@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         目录搜索
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.1
+// @version      vv.2.0
 // @license      GPL-3.0
 // @description  课程目录搜索，支持拼音/首字母搜索并回放点击路径。
 // @author       c-jeremy botaothomaszhao
@@ -159,13 +159,6 @@
                 await new Promise(r => setTimeout(r, 100));
             }
             return false;
-        }
-
-        // 有些页面在起始状态需要先点击“开始使用”
-        const startButtonSpan = Array.from(document.querySelectorAll("button span")).find(s => s.innerText.trim() === "开始使用");
-        if (startButtonSpan && startButtonSpan.closest('button')) {
-            startButtonSpan.closest('button').click();
-            await new Promise(r => setTimeout(r, 500));
         }
 
         for (const step of path) {
