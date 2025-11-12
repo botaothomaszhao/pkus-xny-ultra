@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         路径收藏夹
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.1
+// @version      vv.2.2
 // @license      GPL-3.0
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
@@ -92,23 +92,6 @@
             const text = cleanInnerText(el);
             if (text) path.push({ selector: "span.ant-tree-node-content-wrapper", text });
         }
-        /*
-        const uniqueNodes = new Map();
-        const nodes = searchContext.querySelectorAll(".ant-tree-node-content-wrapper-open, .ant-tree-node-selected");
-        for (const node of nodes){
-            const text = cleanInnerText(node);
-            if (text) {
-                if(node.matches(".ant-tree-node-selected")) {
-                    uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
-                    break;
-                }
-                const father = node.closest(".ant-tree-treenode-switcher-open");
-                if (father && father.querySelector(".ant-tree-node-selected")){
-                    uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
-                }
-            }
-        }
-        path.push(...Array.from(uniqueNodes.values()));*/
         return path.length > 0 ? path : null;
     }
 
@@ -123,10 +106,11 @@
     async function replayPath(path) {
         let lastClickedElement = null;
 
-        async function click(sel, txt) {
+        async function click(sel, text) {
             for (let i = 0; i < 50; i++) {
                 for (const node of document.querySelectorAll(sel)) {
-                    if (cleanInnerText(node) === txt) {
+                    if (cleanInnerText(node) === text) {
+                        //if(!node.classList.contains('ant-tree-node-content-wrapper-open'))
                         node.click();
                         lastClickedElement = node;
                         return true;
@@ -187,7 +171,6 @@
             return;
         }
 
-        // 后续逻辑保持不变，因为一旦找到正确的父级，它就能正常工作
         const childTree = parentLi.querySelector('ul.ant-tree-child-tree');
         if (childTree && childTree.children.length > 0) {
             const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
@@ -261,6 +244,8 @@
                 if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
                 closeFavoritesDrawer();
                 try {
+                    const activeFolder = document.querySelector('div.folderName.active');
+                    if(activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
                     const lastClickedElement = await replayPath(fav.path);
                     await checkForNextStep(lastClickedElement);
                 } catch (error) {
