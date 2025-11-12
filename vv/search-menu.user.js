@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         目录搜索
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.0
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  课程目录搜索，支持拼音/首字母搜索并回放点击路径。
 // @author       c-jeremy botaothomaszhao
@@ -280,32 +280,36 @@
 
         input.addEventListener('keydown', (e) => {
             const items = resultsList.querySelectorAll('li');
-            if (!items.length) {
-                if (e.key === 'Escape') destroySearchUI();
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                destroySearchUI();
                 return;
             }
+            if (!items.length) return;
+
+            function setHighlightIndex(index) {
+                items.forEach(it => it.classList.remove('highlighted'));
+                currentHighlight = index;
+                if (index < 0) currentHighlight = items.length - 1;
+                if (index >= items.length) currentHighlight = 0;
+                items[currentHighlight].classList.add('highlighted');
+                items[currentHighlight].scrollIntoView({block: 'nearest'});
+            }
+
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (currentHighlight < items.length - 1) {
-                    currentHighlight++;
-                    items.forEach(it => it.classList.remove('highlighted'));
-                    items[currentHighlight].classList.add('highlighted');
-                    items[currentHighlight].scrollIntoView({block: 'nearest'});
-                }
+                setHighlightIndex(currentHighlight + 1);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (currentHighlight > 0) {
-                    currentHighlight--;
-                    items.forEach(it => it.classList.remove('highlighted'));
-                    items[currentHighlight].classList.add('highlighted');
-                    items[currentHighlight].scrollIntoView({block: 'nearest'});
-                }
+                setHighlightIndex(currentHighlight - 1);
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                const hi = resultsList.querySelector('li.highlighted');
-                if (hi) hi.click(); else if (items.length > 0) items[0].click();
-            } else if (e.key === 'Escape') {
-                destroySearchUI();
+                if (currentHighlight >= 0 && currentHighlight < items.length) {
+                    items[currentHighlight].click();
+                } else {
+                    // 如果没有高亮，默认点击第一个
+                    items[0].click();
+                }
             }
         });
 

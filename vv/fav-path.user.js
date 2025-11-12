@@ -302,15 +302,12 @@
     function highlightFavoritesIndex(idx) {
         const items = favoritesList.querySelectorAll('li');
         if (!items.length) return;
-        // 过滤掉非条目（例如空状态提示）
-        const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
-        if (validItems.length === 0) return;
         // 边界处理：环绕
-        if (idx < 0) idx = validItems.length - 1;
-        if (idx >= validItems.length) idx = 0;
+        if (idx < 0) idx = items.length - 1;
+        if (idx >= items.length) idx = 0;
         favoritesCurrentIndex = idx;
-        validItems.forEach(it => it.classList.remove('highlighted'));
-        const el = validItems[favoritesCurrentIndex];
+        items.forEach(it => it.classList.remove('highlighted'));
+        const el = items[favoritesCurrentIndex];
         el.classList.add('highlighted');
         // 平滑滚动到可见
         el.scrollIntoView({block: 'nearest', behavior: 'auto'});
@@ -374,38 +371,27 @@
 
             const items = favoritesList.querySelectorAll('li');
             const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
-            if (validItems.length === 0) {
-                if (e.key === 'Escape') closeFavoritesDrawer();
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                closeFavoritesDrawer();
                 return;
             }
+            if (validItems.length === 0) return;
 
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                // 如果没有高亮，则从 0 开始
-                if (favoritesCurrentIndex === -1) {
-                    highlightFavoritesIndex(0);
-                } else {
-                    highlightFavoritesIndex(favoritesCurrentIndex + 1);
-                }
+                highlightFavoritesIndex(favoritesCurrentIndex + 1);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (favoritesCurrentIndex === -1) {
-                    highlightFavoritesIndex(validItems.length - 1);
-                } else {
-                    highlightFavoritesIndex(favoritesCurrentIndex - 1);
-                }
+                highlightFavoritesIndex(favoritesCurrentIndex - 1);
             } else if (e.key === 'Enter') {
                 e.preventDefault();
                 if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < validItems.length) {
-                    // 触发对应条目的点击逻辑
                     validItems[favoritesCurrentIndex].click();
                 } else {
                     // 如果没有高亮，默认点击第一个
                     validItems[0].click();
                 }
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                closeFavoritesDrawer();
             }
         }, {passive: false});
     }
