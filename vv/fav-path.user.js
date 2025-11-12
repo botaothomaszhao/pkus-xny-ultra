@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         路径收藏夹
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
 // @description  课程路径收藏夹，支持保存/回放/编辑/删除路径。
 // @author       c-jeremy botaothomaszhao
@@ -20,22 +20,22 @@
 
     // 1. --- CSS样式 (无变化) ---
     GM_addStyle(`
-        .fav-btn{position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;background-color:#fff;border:none;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .fav-btn{position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;background-color:#fff;border:none;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s cubic-bezier(.25,.8,.25,1);color:#333}
         .fav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
         .fav-btn .icon{width:24px;height:24px}
         .fav-btn .icon svg{width:100%;height:100%}
         #add-favorite-btn{bottom:170px}
         #show-favorites-btn{bottom:230px}
-        .drawer-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:2147483647;opacity:0;visibility:hidden;transition:opacity .16s ease, visibility .16s ease}
+        .drawer-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:2147483647;opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
         .drawer-overlay.visible{opacity:1;visibility:visible}
-        .bottom-sheet-drawer{position:fixed;left:0;bottom:0;right:0;max-height:70%;background-color:#f9f9f9;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -4px 20px rgba(0,0,0,0.12);transform:translateY(100%);transition:transform .22s ease}
+        .bottom-sheet-drawer{position:fixed;left:0;bottom:0;right:0;max-height:70%;background-color:#f9f9f9;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -4px 20px rgba(0,0,0,0.1);z-index:2147483647;transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column}
         .bottom-sheet-drawer.open{transform:translateY(0)}
         .drawer-header{padding:12px 16px;text-align:center;flex-shrink:0;position:relative}
         .drawer-header::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:4px;background-color:#d1d5db;border-radius:2px}
         .drawer-header h2{margin:12px 0 0;font-size:1.1rem;font-weight:600;color:#111827}
         .drawer-content{padding:0 16px 16px;overflow-y:auto}
         .drawer-content ul{list-style:none;margin:0;padding:0}
-        #favorites-drawer .drawer-content li{background:#fff;border-radius:12px;padding:14px 12px 14px 16px;margin-top:12px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .2s ease,box-shadow .16s ease}
+        #favorites-drawer .drawer-content li{background:#fff;border-radius:12px;padding:14px 12px 14px 16px;margin-top:12px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .2s ease,box-shadow .2s ease;display:flex;align-items:center;justify-content:space-between;gap:8px}
         #favorites-drawer .drawer-content li:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 4px 15px rgba(0,0,0,0.08)}
         .item-text-content{flex-grow:1;min-width:0}
         .item-title,#next-step-drawer .item-title{font-size:1rem;font-weight:500;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
