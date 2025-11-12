@@ -227,7 +227,7 @@
 
         function destroySearchUI() {
             overlay.classList.remove('visible');
-            overlay.addEventListener('transitionend', () => overlay.remove(), { once: true }); // 等待隐藏动画播放完
+            overlay.addEventListener('transitionend', () => overlay.remove(), {once: true}); // 等待隐藏动画播放完
         }
 
         function renderResults(query) {

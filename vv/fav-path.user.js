@@ -93,7 +93,7 @@
         // 映射为存储结构并合并到 path
         for (const el of entries) {
             const text = cleanInnerText(el);
-            if (text) path.push({ selector: "span.ant-tree-node-content-wrapper", text });
+            if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
         }
         return path.length > 0 ? path : null;
     }
@@ -256,7 +256,7 @@
                 closeFavoritesDrawer();
                 try {
                     const activeFolder = document.querySelector('div.folderName.active');
-                    if(activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
+                    if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
                     const lastClickedElement = await replayPath(fav.path);
                     await checkForNextStep(lastClickedElement);
                 } catch (error) {
@@ -313,7 +313,7 @@
         const el = validItems[favoritesCurrentIndex];
         el.classList.add('highlighted');
         // 平滑滚动到可见
-        el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+        el.scrollIntoView({block: 'nearest', behavior: 'auto'});
     }
 
     // 5. --- 初始化UI ---
@@ -407,7 +407,7 @@
                 e.preventDefault();
                 closeFavoritesDrawer();
             }
-        }, { passive: false });
+        }, {passive: false});
     }
 
     initialize();

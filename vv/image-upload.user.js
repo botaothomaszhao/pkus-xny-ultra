@@ -14,23 +14,23 @@
     'use strict';
 
     GM_addStyle(`
-    .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
-    .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
-    .iu-panel button{width:100%;padding:14px;border:none;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:16px;cursor:pointer}
-
-    .iu-media-overlay{position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
-    .iu-container{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
-    .iu-frame{height:100vh;width:auto;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
-    .iu-video,.iu-canvas{width:100%;height:100%;object-fit:cover;background:#000;display:block}
-    .iu-canvas{display:none}
-    .iu-rightbar{position:absolute;right:8px;top:0;bottom:0;width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:18px 6px;box-sizing:border-box;pointer-events:auto}
-    .iu-btn-top{position:absolute;right:12px;top:12px;width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,0.36);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box;font-size:22px}
-    .iu-switch{width:52px;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.9);background:rgba(0,0,0,0.28);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box}
-    .iu-shutter{width:56px;height:56px;border-radius:28px;background:#fff;border:4px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer;padding:0}
-    .iu-bottombar{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;justify-content:center;z-index:3;pointer-events:auto}
-    .iu-retake,.iu-confirm{padding:12px 80px;border-radius:8px;border:none;font-size:16px;cursor:pointer}
-    .iu-retake{background:rgba(0,0,0,0.6);color:#fff}
-    .iu-confirm{background:#fff;color:#000}
+        .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
+        .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
+        .iu-panel button{width:100%;padding:14px;border:none;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:16px;cursor:pointer}
+    
+        .iu-media-overlay{position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
+        .iu-container{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
+        .iu-frame{height:100vh;width:auto;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
+        .iu-video,.iu-canvas{width:100%;height:100%;object-fit:cover;background:#000;display:block}
+        .iu-canvas{display:none}
+        .iu-rightbar{position:absolute;right:8px;top:0;bottom:0;width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:18px 6px;box-sizing:border-box;pointer-events:auto}
+        .iu-btn-top{position:absolute;right:12px;top:12px;width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,0.36);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box;font-size:22px}
+        .iu-switch{width:52px;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.9);background:rgba(0,0,0,0.28);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box}
+        .iu-shutter{width:56px;height:56px;border-radius:28px;background:#fff;border:4px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer;padding:0}
+        .iu-bottombar{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;justify-content:center;z-index:3;pointer-events:auto}
+        .iu-retake,.iu-confirm{padding:12px 80px;border-radius:8px;border:none;font-size:16px;cursor:pointer}
+        .iu-retake{background:rgba(0,0,0,0.6);color:#fff}
+        .iu-confirm{background:#fff;color:#000}
     `);
 
     // 安全移除元素并可执行自定义清理
@@ -60,6 +60,7 @@
         const multiple = origInput.hasAttribute('multiple');
         const temp = document.createElement('input');
         temp.type = 'file';
+        temp.setAttribute('script-temp-file-input', 'true'); // 给temp添加标签以在监听时区分
         if (accept) temp.setAttribute('accept', accept);
         if (multiple) temp.setAttribute('multiple', '');
         Object.assign(temp.style, {
@@ -113,7 +114,6 @@
     }
 
     function registerEsc(overlay) {
-        // Esc 关闭
         try {
             overlay.tabIndex = -1;
             overlay.focus();
@@ -272,10 +272,10 @@
 
         // 保持按钮文字水平显示，避免在竖屏/容器布局变化时文字被旋转或换行
         const _btnTextFixStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  whiteSpace: 'nowrap',                   // 不换行，保证文字横向排布
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            whiteSpace: 'nowrap', // 不换行，保证文字横向排布
         };
         Object.assign(btnRetake.style, _btnTextFixStyle);
         Object.assign(btnConfirm.style, _btnTextFixStyle);
@@ -382,6 +382,7 @@
             }
             removeChooserPopHandler();
         }
+
         overlay._cleanup = cleanup;
 
         // 捕获一帧真实像素并生成 Blob
@@ -495,37 +496,22 @@
         });
     }
 
-    // 事件委托：拦截 .paizhao-btn 的点击（支持 shadow DOM）
-    function findPaizhaoContextFromEvent(e) {
-        /*try {
-            const path = (e.composedPath && e.composedPath()) || (e.path && e.path.slice());
-            if (path && path.length) {
-                for (const node of path) {
-                    if (!node || !node.classList) continue;
-                    if (node.classList && node.classList.contains && node.classList.contains('paizhao-btn')) return node;
-                }
-            }
-        } catch (_) {
-        }*/
-        let el = e.target.parentElement;
-        //let cnt=0
-        while (el) {
-            if (/*el.querySelector('button')&&el.querySelector('input[type=file]')*/el.classList && el.classList.contains && el.classList.contains('paizhao-btn')) return el;
-            el = el.parentElement;
-            //cnt++;
+    // 拦截 .paizhao-btn 和 追加拍照 的点击
+    function findImageInput(e) {
+        const el = e.target;
+        if (el.matches('input[type=file]')) return el;
+        const btn = el.closest('.paizhao-btn');
+        if (btn) {
+            return btn.querySelector('input[type=file]');
         }
         return null;
     }
 
     function onPaizhaoTrigger(e) {
         try {
-            if (chooserHistoryPushed) return;
+            if (e.target.getAttribute('script-temp-file-input') === 'true') return;
             if (document.getElementById('upload-chooser')) return;
-            const root = findPaizhaoContextFromEvent(e);
-            if (!root) return;
-            //const btn = (e.target && e.target.closest && e.target.closest('.paizhao-btn button')) || root.querySelector('button');
-            //if (!btn) return;
-            const input = root.querySelector('input[type=file]');
+            const input = findImageInput(e);
             if (!input) return;
             try {
                 e.preventDefault();

@@ -111,20 +111,32 @@
         const activeFolder = document.querySelector('div.folderName.active');
         if (activeFolder) {
             path.push({selector: "div.folderName", text: cleanInnerText(activeFolder)});
-            const searchContext = activeFolder.closest('div.infinite-list-wrapper') || document;
-            const uniqueNodes = new Map();
-            const nodes = searchContext.querySelectorAll("span.ant-tree-node-content-wrapper-open, span.ant-tree-node-content-wrapper.ant-tree-node-selected");
-            for (const node of nodes){
-                const text = cleanInnerText(node);
-                if (text) {
-                    uniqueNodes.set(text, {selector: "span.ant-tree-node-content-wrapper", text: text});
-                    if(node.matches(".ant-tree-node-selected")) break; // 部分修复，使其不会保存后续的
-                }
-            }
-            path.push(...Array.from(uniqueNodes.values()));
         }
+        const searchContext = activeFolder ? (activeFolder.closest('div.infinite-list-wrapper') || document) : document;
+        const selected = searchContext.querySelector('.ant-tree-node-selected');
+        const entries = [];
 
-        return path.length ? path : null;
+        if (selected) {
+            // 从选中节点向上收集属于“展开父节点”或“选中本身”的 span，最后 reverse 为从顶到底
+            let li = selected.closest('li[role="treeitem"]');
+            while (li) {
+                const wrapper = li.querySelector(':scope > span.ant-tree-node-content-wrapper');
+                if (wrapper) {
+                    if (wrapper.classList.contains('ant-tree-node-content-wrapper-open') || wrapper.classList.contains('ant-tree-node-selected')) {
+                        entries.push(wrapper);
+                    }
+                }
+                // 向上寻找包含当前 li 的最近的已展开父 li
+                li = li.parentElement ? li.parentElement.closest('li[role="treeitem"].ant-tree-treenode-switcher-open') : null;
+            }
+            entries.reverse(); // 顶层 -> 目标
+        } else return null
+        // 映射为存储结构并合并到 path
+        for (const el of entries) {
+            const text = cleanInnerText(el);
+            if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
+        }
+        return path.length > 0 ? path : null;
     }
 
     async function savePathForReplay() {
