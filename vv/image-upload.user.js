@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         拍照上传照片
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.5
+// @version      vv.2.6
 // @license      GPL-3.0
 // @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”，在网页内实现拍照功能，解决浏览器无法唤起相机的问题。
 // @match        https://bdfz.xnykcxt.com:5002/*
@@ -271,14 +271,14 @@
         btnConfirm.textContent = '确定';
 
         // 保持按钮文字水平显示，避免在竖屏/容器布局变化时文字被旋转或换行
-const _btnTextFixStyle = {
+        const _btnTextFixStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   whiteSpace: 'nowrap',                   // 不换行，保证文字横向排布
-};
-Object.assign(btnRetake.style, _btnTextFixStyle);
-Object.assign(btnConfirm.style, _btnTextFixStyle);
+        };
+        Object.assign(btnRetake.style, _btnTextFixStyle);
+        Object.assign(btnConfirm.style, _btnTextFixStyle);
 
         rightBar.appendChild(btnSwitch);
         rightBar.appendChild(btnShutter);
@@ -497,7 +497,7 @@ Object.assign(btnConfirm.style, _btnTextFixStyle);
 
     // 事件委托：拦截 .paizhao-btn 的点击（支持 shadow DOM）
     function findPaizhaoContextFromEvent(e) {
-        try {
+        /*try {
             const path = (e.composedPath && e.composedPath()) || (e.path && e.path.slice());
             if (path && path.length) {
                 for (const node of path) {
@@ -506,21 +506,25 @@ Object.assign(btnConfirm.style, _btnTextFixStyle);
                 }
             }
         } catch (_) {
-        }
-        let el = e.target;
+        }*/
+        let el = e.target.parentElement;
+        //let cnt=0
         while (el) {
-            if (el.classList && el.classList.contains && el.classList.contains('paizhao-btn')) return el;
+            if (/*el.querySelector('button')&&el.querySelector('input[type=file]')*/el.classList && el.classList.contains && el.classList.contains('paizhao-btn')) return el;
             el = el.parentElement;
+            //cnt++;
         }
         return null;
     }
 
     function onPaizhaoTrigger(e) {
         try {
+            if (chooserHistoryPushed) return;
+            if (document.getElementById('upload-chooser')) return;
             const root = findPaizhaoContextFromEvent(e);
             if (!root) return;
-            const btn = (e.target && e.target.closest && e.target.closest('.paizhao-btn button')) || root.querySelector('button');
-            if (!btn) return;
+            //const btn = (e.target && e.target.closest && e.target.closest('.paizhao-btn button')) || root.querySelector('button');
+            //if (!btn) return;
             const input = root.querySelector('input[type=file]');
             if (!input) return;
             try {
