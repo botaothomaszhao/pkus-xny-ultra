@@ -113,7 +113,7 @@
         const mainMenuStep = {selector: "div.menu > div", text: mainMenuContext};
         const subjectStep = {selector: "div.folderName", text: subjectContext};
 
-        // 重复 subjectStep 一次以模拟“双击展开”需要的行为
+        // 重复 subjectStep 一次以实现先关闭再展开
         const initialPath = [mainMenuStep, subjectStep, subjectStep];
 
         function flattenTree(nodes, parentPath) {
@@ -227,9 +227,7 @@
 
         function destroySearchUI() {
             overlay.classList.remove('visible');
-            setTimeout(() => {
-                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            }, 160);
+            overlay.addEventListener('transitionend', () => overlay.remove(), { once: true }); // 等待隐藏动画播放完
         }
 
         function renderResults(query) {
