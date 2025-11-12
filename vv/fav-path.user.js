@@ -20,22 +20,22 @@
 
     // 1. --- CSS样式 (无变化) ---
     GM_addStyle(`
-        .fav-btn{position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;background-color:#fff;border:none;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s cubic-bezier(.25,.8,.25,1);color:#333}
+        .fav-btn{position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;background-color:#fff;border:none;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center}
         .fav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
         .fav-btn .icon{width:24px;height:24px}
         .fav-btn .icon svg{width:100%;height:100%}
         #add-favorite-btn{bottom:170px}
         #show-favorites-btn{bottom:230px}
-        .drawer-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:2147483647;opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
+        .drawer-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:2147483647;opacity:0;visibility:hidden;transition:opacity .16s ease, visibility .16s ease}
         .drawer-overlay.visible{opacity:1;visibility:visible}
-        .bottom-sheet-drawer{position:fixed;left:0;bottom:0;right:0;max-height:70%;background-color:#f9f9f9;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -4px 20px rgba(0,0,0,0.1);z-index:2147483647;transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column}
+        .bottom-sheet-drawer{position:fixed;left:0;bottom:0;right:0;max-height:70%;background-color:#f9f9f9;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -4px 20px rgba(0,0,0,0.12);transform:translateY(100%);transition:transform .22s ease}
         .bottom-sheet-drawer.open{transform:translateY(0)}
         .drawer-header{padding:12px 16px;text-align:center;flex-shrink:0;position:relative}
         .drawer-header::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:4px;background-color:#d1d5db;border-radius:2px}
         .drawer-header h2{margin:12px 0 0;font-size:1.1rem;font-weight:600;color:#111827}
         .drawer-content{padding:0 16px 16px;overflow-y:auto}
         .drawer-content ul{list-style:none;margin:0;padding:0}
-        #favorites-drawer .drawer-content li{background:#fff;border-radius:12px;padding:14px 12px 14px 16px;margin-top:12px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .2s ease,box-shadow .2s ease;display:flex;align-items:center;justify-content:space-between;gap:8px}
+        #favorites-drawer .drawer-content li{background:#fff;border-radius:12px;padding:14px 12px 14px 16px;margin-top:12px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .2s ease,box-shadow .16s ease}
         #favorites-drawer .drawer-content li:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 4px 15px rgba(0,0,0,0.08)}
         .item-text-content{flex-grow:1;min-width:0}
         .item-title,#next-step-drawer .item-title{font-size:1rem;font-weight:500;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
@@ -48,6 +48,9 @@
         .action-btn .icon{width:20px;height:20px;display:block}
         #next-step-drawer .drawer-content li{background:#fff;border-radius:10px;padding:16px;margin-top:10px;cursor:pointer;border:1px solid #f0f0f0;transition:background-color .2s ease}
         #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}
+
+        /* 高亮选择（键盘上下选择） */
+        #favorites-drawer .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
     `);
 
     // 2. --- 核心功能 (路径捕获、存储、回放逻辑保持稳定) ---
@@ -187,15 +190,22 @@
     // 4. --- UI 交互与渲染 (收藏夹部分无变化) ---
     let favoritesDrawer, favoritesOverlay, favoritesList;
 
+    // 用来支持键盘上下选择
+    let favoritesCurrentIndex = -1;
+
     function openFavoritesDrawer() {
         renderFavoritesList();
         favoritesDrawer.classList.add('open');
         favoritesOverlay.classList.add('visible');
+        // 初始化高亮索引
+        favoritesCurrentIndex = -1;
     }
 
     function closeFavoritesDrawer() {
         favoritesDrawer.classList.remove('open');
         favoritesOverlay.classList.remove('visible');
+        clearFavoritesHighlight();
+        favoritesCurrentIndex = -1;
     }
 
     async function addCurrentPathToFavorites() {
@@ -228,6 +238,7 @@
     async function renderFavoritesList() {
         const favorites = await getFavorites();
         favoritesList.innerHTML = '';
+        favoritesCurrentIndex = -1; // 每次渲染清除高亮索引，避免越界
         if (favorites.length === 0) {
             favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹是空的<br>点击“+”按钮添加吧</li>';
             return;
@@ -281,6 +292,30 @@
         });
     }
 
+    // 清除所有高亮样式
+    function clearFavoritesHighlight() {
+        const items = favoritesList.querySelectorAll('li');
+        items.forEach(it => it.classList.remove('highlighted'));
+    }
+
+    // 高亮指定索引（会滚动到视图内）
+    function highlightFavoritesIndex(idx) {
+        const items = favoritesList.querySelectorAll('li');
+        if (!items.length) return;
+        // 过滤掉非条目（例如空状态提示）
+        const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
+        if (validItems.length === 0) return;
+        // 边界处理：环绕
+        if (idx < 0) idx = validItems.length - 1;
+        if (idx >= validItems.length) idx = 0;
+        favoritesCurrentIndex = idx;
+        validItems.forEach(it => it.classList.remove('highlighted'));
+        const el = validItems[favoritesCurrentIndex];
+        el.classList.add('highlighted');
+        // 平滑滚动到可见
+        el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
+
     // 5. --- 初始化UI ---
     function initialize() {
         const addBtn = document.createElement('button');
@@ -331,6 +366,48 @@
         showBtn.addEventListener('click', openFavoritesDrawer);
         favoritesOverlay.addEventListener('click', closeFavoritesDrawer);
         nextStepOverlay.addEventListener('click', closeNextStepDrawer);
+
+        // 全局键盘监听：仅在收藏夹打开时响应上下/回车/Esc
+        document.addEventListener('keydown', (e) => {
+            // 如果抽屉没打开，不处理
+            if (!favoritesDrawer.classList.contains('open') || !favoritesOverlay.classList.contains('visible')) return;
+
+            const items = favoritesList.querySelectorAll('li');
+            const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
+            if (validItems.length === 0) {
+                if (e.key === 'Escape') closeFavoritesDrawer();
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                // 如果没有高亮，则从 0 开始
+                if (favoritesCurrentIndex === -1) {
+                    highlightFavoritesIndex(0);
+                } else {
+                    highlightFavoritesIndex(favoritesCurrentIndex + 1);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (favoritesCurrentIndex === -1) {
+                    highlightFavoritesIndex(validItems.length - 1);
+                } else {
+                    highlightFavoritesIndex(favoritesCurrentIndex - 1);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < validItems.length) {
+                    // 触发对应条目的点击逻辑
+                    validItems[favoritesCurrentIndex].click();
+                } else {
+                    // 如果没有高亮，默认点击第一个
+                    validItems[0].click();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeFavoritesDrawer();
+            }
+        }, { passive: false });
     }
 
     initialize();
