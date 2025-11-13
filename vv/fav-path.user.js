@@ -16,9 +16,9 @@
 (function () {
     'use strict';
 
-    const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2';
+    const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 想改名，但是不想删已有记录，不改了。。。
 
-    // 1. --- 样式（保持原观感与交互，不改变UI） ---
+    // 1. --- CSS样式（保持原观感） ---
     GM_addStyle(`
         .fav-btn{
             position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;
@@ -100,7 +100,7 @@
         #favorites-drawer .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
     `);
 
-    // 2. --- 核心功能 ---
+    // 2. --- 核心功能 (路径捕获、存储、回放逻辑保持稳定) ---
     function cleanInnerText(el) {
         if (!el) return "";
         const clone = el.cloneNode(true);
@@ -123,6 +123,7 @@
         const entries = [];
 
         if (selected) {
+            // 从选中节点向上收集属于“展开父节点”或“选中本身”的 span，最后 reverse 为从顶到底
             let li = selected.closest('li[role="treeitem"]');
             while (li) {
                 const wrapper = li.querySelector(':scope > span.ant-tree-node-content-wrapper');
@@ -131,11 +132,12 @@
                         entries.push(wrapper);
                     }
                 }
+                // 向上寻找包含当前 li 的最近的已展开父 li
                 li = li.parentElement ? li.parentElement.closest('li[role="treeitem"].ant-tree-treenode-switcher-open') : null;
             }
-            entries.reverse();
+            entries.reverse(); // 顶层 -> 目标
         } else return null
-
+        // 映射为存储结构并合并到 path
         for (const el of entries) {
             const text = cleanInnerText(el);
             if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
@@ -195,28 +197,24 @@
     }
 
     function openNextStepDrawer(children) {
-        const firstCreate = !nextStepOverlay || !nextStepDrawer;
+        nextStepOverlay = document.createElement('div');
+        nextStepOverlay.className = 'drawer-overlay';
 
-        if (firstCreate) {
-            nextStepOverlay = document.createElement('div');
-            nextStepOverlay.className = 'drawer-overlay';
+        nextStepDrawer = document.createElement('div');
+        nextStepDrawer.id = 'next-step-drawer';
+        nextStepDrawer.className = 'bottom-sheet-drawer';
+        nextStepDrawer.innerHTML = `
+            <div class="drawer-header"><h2>可能的下一步</h2></div>
+            <div class="drawer-content"><ul id="next-step-list"></ul></div>
+        `;
+        nextStepList = nextStepDrawer.querySelector('#next-step-list');
 
-            nextStepDrawer = document.createElement('div');
-            nextStepDrawer.id = 'next-step-drawer';
-            nextStepDrawer.className = 'bottom-sheet-drawer';
-            nextStepDrawer.innerHTML = `
-                <div class="drawer-header"><h2>可能的下一步</h2></div>
-                <div class="drawer-content"><ul id="next-step-list"></ul></div>
-            `;
-            nextStepList = nextStepDrawer.querySelector('#next-step-list');
-
-            document.body.append(nextStepOverlay, nextStepDrawer);
-            nextStepOverlay.addEventListener('click', closeNextStepDrawer, { once: true });
-        }
+        document.body.append(nextStepOverlay, nextStepDrawer);
+        nextStepOverlay.addEventListener('click', closeNextStepDrawer, { once: true });
 
         renderNextStepList(children);
 
-        // 在下一帧添加类触发动画
+        // 使用 rAF 让初始状态先渲染，再添加类以触发过渡
         requestAnimationFrame(() => {
             nextStepDrawer.classList.add('open');
             nextStepOverlay.classList.add('visible');
@@ -229,7 +227,7 @@
         nextStepDrawer.classList.remove('open');
         nextStepOverlay.classList.remove('visible');
 
-        // 动画结束后移除
+        // 动画结束后销毁
         setTimeout(() => {
             nextStepOverlay?.remove();
             nextStepDrawer?.remove();
@@ -239,6 +237,9 @@
         }, 300);
     }
 
+    /**
+     * 检查并触发“下一步”的核心函数
+     */
     async function checkForNextStep(lastElement) {
         if (!lastElement) return;
 
@@ -260,68 +261,33 @@
         }
     }
 
-    // 4. --- 收藏夹模块（按需创建/销毁 + 键盘监听绑定在元素上 + 打开动画修复） ---
+    // 4. --- 收藏夹模块（按需创建/销毁 + 键盘监听在 render 内绑定 + 打开动画修复） ---
     let favoritesDrawer = null, favoritesOverlay = null, favoritesList = null;
     let favoritesCurrentIndex = -1;
 
     function openFavoritesDrawer() {
-        const firstCreate = !favoritesOverlay || !favoritesDrawer;
+        favoritesOverlay = document.createElement('div');
+        favoritesOverlay.className = 'drawer-overlay';
 
-        if (firstCreate) {
-            favoritesOverlay = document.createElement('div');
-            favoritesOverlay.className = 'drawer-overlay';
+        favoritesDrawer = document.createElement('div');
+        favoritesDrawer.id = 'favorites-drawer';
+        favoritesDrawer.className = 'bottom-sheet-drawer';
+        favoritesDrawer.innerHTML = `
+            <div class="drawer-header"><h2>路径收藏夹</h2></div>
+            <div class="drawer-content"><ul id="favorites-list"></ul></div>
+        `;
+        favoritesDrawer.tabIndex = -1; // 使其可接收键盘事件
+        favoritesList = favoritesDrawer.querySelector('#favorites-list');
 
-            favoritesDrawer = document.createElement('div');
-            favoritesDrawer.id = 'favorites-drawer';
-            favoritesDrawer.className = 'bottom-sheet-drawer';
-            favoritesDrawer.innerHTML = `
-                <div class="drawer-header"><h2>路径收藏夹</h2></div>
-                <div class="drawer-content"><ul id="favorites-list"></ul></div>
-            `;
-            favoritesDrawer.tabIndex = -1; // 使其可接收键盘事件
-            favoritesList = favoritesDrawer.querySelector('#favorites-list');
-
-            // 键盘监听直接绑定在抽屉元素上，元素销毁后自动清理
-            favoritesDrawer.addEventListener('keydown', (e) => {
-                if (!favoritesDrawer || !favoritesList) return;
-
-                const items = favoritesList.querySelectorAll('li');
-                const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
-
-                if (e.key === 'Escape' || e.key === 'Esc') {
-                    e.preventDefault();
-                    closeFavoritesDrawer();
-                    return;
-                }
-                if (validItems.length === 0) return;
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    highlightFavoritesIndex(favoritesCurrentIndex + 1);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    highlightFavoritesIndex(favoritesCurrentIndex - 1);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < validItems.length) {
-                        validItems[favoritesCurrentIndex].click();
-                    } else {
-                        validItems[0].click();
-                    }
-                }
-            });
-
-            document.body.append(favoritesOverlay, favoritesDrawer);
-            favoritesOverlay.addEventListener('click', closeFavoritesDrawer, { once: true });
-        }
+        document.body.append(favoritesOverlay, favoritesDrawer);
+        favoritesOverlay.addEventListener('click', closeFavoritesDrawer, { once: true });
 
         renderFavoritesList();
 
-        // 下一帧添加类触发动画
+        // 触发动画并聚焦抽屉以接收键盘事件
         requestAnimationFrame(() => {
             favoritesDrawer.classList.add('open');
             favoritesOverlay.classList.add('visible');
-            // 打开后将焦点置于抽屉，使键盘事件命中该元素
             favoritesDrawer.focus({ preventScroll: true });
         });
 
@@ -334,7 +300,6 @@
         favoritesDrawer.classList.remove('open');
         favoritesOverlay.classList.remove('visible');
 
-        clearFavoritesHighlight();
         favoritesCurrentIndex = -1;
 
         setTimeout(() => {
@@ -374,13 +339,22 @@
 
     async function renderFavoritesList() {
         if (!favoritesList) return;
+
         const favorites = await getFavorites();
         favoritesList.innerHTML = '';
         favoritesCurrentIndex = -1;
+
         if (favorites.length === 0) {
             favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹是空的<br>点击“+”按钮添加吧</li>';
+
+            // 若之前绑定过键盘监听，移除以免空列表时仍触发
+            if (favoritesDrawer && favoritesDrawer._favKeyHandler) {
+                favoritesDrawer.removeEventListener('keydown', favoritesDrawer._favKeyHandler);
+                favoritesDrawer._favKeyHandler = null;
+            }
             return;
         }
+
         favorites.forEach((fav, index) => {
             const li = document.createElement('li');
             const fullPath = fav.path.map(p => p.text).join(' / ');
@@ -421,7 +395,7 @@
                 closeFavoritesDrawer();
                 try {
                     const activeFolder = document.querySelector('div.folderName.active');
-                    if (activeFolder) activeFolder.click();
+                    if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
                     const lastClickedElement = await replayPath(fav.path);
                     await checkForNextStep(lastClickedElement);
                 } catch (error) {
@@ -462,28 +436,58 @@
 
             favoritesList.appendChild(li);
         });
+
+        // 就地使用本次渲染生成的 items，避免重复查询
+        const items = Array.from(favoritesList.querySelectorAll('li'));
+
+        // 内部高亮函数：可直接操作 items
+        function clearFavoritesHighlight() {
+            items.forEach(it => it.classList.remove('highlighted'));
+        }
+
+        function highlightFavoritesIndex(idx) {
+            if (!items.length) return;
+            if (idx < 0) idx = items.length - 1;
+            if (idx >= items.length) idx = 0;
+            favoritesCurrentIndex = idx;
+            clearFavoritesHighlight();
+            const el = items[favoritesCurrentIndex];
+            el.classList.add('highlighted');
+            el.scrollIntoView({block: 'nearest', behavior: 'auto'});
+        }
+
+        // 重新绑定键盘监听（如已有旧监听，先移除）
+        if (favoritesDrawer._favKeyHandler) {
+            favoritesDrawer.removeEventListener('keydown', favoritesDrawer._favKeyHandler);
+        }
+        favoritesDrawer._favKeyHandler = (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                closeFavoritesDrawer();
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightFavoritesIndex(favoritesCurrentIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightFavoritesIndex(favoritesCurrentIndex - 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < items.length) {
+                    items[favoritesCurrentIndex].click();
+                } else if (items.length > 0) {
+                    items[0].click();
+                }
+            }
+        };
+        favoritesDrawer.addEventListener('keydown', favoritesDrawer._favKeyHandler);
+
+        // 渲染完成后确保焦点在抽屉上（便于键盘操作）
+        favoritesDrawer.focus({ preventScroll: true });
     }
 
-    function clearFavoritesHighlight() {
-        if (!favoritesList) return;
-        const items = favoritesList.querySelectorAll('li');
-        items.forEach(it => it.classList.remove('highlighted'));
-    }
-
-    function highlightFavoritesIndex(idx) {
-        if (!favoritesList) return;
-        const items = favoritesList.querySelectorAll('li');
-        if (!items.length) return;
-        if (idx < 0) idx = items.length - 1;
-        if (idx >= items.length) idx = 0;
-        favoritesCurrentIndex = idx;
-        items.forEach(it => it.classList.remove('highlighted'));
-        const el = items[favoritesCurrentIndex];
-        el.classList.add('highlighted');
-        el.scrollIntoView({block: 'nearest', behavior: 'auto'});
-    }
-
-    // 5. --- 初始化（仅创建两个悬浮按钮） ---
+    // 5. --- 初始化（仅创建两个悬浮按钮；抽屉按需创建/销毁） ---
     function initialize() {
         const addBtn = document.createElement('button');
         addBtn.className = 'fav-btn';
@@ -491,6 +495,7 @@
         addBtn.title = '收藏当前路径';
         addBtn.innerHTML = `<div class="icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- bookmark + plus (Add to bookmarks) -->
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 <line x1="12" y1="8" x2="12" y2="14"></line>
                 <line x1="9" y1="11" x2="15" y2="11"></line>
@@ -503,14 +508,17 @@
         showBtn.title = '查看收藏夹';
         showBtn.innerHTML = `<div class="icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- bookmark (open bookmarks) -->
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
         </div>`;
 
         document.body.append(addBtn, showBtn);
+
         addBtn.addEventListener('click', addCurrentPathToFavorites);
         showBtn.addEventListener('click', openFavoritesDrawer);
     }
 
     initialize();
+
 })();
