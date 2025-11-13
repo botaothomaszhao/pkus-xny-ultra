@@ -133,33 +133,66 @@
         return lastClickedElement;
     }
 
-    // 3. --- “智能下一步”模块 (已修复) ---
+    // 3. --- “智能下一步”模块 (按需创建/销毁) ---
+let nextStepDrawer = null, nextStepOverlay = null, nextStepList = null;
 
-    let nextStepDrawer, nextStepOverlay, nextStepList;
+function openNextStepDrawer(children) {
+    // Create only when needed
+    if (!nextStepOverlay || !nextStepDrawer) {
+        nextStepOverlay = document.createElement('div');
+        nextStepOverlay.className = 'drawer-overlay';
 
-    function openNextStepDrawer(children) {
-        renderNextStepList(children);
-        nextStepDrawer.classList.add('open');
-        nextStepOverlay.classList.add('visible');
+        nextStepDrawer = document.createElement('div');
+        nextStepDrawer.id = 'next-step-drawer';
+        nextStepDrawer.className = 'bottom-sheet-drawer';
+        nextStepDrawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div><div class="drawer-content"><ul id="next-step-list"></ul></div>`;
+        nextStepList = nextStepDrawer.querySelector('#next-step-list');
+
+        document.body.append(nextStepOverlay, nextStepDrawer);
+
+        nextStepOverlay.addEventListener('click', closeNextStepDrawer, { once: true });
     }
 
-    function closeNextStepDrawer() {
-        nextStepDrawer.classList.remove('open');
-        nextStepOverlay.classList.remove('visible');
-    }
+    renderNextStepList(children);
 
-    function renderNextStepList(children) {
-        nextStepList.innerHTML = '';
-        children.forEach(childElement => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
-            li.addEventListener('click', () => {
-                childElement.click();
-                closeNextStepDrawer();
-            });
-            nextStepList.appendChild(li);
+    // open with animation
+    nextStepDrawer.classList.add('open');
+    nextStepOverlay.classList.add('visible');
+}
+
+function closeNextStepDrawer() {
+    if (!nextStepDrawer || !nextStepOverlay) return;
+
+    // start close animation
+    nextStepDrawer.classList.remove('open');
+    nextStepOverlay.classList.remove('visible');
+
+    // destroy after transition
+    const teardown = () => {
+        if (nextStepOverlay && nextStepOverlay.parentNode) nextStepOverlay.parentNode.removeChild(nextStepOverlay);
+        if (nextStepDrawer && nextStepDrawer.parentNode) nextStepDrawer.parentNode.removeChild(nextStepDrawer);
+        nextStepOverlay = null;
+        nextStepDrawer = null;
+        nextStepList = null;
+    };
+
+    // Fallback timeout in case transitionend doesn't fire
+    setTimeout(teardown, 200);
+}
+
+function renderNextStepList(children) {
+    if (!nextStepList) return;
+    nextStepList.innerHTML = '';
+    children.forEach(childElement => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
+        li.addEventListener('click', () => {
+            childElement.click();
+            closeNextStepDrawer();
         });
-    }
+        nextStepList.appendChild(li);
+    });
+}
 
     /**
      * 检查并触发“下一步”的核心函数 (已修复)
@@ -187,26 +220,103 @@
 
     }
 
-    // 4. --- UI 交互与渲染 (收藏夹部分无变化) ---
-    let favoritesDrawer, favoritesOverlay, favoritesList;
+    // 4. --- UI 交互与渲染 (收藏夹按需创建/销毁) ---
+let favoritesDrawer = null, favoritesOverlay = null, favoritesList = null;
 
-    // 用来支持键盘上下选择
-    let favoritesCurrentIndex = -1;
+// 用来支持键盘上下选择
+let favoritesCurrentIndex = -1;
+let favoritesKeydownHandler = null;
 
-    function openFavoritesDrawer() {
-        renderFavoritesList();
-        favoritesDrawer.classList.add('open');
-        favoritesOverlay.classList.add('visible');
-        // 初始化高亮索引
-        favoritesCurrentIndex = -1;
+function openFavoritesDrawer() {
+    // Create UI only when needed
+    if (!favoritesOverlay || !favoritesDrawer) {
+        favoritesOverlay = document.createElement('div');
+        favoritesOverlay.className = 'drawer-overlay';
+
+        favoritesDrawer = document.createElement('div');
+        favoritesDrawer.id = 'favorites-drawer';
+        favoritesDrawer.className = 'bottom-sheet-drawer';
+        favoritesDrawer.innerHTML = `<div class="drawer-header"><h2>路径收藏夹</h2></div><div class="drawer-content"><ul id="favorites-list"></ul></div>`;
+        favoritesList = favoritesDrawer.querySelector('#favorites-list');
+
+        document.body.append(favoritesOverlay, favoritesDrawer);
+
+        favoritesOverlay.addEventListener('click', closeFavoritesDrawer, { once: true });
     }
 
-    function closeFavoritesDrawer() {
-        favoritesDrawer.classList.remove('open');
-        favoritesOverlay.classList.remove('visible');
-        clearFavoritesHighlight();
-        favoritesCurrentIndex = -1;
+    // Render list every time when opening
+    renderFavoritesList();
+
+    favoritesDrawer.classList.add('open');
+    favoritesOverlay.classList.add('visible');
+
+    // 初始化高亮索引
+    favoritesCurrentIndex = -1;
+
+    // Register keydown only while open
+    if (!favoritesKeydownHandler) {
+        favoritesKeydownHandler = (e) => {
+            if (!favoritesDrawer) return;
+
+            const items = favoritesList ? favoritesList.querySelectorAll('li') : [];
+            const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
+
+            // Esc to close
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                closeFavoritesDrawer();
+                return;
+            }
+            if (validItems.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightFavoritesIndex(favoritesCurrentIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightFavoritesIndex(favoritesCurrentIndex - 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < validItems.length) {
+                    validItems[favoritesCurrentIndex].click();
+                } else {
+                    validItems[0].click();
+                }
+            }
+        };
+        document.addEventListener('keydown', favoritesKeydownHandler, { passive: false });
     }
+}
+
+function closeFavoritesDrawer() {
+    if (!favoritesDrawer || !favoritesOverlay) return;
+
+    // start close animation
+    favoritesDrawer.classList.remove('open');
+    favoritesOverlay.classList.remove('visible');
+
+    // unregister keydown
+    if (favoritesKeydownHandler) {
+        document.removeEventListener('keydown', favoritesKeydownHandler, { passive: false });
+        favoritesKeydownHandler = null;
+    }
+
+    // 清除高亮索引
+    clearFavoritesHighlight();
+    favoritesCurrentIndex = -1;
+
+    // destroy after transition
+    const teardown = () => {
+        if (favoritesOverlay && favoritesOverlay.parentNode) favoritesOverlay.parentNode.removeChild(favoritesOverlay);
+        if (favoritesDrawer && favoritesDrawer.parentNode) favoritesDrawer.parentNode.removeChild(favoritesDrawer);
+        favoritesOverlay = null;
+        favoritesDrawer = null;
+        favoritesList = null;
+    };
+
+    // Fallback timeout in case transitionend doesn't fire
+    setTimeout(teardown, 200);
+}
 
     async function addCurrentPathToFavorites() {
         const path = captureCurrentPath();
@@ -314,88 +424,38 @@
     }
 
     // 5. --- 初始化UI ---
-    function initialize() {
-        const addBtn = document.createElement('button');
-        addBtn.className = 'fav-btn';
-        addBtn.id = 'add-favorite-btn';
-        addBtn.title = '收藏当前路径';
-        // 使用 features 脚本中“添加收藏”图标，但调整为 fav-path 使用的大小（icon 宽高 24）
-        addBtn.innerHTML = `<div class="icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- bookmark + plus (Add to bookmarks) -->
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                <line x1="12" y1="8" x2="12" y2="14"></line>
-                <line x1="9" y1="11" x2="15" y2="11"></line>
-            </svg>
-        </div>`;
+function initialize() {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'fav-btn';
+    addBtn.id = 'add-favorite-btn';
+    addBtn.title = '收藏当前路径';
+    addBtn.innerHTML = `<div class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- bookmark + plus (Add to bookmarks) -->
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            <line x1="12" y1="8" x2="12" y2="14"></line>
+            <line x1="9" y1="11" x2="15" y2="11"></line>
+        </svg>
+    </div>`;
 
-        const showBtn = document.createElement('button');
-        showBtn.className = 'fav-btn';
-        showBtn.id = 'show-favorites-btn';
-        showBtn.title = '查看收藏夹';
-        // 使用 features 脚本中“收藏夹/书签”图标，同样为 fav-path 的尺寸
-        showBtn.innerHTML = `<div class="icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- bookmark (open bookmarks) -->
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </div>`;
+    const showBtn = document.createElement('button');
+    showBtn.className = 'fav-btn';
+    showBtn.id = 'show-favorites-btn';
+    showBtn.title = '查看收藏夹';
+    showBtn.innerHTML = `<div class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- bookmark (open bookmarks) -->
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+    </div>`;
 
-        favoritesOverlay = document.createElement('div');
-        favoritesOverlay.className = 'drawer-overlay';
-        favoritesDrawer = document.createElement('div');
-        favoritesDrawer.id = 'favorites-drawer';
-        favoritesDrawer.className = 'bottom-sheet-drawer';
-        favoritesDrawer.innerHTML = `<div class="drawer-header"><h2>路径收藏夹</h2></div><div class="drawer-content"><ul id="favorites-list"></ul></div>`;
-        favoritesList = favoritesDrawer.querySelector('#favorites-list');
+    document.body.append(addBtn, showBtn);
 
-        nextStepOverlay = document.createElement('div');
-        nextStepOverlay.className = 'drawer-overlay';
-        nextStepDrawer = document.createElement('div');
-        nextStepDrawer.id = 'next-step-drawer';
-        nextStepDrawer.className = 'bottom-sheet-drawer';
-        nextStepDrawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div><div class="drawer-content"><ul id="next-step-list"></ul></div>`;
-        nextStepList = nextStepDrawer.querySelector('#next-step-list');
+    // button handlers
+    addBtn.addEventListener('click', addCurrentPathToFavorites);
+    showBtn.addEventListener('click', openFavoritesDrawer);
+}
 
-        document.body.append(addBtn, showBtn, favoritesOverlay, favoritesDrawer, nextStepOverlay, nextStepDrawer);
-
-        addBtn.addEventListener('click', addCurrentPathToFavorites);
-        showBtn.addEventListener('click', openFavoritesDrawer);
-        favoritesOverlay.addEventListener('click', closeFavoritesDrawer);
-        nextStepOverlay.addEventListener('click', closeNextStepDrawer);
-
-        // 全局键盘监听：仅在收藏夹打开时响应上下/回车/Esc
-        document.addEventListener('keydown', (e) => {
-            // 如果抽屉没打开，不处理
-            if (!favoritesDrawer.classList.contains('open') || !favoritesOverlay.classList.contains('visible')) return;
-
-            const items = favoritesList.querySelectorAll('li');
-            const validItems = Array.from(items).filter(i => !i.id || i.id !== 'empty-favorites-msg');
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                e.preventDefault();
-                closeFavoritesDrawer();
-                return;
-            }
-            if (validItems.length === 0) return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                highlightFavoritesIndex(favoritesCurrentIndex + 1);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                highlightFavoritesIndex(favoritesCurrentIndex - 1);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (favoritesCurrentIndex >= 0 && favoritesCurrentIndex < validItems.length) {
-                    validItems[favoritesCurrentIndex].click();
-                } else {
-                    // 如果没有高亮，默认点击第一个
-                    validItems[0].click();
-                }
-            }
-        }, {passive: false});
-    }
-
-    initialize();
+ initialize();
 
 })();
