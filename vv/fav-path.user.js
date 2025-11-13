@@ -216,8 +216,7 @@
 
         renderNextStepList(children);
 
-        // 关键：强制进行一次布局（reflow），再在下一帧添加类触发动画
-        void nextStepDrawer.offsetWidth;
+        // 在下一帧添加类触发动画
         requestAnimationFrame(() => {
             nextStepDrawer.classList.add('open');
             nextStepOverlay.classList.add('visible');
@@ -230,7 +229,7 @@
         nextStepDrawer.classList.remove('open');
         nextStepOverlay.classList.remove('visible');
 
-        // 动画结束后移除节点（简化为 remove）
+        // 动画结束后移除
         setTimeout(() => {
             nextStepOverlay?.remove();
             nextStepDrawer?.remove();
@@ -318,8 +317,7 @@
 
         renderFavoritesList();
 
-        // 强制进行一次布局（reflow），下一帧添加类触发动画
-        void favoritesDrawer.offsetWidth;
+        // 下一帧添加类触发动画
         requestAnimationFrame(() => {
             favoritesDrawer.classList.add('open');
             favoritesOverlay.classList.add('visible');
@@ -510,7 +508,6 @@
         </div>`;
 
         document.body.append(addBtn, showBtn);
-
         addBtn.addEventListener('click', addCurrentPathToFavorites);
         showBtn.addEventListener('click', openFavoritesDrawer);
     }
