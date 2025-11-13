@@ -142,6 +142,12 @@
             const text = cleanInnerText(el);
             if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
         }
+
+        /*  能正确捕获但无法正确回放
+        const slide = document.querySelector("div.swiper-slide.sideActive");
+        if (slide){
+            path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
+        }*/
         return path.length > 0 ? path : null;
     }
 
