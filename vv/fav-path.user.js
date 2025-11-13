@@ -179,7 +179,7 @@
         return lastClickedElement;
     }
 
-    // 3. --- “智能下一步”模块（按需创建/销毁 + 打开动画修复） ---
+    // 3. --- “智能下一步”模块（按需创建/销毁 + 打开动画） ---
     let nextStepDrawer = null, nextStepOverlay = null, nextStepList = null;
 
     function renderNextStepList(children) {
@@ -214,7 +214,7 @@
 
         renderNextStepList(children);
 
-        // 使用 rAF 让初始状态先渲染，再添加类以触发过渡
+        // 确保初始状态完成渲染后再添加类，确保动画触发
         requestAnimationFrame(() => {
             nextStepDrawer.classList.add('open');
             nextStepOverlay.classList.add('visible');
@@ -223,11 +223,8 @@
 
     function closeNextStepDrawer() {
         if (!nextStepDrawer || !nextStepOverlay) return;
-
         nextStepDrawer.classList.remove('open');
         nextStepOverlay.classList.remove('visible');
-
-        // 动画结束后销毁
         setTimeout(() => {
             nextStepOverlay?.remove();
             nextStepDrawer?.remove();
@@ -237,18 +234,13 @@
         }, 300);
     }
 
-    /**
-     * 检查并触发“下一步”的核心函数
-     */
     async function checkForNextStep(lastElement) {
         if (!lastElement) return;
-
         const parentLi = lastElement.closest('li[role="treeitem"]');
         if (!parentLi) {
             console.log("下一步检测：未能找到父级 treeitem 容器。");
             return;
         }
-
         const childTree = parentLi.querySelector('ul.ant-tree-child-tree');
         if (childTree && childTree.children.length > 0) {
             const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
@@ -261,7 +253,7 @@
         }
     }
 
-    // 4. --- 收藏夹模块（按需创建/销毁 + 键盘监听在 render 内绑定 + 打开动画修复） ---
+    // 4. --- 收藏夹模块（按需创建/销毁 + 键盘监听在 render 内部 + Esc 单独监听） ---
     let favoritesDrawer = null, favoritesOverlay = null, favoritesList = null;
     let favoritesCurrentIndex = -1;
 
@@ -276,11 +268,20 @@
             <div class="drawer-header"><h2>路径收藏夹</h2></div>
             <div class="drawer-content"><ul id="favorites-list"></ul></div>
         `;
-        favoritesDrawer.tabIndex = -1; // 使其可接收键盘事件
+        favoritesDrawer.tabIndex = -1; // 接收键盘事件
         favoritesList = favoritesDrawer.querySelector('#favorites-list');
 
         document.body.append(favoritesOverlay, favoritesDrawer);
         favoritesOverlay.addEventListener('click', closeFavoritesDrawer, { once: true });
+
+        // Esc 监听：无论是否有条目，都可退出
+        const escHandler = (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                closeFavoritesDrawer();
+            }
+        };
+        favoritesDrawer.addEventListener('keydown', escHandler);
 
         renderFavoritesList();
 
@@ -296,12 +297,9 @@
 
     function closeFavoritesDrawer() {
         if (!favoritesDrawer || !favoritesOverlay) return;
-
         favoritesDrawer.classList.remove('open');
         favoritesOverlay.classList.remove('visible');
-
         favoritesCurrentIndex = -1;
-
         setTimeout(() => {
             favoritesOverlay?.remove();
             favoritesDrawer?.remove();
@@ -338,7 +336,7 @@
     }
 
     async function renderFavoritesList() {
-        if (!favoritesList) return;
+        if (!favoritesList || !favoritesDrawer) return;
 
         const favorites = await getFavorites();
         favoritesList.innerHTML = '';
@@ -346,17 +344,15 @@
 
         if (favorites.length === 0) {
             favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹是空的<br>点击“+”按钮添加吧</li>';
-
-            // 若之前绑定过键盘监听，移除以免空列表时仍触发
-            if (favoritesDrawer && favoritesDrawer._favKeyHandler) {
-                favoritesDrawer.removeEventListener('keydown', favoritesDrawer._favKeyHandler);
-                favoritesDrawer._favKeyHandler = null;
-            }
+            // 无条目时取消导航监听，仅保留上层 Esc 监听
+            favoritesDrawer.onkeydown = null;
             return;
         }
 
+        const lis = [];
         favorites.forEach((fav, index) => {
             const li = document.createElement('li');
+            li.tabIndex = -1; // 便于后续 focus 到该项
             const fullPath = fav.path.map(p => p.text).join(' / ');
             li.innerHTML = `
                 <div class="item-text-content">
@@ -414,9 +410,20 @@
                 input.type = 'text';
                 input.className = 'title-edit-input';
                 input.value = fav.title;
+
+                // 拦截 Enter，避免触发抽屉的回车导航，同时触发保存
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        input.blur(); // 触发保存
+                    }
+                });
+
                 textContentDiv.replaceChild(input, titleSpan);
                 input.focus();
                 input.select();
+
                 const saveEdit = async () => {
                     const newTitle = input.value.trim();
                     if (newTitle && newTitle !== fav.title) {
@@ -427,24 +434,23 @@
                     }
                     titleSpan.textContent = fav.title;
                     textContentDiv.replaceChild(titleSpan, input);
+                    // 保存后把焦点移回该项
+                    li.focus({ preventScroll: true });
                 };
-                input.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') input.blur();
-                });
                 input.addEventListener('blur', saveEdit);
             });
 
+            lis.push(li);
             favoritesList.appendChild(li);
         });
 
-        // 就地使用本次渲染生成的 items，避免重复查询
-        const items = Array.from(favoritesList.querySelectorAll('li'));
+        // 就地 items
+        const items = lis;
 
-        // 内部高亮函数：可直接操作 items
+        // 内部高亮函数：直接使用 items
         function clearFavoritesHighlight() {
             items.forEach(it => it.classList.remove('highlighted'));
         }
-
         function highlightFavoritesIndex(idx) {
             if (!items.length) return;
             if (idx < 0) idx = items.length - 1;
@@ -456,16 +462,8 @@
             el.scrollIntoView({block: 'nearest', behavior: 'auto'});
         }
 
-        // 重新绑定键盘监听（如已有旧监听，先移除）
-        if (favoritesDrawer._favKeyHandler) {
-            favoritesDrawer.removeEventListener('keydown', favoritesDrawer._favKeyHandler);
-        }
-        favoritesDrawer._favKeyHandler = (e) => {
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                e.preventDefault();
-                closeFavoritesDrawer();
-                return;
-            }
+        // 导航监听仅在有条目时绑定；用 onkeydown 覆盖旧的，避免重复注册
+        favoritesDrawer.onkeydown = (e) => {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 highlightFavoritesIndex(favoritesCurrentIndex + 1);
@@ -481,9 +479,8 @@
                 }
             }
         };
-        favoritesDrawer.addEventListener('keydown', favoritesDrawer._favKeyHandler);
 
-        // 渲染完成后确保焦点在抽屉上（便于键盘操作）
+        // 渲染完成后确保焦点仍在抽屉上（便于键盘操作）
         favoritesDrawer.focus({ preventScroll: true });
     }
 
@@ -514,7 +511,6 @@
         </div>`;
 
         document.body.append(addBtn, showBtn);
-
         addBtn.addEventListener('click', addCurrentPathToFavorites);
         showBtn.addEventListener('click', openFavoritesDrawer);
     }
