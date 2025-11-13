@@ -210,7 +210,7 @@
         nextStepList = nextStepDrawer.querySelector('#next-step-list');
 
         document.body.append(nextStepOverlay, nextStepDrawer);
-        nextStepOverlay.addEventListener('click', closeNextStepDrawer, { once: true });
+        nextStepOverlay.addEventListener('click', closeNextStepDrawer, {once: true});
 
         renderNextStepList(children);
 
@@ -272,7 +272,7 @@
         favoritesList = favoritesDrawer.querySelector('#favorites-list');
 
         document.body.append(favoritesOverlay, favoritesDrawer);
-        favoritesOverlay.addEventListener('click', closeFavoritesDrawer, { once: true });
+        favoritesOverlay.addEventListener('click', closeFavoritesDrawer, {once: true});
 
         // Esc 监听：无论是否有条目，都可退出
         const escHandler = (e) => {
@@ -289,7 +289,7 @@
         requestAnimationFrame(() => {
             favoritesDrawer.classList.add('open');
             favoritesOverlay.classList.add('visible');
-            favoritesDrawer.focus({ preventScroll: true });
+            favoritesDrawer.focus({preventScroll: true});
         });
 
         favoritesCurrentIndex = -1;
@@ -349,10 +349,8 @@
             return;
         }
 
-        const lis = [];
         favorites.forEach((fav, index) => {
             const li = document.createElement('li');
-            li.tabIndex = -1; // 便于后续 focus 到该项
             const fullPath = fav.path.map(p => p.text).join(' / ');
             li.innerHTML = `
                 <div class="item-text-content">
@@ -435,28 +433,23 @@
                     titleSpan.textContent = fav.title;
                     textContentDiv.replaceChild(titleSpan, input);
                     // 保存后把焦点移回该项
-                    li.focus({ preventScroll: true });
+                    highlightFavoritesIndex(index);
+                    favoritesDrawer.focus({preventScroll: true});
                 };
                 input.addEventListener('blur', saveEdit);
             });
 
-            lis.push(li);
             favoritesList.appendChild(li);
         });
 
-        // 就地 items
-        const items = lis;
+        const items = Array.from(favoritesList.querySelectorAll('li'));
 
-        // 内部高亮函数：直接使用 items
-        function clearFavoritesHighlight() {
-            items.forEach(it => it.classList.remove('highlighted'));
-        }
         function highlightFavoritesIndex(idx) {
             if (!items.length) return;
             if (idx < 0) idx = items.length - 1;
             if (idx >= items.length) idx = 0;
             favoritesCurrentIndex = idx;
-            clearFavoritesHighlight();
+            items.forEach(it => it.classList.remove('highlighted'));
             const el = items[favoritesCurrentIndex];
             el.classList.add('highlighted');
             el.scrollIntoView({block: 'nearest', behavior: 'auto'});
@@ -481,7 +474,7 @@
         };
 
         // 渲染完成后确保焦点仍在抽屉上（便于键盘操作）
-        favoritesDrawer.focus({ preventScroll: true });
+        favoritesDrawer.focus({preventScroll: true});
     }
 
     // 5. --- 初始化（仅创建两个悬浮按钮；抽屉按需创建/销毁） ---
@@ -492,7 +485,6 @@
         addBtn.title = '收藏当前路径';
         addBtn.innerHTML = `<div class="icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- bookmark + plus (Add to bookmarks) -->
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 <line x1="12" y1="8" x2="12" y2="14"></line>
                 <line x1="9" y1="11" x2="15" y2="11"></line>
@@ -505,7 +497,6 @@
         showBtn.title = '查看收藏夹';
         showBtn.innerHTML = `<div class="icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- bookmark (open bookmarks) -->
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
         </div>`;
