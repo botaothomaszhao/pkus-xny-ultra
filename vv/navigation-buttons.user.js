@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.1
+// @version      vv.2.2
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -68,24 +68,30 @@
         .drawer-content{padding:0 16px 16px;overflow-y:auto}
         .drawer-content ul{list-style:none;margin:0;padding:0}
 
-        #favorites-drawer .drawer-content li{
-            display:flex;align-items:center;gap:8px;
-            background:#fff;border-radius:12px;padding:14px 12px 14px 16px;margin-top:12px;
-            cursor:pointer;border:1px solid #f0f0f0;
-            transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease;
+        /* 统一列表项样式（基于搜索的紧凑版） */
+        .unified-list-item {
+            padding:12px 16px;border-radius:8px;cursor:pointer;
+            transition: background-color .12s ease;display:flex;flex-direction:column;
+            background:#fff;margin-top:8px;border:1px solid #f0f0f0;
         }
-        #favorites-drawer .drawer-content li:hover{
-            transform:translateY(-2px) scale(1.01);box-shadow:0 4px 15px rgba(0,0,0,0.08)
+        .unified-list-item:hover, .unified-list-item.highlighted {
+            background:#f3f4f6;
         }
-        .item-text-content{flex-grow:1;min-width:0}
-        .item-title,#next-step-drawer .item-title{
-            font-size:1rem;font-weight:500;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block
+        
+        /* 收藏夹列表项扩展（包含编辑/删除按钮） */
+        #favorites-drawer .unified-list-item {
+            flex-direction:row;align-items:center;
+        }
+        
+        .item-text-content{flex-grow:1;min-width:0;display:flex;flex-direction:column;}
+        .item-title{
+            font-size:0.95rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
         }
         .item-fullpath{
-            font-size:.8rem;color:#6b7280;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block
+            font-size:0.78rem;color:#6b7280;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
         }
         .title-edit-input{
-            width:100%;border:1px solid #3b82f6;border-radius:6px;padding:2px 4px;font-size:1rem;font-weight:500;color:#1f2937;outline:none;box-shadow:0 0 0 2px rgba(59,130,246,0.2)
+            width:100%;border:1px solid #3b82f6;border-radius:6px;padding:2px 4px;font-size:0.95rem;font-weight:500;color:#111827;outline:none;box-shadow:0 0 0 2px rgba(59,130,246,0.2)
         }
         .item-actions{display:flex;align-items:center;flex-shrink:0}
         .action-btn{
@@ -95,14 +101,9 @@
         .action-btn:hover{background-color:#f3f4f6;color:#374151}
         .action-btn.delete:hover{color:#ef4444}
         .action-btn .icon{width:20px;height:20px;display:block}
-
-        #next-step-drawer .drawer-content li{
-            background:#fff;border-radius:10px;padding:16px;margin-top:10px;cursor:pointer;border:1px solid #f0f0f0;transition:background-color .2s ease
-        }
-        #next-step-drawer .drawer-content li:hover{background-color:#f3f4f6}
-
+        
         /* 高亮选择（键盘上下选择） */
-        #favorites-drawer .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
+        .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
 
         /* 搜索 Overlay */
         .search-spotlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px); z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
@@ -147,6 +148,15 @@
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
+    }
+
+    function escape(e, close) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            close();
+            return true;
+        }
+        return false;
     }
 
     function cleanInnerText(el) {
@@ -237,12 +247,59 @@
         }
     }
 
+    // 统一的键盘导航管理
+    class UnifiedKeyboardNav {
+        constructor(container, itemSelector, onClose, element) {
+            this.onClose = onClose;
+            this.currentIndex = -1;
+            this.items = Array.from(container.querySelectorAll(itemSelector));
+            element.addEventListener('keydown', (e) => this.handleKeydown(e));
+            element.addEventListener('keyup', (e) => {
+                escape(e, this.onClose);
+            });
+        }
+
+        handleKeydown(e) {
+            if (escape(e, this.onClose)) return;
+
+            if (!this.items.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.highlightIndex(this.currentIndex + 1, this.items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.highlightIndex(this.currentIndex - 1, this.items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.currentIndex >= 0 && this.currentIndex < this.items.length) {
+                    this.items[this.currentIndex].click();
+                } else if (this.items.length > 0) {
+                    this.items[0].click();
+                }
+            }
+        }
+
+        highlightIndex(index) {
+            if (!this.items.length) return;
+
+            if (index < 0) index = this.items.length - 1;
+            if (index >= this.items.length) index = 0;
+
+            this.currentIndex = index;
+            this.items.forEach(it => it.classList.remove('highlighted'));
+            this.items[this.currentIndex].classList.add('highlighted');
+            this.items[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
+        }
+    }
+
     /* 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展 */
     class NextStepManager {
         constructor() {
             this.overlay = null;
             this.drawerEl = null;
             this.listEl = null;
+            this.keyboardNav = null;
         }
 
         renderList(children) {
@@ -250,7 +307,7 @@
             this.listEl.innerHTML = '';
             children.forEach(childElement => {
                 const li = document.createElement('li');
-                li.className = 'next-step-item';
+                li.className = 'unified-list-item';
                 li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
                 li.addEventListener('click', () => {
                     try {
@@ -265,7 +322,6 @@
         }
 
         open(children) {
-            // 先关闭已有的
             this.close();
 
             this.overlay = document.createElement('div');
@@ -274,6 +330,7 @@
             this.drawerEl = document.createElement('div');
             this.drawerEl.id = 'next-step-drawer';
             this.drawerEl.className = 'bottom-sheet-drawer';
+            this.drawerEl.tabIndex = -1;
             this.drawerEl.innerHTML = `
                 <div class="drawer-header"><h2>可能的下一步</h2></div>
                 <div class="drawer-content"><ul id="next-step-list"></ul></div>
@@ -285,9 +342,17 @@
 
             this.renderList(children);
 
+            this.keyboardNav = new UnifiedKeyboardNav(
+                this.listEl,
+                '.unified-list-item',
+                () => this.close(),
+                this.drawerEl
+            );
+
             requestAnimationFrame(() => {
                 this.drawerEl.classList.add('open');
                 this.overlay.classList.add('visible');
+                this.drawerEl.focus({preventScroll: true});
             });
         }
 
@@ -347,11 +412,10 @@
 
     class FavBtn {
         constructor() {
-            // 实例状态
             this.favoritesDrawer = null;
             this.favoritesOverlay = null;
             this.favoritesList = null;
-            this.favoritesCurrentIndex = -1;
+            this.keyboardNav = null;
             this.nextStepManager = new NextStepManager();
 
             // 创建按钮，传入绑定的方法引用（避免立即执行）
@@ -389,7 +453,6 @@
         }
 
         openFavoritesDrawer() {
-            // 清理旧的（如果存在）
             this.closeFavoritesDrawer();
 
             this.favoritesOverlay = document.createElement('div');
@@ -402,20 +465,11 @@
                 <div class="drawer-header"><h2>路径收藏夹</h2></div>
                 <div class="drawer-content"><ul id="favorites-list"></ul></div>
             `;
-            this.favoritesDrawer.tabIndex = -1; // 接收键盘事件
+            this.favoritesDrawer.tabIndex = -1;
             this.favoritesList = this.favoritesDrawer.querySelector('#favorites-list');
 
             document.body.append(this.favoritesOverlay, this.favoritesDrawer);
             this.favoritesOverlay.addEventListener('click', () => this.closeFavoritesDrawer(), {once: true});
-
-            // Esc 监听：无论是否有条目，都可退出
-            const escHandler = (e) => {
-                if (e.key === 'Escape' || e.key === 'Esc') {
-                    e.preventDefault();
-                    this.closeFavoritesDrawer();
-                }
-            };
-            this.favoritesDrawer.addEventListener('keydown', escHandler);
 
             this.renderFavoritesList();
 
@@ -424,15 +478,14 @@
                 this.favoritesOverlay.classList.add('visible');
                 this.favoritesDrawer.focus({preventScroll: true});
             });
-
-            this.favoritesCurrentIndex = -1;
         }
 
         closeFavoritesDrawer() {
             if (!this.favoritesDrawer && !this.favoritesOverlay) return;
+
             this.favoritesDrawer?.classList.remove('open');
             this.favoritesOverlay?.classList.remove('visible');
-            this.favoritesCurrentIndex = -1;
+
             setTimeout(() => {
                 this.favoritesOverlay?.remove();
                 this.favoritesDrawer?.remove();
@@ -473,17 +526,18 @@
 
             const favorites = await this.getFavorites();
             this.favoritesList.innerHTML = '';
-            this.favoritesCurrentIndex = -1;
 
             if (favorites.length === 0) {
-                this.favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹夹是空的<br>点击“+”按钮添加吧</li>';
-                // 无条目时取消导航监听，仅保留上层 Esc 监听
-                this.favoritesDrawer.onkeydown = null;
+                this.favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹夹是空的<br>点击"+"按钮添加吧</li>';
+                this.favoritesDrawer.addEventListener('keydown', (e) => {
+                    escape(e, () => this.closeFavoritesDrawer());
+                });
                 return;
             }
 
             favorites.forEach((fav, index) => {
                 const li = document.createElement('li');
+                li.className = 'unified-list-item';
                 const fullPath = fav.path.map(p => p.text).join(' / ');
                 li.innerHTML = `
                     <div class="item-text-content">
@@ -565,8 +619,10 @@
                         }
                         titleSpan.textContent = fav.title;
                         textContentDiv.replaceChild(titleSpan, input);
-                        // 保存后把焦点移回该项
-                        highlightFavoritesIndex(index);
+                        // 保存后把高光定位到该项
+                        if (this.keyboardNav) {
+                            this.keyboardNav.highlightIndex(index);
+                        }
                         this.favoritesDrawer.focus({preventScroll: true});
                     };
                     input.addEventListener('blur', saveEdit);
@@ -575,38 +631,14 @@
                 this.favoritesList.appendChild(li);
             });
 
-            const items = Array.from(this.favoritesList.querySelectorAll('li'));
+            // 使用统一的键盘导航类
+            this.keyboardNav = new UnifiedKeyboardNav(
+                this.favoritesList,
+                '.unified-list-item',
+                () => this.closeFavoritesDrawer(),
+                this.favoritesDrawer
+            );
 
-            const highlightFavoritesIndex = (idx) => {
-                if (!items.length) return;
-                if (idx < 0) idx = items.length - 1;
-                if (idx >= items.length) idx = 0;
-                this.favoritesCurrentIndex = idx;
-                items.forEach(it => it.classList.remove('highlighted'));
-                const el = items[this.favoritesCurrentIndex];
-                el.classList.add('highlighted');
-                el.scrollIntoView({block: 'nearest', behavior: 'auto'});
-            };
-
-            // 导航监听仅在有条目时绑定；用 onkeydown 覆盖旧的，避免重复注册
-            this.favoritesDrawer.onkeydown = (e) => {
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    highlightFavoritesIndex(this.favoritesCurrentIndex + 1);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    highlightFavoritesIndex(this.favoritesCurrentIndex - 1);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (this.favoritesCurrentIndex >= 0 && this.favoritesCurrentIndex < items.length) {
-                        items[this.favoritesCurrentIndex].click();
-                    } else if (items.length > 0) {
-                        items[0].click();
-                    }
-                }
-            };
-
-            // 渲染完成后确保焦点仍在抽屉上（便于键盘操作）
             this.favoritesDrawer.focus({preventScroll: true});
         }
     }
@@ -730,7 +762,7 @@
 
             const input = overlay.querySelector('.search-spotlight-input');
             const resultsList = overlay.querySelector('.search-results-list');
-            let currentHighlight = -1;
+            let searchKeyboardNav = null;
 
             const destroySearchUI = () => {
                 overlay.classList.remove('visible');
@@ -739,7 +771,6 @@
 
             const renderResults = (query) => {
                 resultsList.innerHTML = '';
-                currentHighlight = -1;
                 if (!query) return;
                 if (!this.searchableItems || this.searchableItems.length === 0) {
                     resultsList.innerHTML = `<div class="search-empty-state">请先点击左侧的科目以加载目录数据。</div>`;
@@ -762,6 +793,14 @@
                     li.dataset.path = JSON.stringify(item.replayablePath);
                     resultsList.appendChild(li);
                 });
+
+                // 重新创建键盘导航
+                searchKeyboardNav = new UnifiedKeyboardNav(
+                    resultsList,
+                    'li',
+                    destroySearchUI,
+                    input
+                );
             };
 
             const debounced = debounce((q) => renderResults(q), 180);
@@ -780,41 +819,8 @@
                     await this.nextStepManager.replayWithNextStep(path);
                 }
             });
-
-            input.addEventListener('keydown', (e) => {
-                const items = resultsList.querySelectorAll('li');
-                if (e.key === 'Escape' || e.key === 'Esc') {
-                    e.preventDefault();
-                    destroySearchUI();
-                    return;
-                }
-                if (!items.length) return;
-
-                const setHighlightIndex = (index) => {
-                    items.forEach(it => it.classList.remove('highlighted'));
-                    currentHighlight = index;
-                    if (index < 0) currentHighlight = items.length - 1;
-                    if (index >= items.length) currentHighlight = 0;
-                    items[currentHighlight].classList.add('highlighted');
-                    items[currentHighlight].scrollIntoView({block: 'nearest'});
-                };
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setHighlightIndex(currentHighlight + 1);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setHighlightIndex(currentHighlight - 1);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (currentHighlight >= 0 && currentHighlight < items.length) {
-                        items[currentHighlight].click();
-                    } else {
-                        // 如果没有高亮，默认点击第一个
-                        items[0].click();
-                    }
-                }
-            });
+            input.addEventListener("keydown", (e) => escape(e, destroySearchUI));
+            input.addEventListener("keyup", (e) => escape(e, destroySearchUI));
 
             // 显示并聚焦
             requestAnimationFrame(() => {
@@ -1088,4 +1094,3 @@
     const hardRefreshBtn = new HardRefreshBtn();
 
 })();
-
