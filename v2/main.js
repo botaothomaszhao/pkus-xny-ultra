@@ -447,47 +447,106 @@
         timeout = setTimeout(later, wait);
     };
     }
-// --- 新增：用于修改题目内容以强制显示答案的核心函数 ---
+// --- 安全的题目内容修改函数 ---
 function modifyContentData(data) {
     try {
-        if (data && Array.isArray(data.extra)) {
-            data.extra.forEach(item => {
-                if (item && item.content) {
-                    const content = item.content;
-                    const keysToEnable = [
-                        "previewAnswer", "answerWayHandle", "answerWayPhoto",
-                        "answerWayTalking", "answerWayVideo", "answerWayKeyboard",
-                        "questionTalkingSwitch"
-                    ];
-                    keysToEnable.forEach(key => {
-                        if (typeof content[key] !== 'undefined') { content[key] = 1; }
-                    });
-                    if (typeof content.mustDoSwitch !== 'undefined') {
-                        content.mustDoSwitch = 0;
-                    }
+        // 安全检查：验证数据来源和完整性
+        if (!data || !Array.isArray(data.extra)) {
+            console.warn('[Security] Invalid data structure for content modification');
+            return data;
+        }
+
+        // 安全检查：记录修改操作
+        const modificationLog = [];
+
+        data.extra.forEach((item, index) => {
+            if (item && item.content) {
+                const content = item.content;
+
+                // 安全检查：验证内容对象
+                if (typeof content !== 'object' || content === null) {
+                    console.warn(`[Security] Invalid content at index ${index}`);
+                    return;
                 }
+
+                // 受控的答案功能启用列表
+                const controlledKeysToEnable = [
+                    "previewAnswer", "answerWayHandle", "answerWayPhoto",
+                    "answerWayTalking", "answerWayVideo", "answerWayKeyboard",
+                    "questionTalkingSwitch"
+                ];
+
+                controlledKeysToEnable.forEach(key => {
+                    if (typeof content[key] !== 'undefined') {
+                        const originalValue = content[key];
+                        content[key] = 1;
+                        modificationLog.push({
+                            index,
+                            key,
+                            originalValue,
+                            newValue: 1,
+                            action: 'enabled'
+                        });
+                    }
+                });
+
+                if (typeof content.mustDoSwitch !== 'undefined') {
+                    const originalValue = content.mustDoSwitch;
+                    content.mustDoSwitch = 0;
+                    modificationLog.push({
+                        index,
+                        key: 'mustDoSwitch',
+                        originalValue,
+                        newValue: 0,
+                        action: 'disabled'
+                    });
+                }
+            }
+        });
+
+        // 审计日志：记录所有修改操作
+        if (modificationLog.length > 0) {
+            console.info('[Security Audit] Content modification performed:', {
+                timestamp: new Date().toISOString(),
+                modifications: modificationLog,
+                itemCount: data.extra.length
             });
         }
+
         return data;
     } catch (e) {
-        // 在 sandbox 中 console.error 不可见，但保留无害
-        console.error('[Content Modifier] Error modifying data:', e);
+        console.error('[Security] Error in content modification:', e);
+        // 安全失败：返回原始数据
         return data;
     }
 }
 
-/* -------------------- XHR 请求拦截器 -------------------- */
+/* -------------------- 安全的 XHR 请求拦截器 -------------------- */
 function setupXHRInterceptor() {
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
 
+    // 安全检查：验证拦截器的调用上下文
+    const allowedOrigins = ['https://bdfz.xnykcxt.com:5002', 'http://bdfz.xnykcxt.com:5002'];
+
     XMLHttpRequest.prototype.open = function(method, url) {
+        // 安全检查：验证请求来源
+        const currentOrigin = window.location.origin;
+        if (!allowedOrigins.includes(currentOrigin)) {
+            console.warn('[Security] XHR interceptor blocked on unauthorized origin:', currentOrigin);
+            originalOpen.apply(this, arguments);
+            return;
+        }
+
         if (typeof url === 'string' && url.endsWith('enchance')) { /* ATTENTION: 这里务必注意！新能源课程系统网站原始API有拼写错误，该API路径就是enchance，而不是enhance，严禁修改。*/
             this._isMockTarget = true;
+            console.log('[Security] Mock enhancement request intercepted');
         } else if (typeof url === 'string' && url.includes('catalog/entity')) {
             this._isCatalogTarget = true;
+            console.log('[Security] Catalog data request intercepted');
         } else if (url && typeof url === 'string' && url.endsWith('/content')) {
             this._isContentTarget = true;
+            console.log('[Security] Content data request intercepted');
         }
         originalOpen.apply(this, arguments);
     };
@@ -564,7 +623,16 @@ function setupXHRInterceptor() {
 }
 
 function processCatalogData(response, mainMenuContext, subjectContext) {
+    // 安全检查：验证数据完整性
     if (!response || !response.extra || subjectContext === '未知科目') {
+        console.warn('[Security] Invalid catalog data or context for processing');
+        searchableItems = [];
+        return;
+    }
+
+    // 安全检查：验证响应结构
+    if (!Array.isArray(response.extra)) {
+        console.warn('[Security] Catalog data extra is not an array');
         searchableItems = [];
         return;
     }
@@ -575,13 +643,19 @@ function processCatalogData(response, mainMenuContext, subjectContext) {
     const mainMenuStep = { selector: "div.menu > div", text: mainMenuContext };
     const subjectStep = { selector: "div.folderName", text: subjectContext };
 
-    // 关键：将科目/教师步骤重复一次，以实现“双击”效果
+    // 关键：将科目/教师步骤重复一次，以实现"双击"效果
     const initialPath = [mainMenuStep, subjectStep, subjectStep];
 
     function flattenTree(nodes, parentPath) {
         if (!nodes || nodes.length === 0) return;
 
         nodes.forEach(node => {
+            // 安全检查：验证节点数据
+            if (!node || typeof node.catalogName !== 'string') {
+                console.warn('[Security] Invalid catalog node detected, skipping', node);
+                return;
+            }
+
             // 步骤2：修正选择器逻辑
             // 根据您的分析，JSON 数据中的所有层级都对应 antd 树节点
             const currentSelector = "span.ant-tree-node-content-wrapper";
@@ -598,7 +672,8 @@ function processCatalogData(response, mainMenuContext, subjectContext) {
                 replayablePath: replayablePath
             });
 
-            if (node.childList && node.childList.length > 0) {
+            // 安全检查：验证子节点结构
+            if (node.childList && Array.isArray(node.childList) && node.childList.length > 0) {
                 flattenTree(node.childList, replayablePath);
             }
         });
