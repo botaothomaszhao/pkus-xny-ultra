@@ -177,7 +177,8 @@
 
             for (const step of path) {
                 const ok = await clickBySelectorAndText(step.selector, step.text);
-                if (ok) await sleep(250); else {
+                if (ok) await sleep(250);
+                else {
                     console.log(`无法找到匹配的元素: selector=${step.selector}, text=${step.text}`);
                     break;
                 }
