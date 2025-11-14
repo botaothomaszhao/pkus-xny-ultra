@@ -11,6 +11,7 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @run-at       document-body
+// @require      https://unpkg.com/pinyin-match@1.2.8/dist/main.js
 // ==/UserScript==
 
 (function () {
@@ -21,18 +22,19 @@
 
     // 收藏夹样式
     GM_addStyle(`
-        .fav-btn{
+        .btn{
             position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;
             background-color:#fff;border:none;border-radius:50%;
             box-shadow:0 4px 12px rgba(0,0,0,0.15);
             cursor:pointer;display:flex;align-items:center;justify-content:center;
             transition:transform .15s ease,box-shadow .15s ease;
         }
-        .fav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
-        .fav-btn .icon{width:24px;height:24px}
-        .fav-btn .icon svg{width:100%;height:100%}
+        .btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
+        .btn .icon{width:24px;height:24px}
+        .btn .icon svg{width:100%;height:100%}
         #add-favorite-btn{bottom:170px}
         #show-favorites-btn{bottom:230px}
+        #search-btn { bottom: 110px; }
 
         .drawer-overlay{
             position:fixed;top:0;left:0;width:100%;height:100%;
@@ -101,6 +103,23 @@
         #favorites-drawer .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
     `);
 
+    // 搜索样式
+    GM_addStyle(`
+        /* 搜索 Overlay */
+        .search-spotlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px); z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
+        .search-spotlight-overlay.visible { opacity: 1; pointer-events: auto; }
+        .search-spotlight-card { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px; background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 2147483648; overflow: hidden; }
+        .search-input-wrapper { display:flex; align-items:center; padding: 12px 16px; border-bottom:1px solid #eee; }
+        .search-input-wrapper .icon { width:20px;height:20px;color:#9ca3af;margin-right:10px; display:flex; align-items:center; justify-content:center; }
+        .search-spotlight-input { width:100%; height:44px; border: none; outline:none; font-size:16px; background:transparent; color:#111827; }
+        .search-results-list { max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px; }
+        .search-results-list li { padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease; display:flex; flex-direction:column; }
+        .search-results-list li:hover, .search-results-list li.highlighted { background:#f3f4f6; }
+        .search-result-title { font-size:0.95rem; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .search-result-path { font-size:0.78rem; color:#6b7280; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .search-empty-state { padding:40px; text-align:center; color:#9ca3af; }
+    `);
+
     // 通用函数
     function notLogin(url = window.location.href) {
         return !url.includes("/stu/#/login")
@@ -110,6 +129,17 @@
         return new Promise(r => setTimeout(r, ms));
     }
 
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
 
     function cleanInnerText(el) {
         if (!el) return "";
@@ -274,9 +304,9 @@
     }
 
     class NavigationButton {
-        constructor(className, id, title, html, onclick) {
+        constructor(id, title, html, onclick) {
             this.button = document.createElement('button');
-            this.button.className = className;
+            this.button.className = 'btn';
             this.button.id = id;
             this.button.title = title;
             this.button.innerHTML = html;
@@ -296,7 +326,6 @@
 
             // 创建按钮，传入绑定的方法引用（避免立即执行）
             this.addBtn = new NavigationButton(
-                'fav-btn',
                 'add-favorite-btn',
                 '添加到收藏夹',
                 `<div class="icon">
@@ -310,7 +339,6 @@
             );
 
             this.showBtn = new NavigationButton(
-                'fav-btn',
                 'show-favorites-btn',
                 '显示收藏夹',
                 `<div class="icon">
@@ -554,9 +582,222 @@
         }
     }
 
+    // 替换原有的 class searchBtn ... 的定义为下面的新类（修复 function 在 class 内的错误写法，修复 this 在 super 前使用等问题）
+    class SearchBtn extends NavigationButton {
+        constructor() {
+            super(
+                'search-btn',
+                '目录搜索',
+                `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>`,
+                () => this.createSearchUI()
+            );
 
+            // 实例状态
+            this.searchableItems = []; // { title, displayPath, replayablePath }
+            this.MAX_DISPLAY = 50;
+            this.nextStepManager = new NextStepManager();
 
+            // 启动 XHR 拦截以捕获 catalog/entity 响应
+            this.setupXHRInterceptorForCatalog();
+        }
+
+        /* -------------------- XHR 拦截：监听 catalog/entity 返回 -------------------- */
+        setupXHRInterceptorForCatalog() {
+            const origOpen = XMLHttpRequest.prototype.open;
+            const origSend = XMLHttpRequest.prototype.send;
+            const self = this;
+
+            XMLHttpRequest.prototype.open = function (method, url) {
+                try {
+                    if (typeof url === 'string' && url.includes('catalog/entity')) {
+                        this._isCatalogTarget = true;
+                    }
+                } catch (e) { /* ignore */
+                }
+                return origOpen.apply(this, arguments);
+            };
+
+            XMLHttpRequest.prototype.send = function () {
+                if (this._isCatalogTarget) {
+                    this.addEventListener('load', function () {
+                        if (this.status === 200) {
+                            try {
+                                const response = JSON.parse(this.responseText);
+                                const activeMainMenu = document.querySelector('.menu > div.active');
+                                const mainMenuContext = activeMainMenu ? cleanInnerText(activeMainMenu) : '课程';
+                                const activeSubject = document.querySelector('.folderName.active');
+                                const subjectContext = activeSubject ? cleanInnerText(activeSubject) : '未知科目';
+                                self.processCatalogData(response, mainMenuContext, subjectContext);
+                            } catch (e) {
+                                console.error('Search: 目录数据处理失败', e);
+                            }
+                        }
+                    });
+                }
+                return origSend.apply(this, arguments);
+            };
+        }
+
+        /* -------------------- 将目录树扁平化为 searchableItems -------------------- */
+        processCatalogData(response, mainMenuContext, subjectContext) {
+            if (!response || !response.extra || subjectContext === '未知科目') {
+                this.searchableItems = [];
+                return;
+            }
+            const flatList = [];
+
+            const mainMenuStep = {selector: "div.menu > div", text: mainMenuContext};
+            const subjectStep = {selector: "div.folderName", text: subjectContext};
+
+            // 重复 subjectStep 一次以实现先关闭再展开
+            const initialPath = [mainMenuStep, subjectStep, subjectStep];
+
+            const flattenTree = (nodes, parentPath) => {
+                if (!nodes || nodes.length === 0) return;
+                nodes.forEach(node => {
+                    const currentSelector = "span.ant-tree-node-content-wrapper";
+                    const currentStep = {selector: currentSelector, text: node.catalogName};
+                    const replayablePath = [...parentPath, currentStep];
+                    const displayPath = replayablePath
+                        .slice(1, 2) // 只显示科目
+                        .concat(replayablePath.slice(3)) // 后续显示
+                        .map(p => p.text).join(' / ');
+                    flatList.push({
+                        title: node.catalogName, displayPath: displayPath, replayablePath: replayablePath
+                    });
+                    if (node.childList && node.childList.length > 0) {
+                        flattenTree(node.childList, replayablePath);
+                    }
+                });
+            };
+
+            flattenTree(response.extra, initialPath);
+            this.searchableItems = flatList;
+            console.log(`Search Spotlight: loaded ${this.searchableItems.length} items for "${subjectContext}"`);
+        }
+
+        createSearchUI() {
+            if (document.getElementById('search-spotlight-overlay')) return;
+            const overlay = document.createElement('div');
+            overlay.id = 'search-spotlight-overlay';
+            overlay.className = 'search-spotlight-overlay';
+
+            overlay.innerHTML = `
+                <div class="search-spotlight-card" role="dialog" aria-modal="true">
+                    <div class="search-input-wrapper">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" class="search-spotlight-input" placeholder="搜索课程目录 (支持拼音或拼音首字母)..." autocomplete="off" />
+                    </div>
+                    <ul class="search-results-list"></ul>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const input = overlay.querySelector('.search-spotlight-input');
+            const resultsList = overlay.querySelector('.search-results-list');
+            let currentHighlight = -1;
+
+            const destroySearchUI = () => {
+                overlay.classList.remove('visible');
+                overlay.addEventListener('transitionend', () => overlay.remove(), {once: true});
+            };
+
+            const renderResults = (query) => {
+                resultsList.innerHTML = '';
+                currentHighlight = -1;
+                if (!query) return;
+                if (!this.searchableItems || this.searchableItems.length === 0) {
+                    resultsList.innerHTML = `<div class="search-empty-state">请先点击左侧的科目以加载目录数据。</div>`;
+                    return;
+                }
+                const results = this.searchableItems.filter(item => {
+                    try {
+                        return PinyinMatch.match(item.title, query);
+                    } catch (e) {
+                        return item.title && item.title.includes(query);
+                    }
+                });
+                if (!results || results.length === 0) {
+                    resultsList.innerHTML = `<div class="search-empty-state">无匹配结果</div>`;
+                    return;
+                }
+                results.slice(0, this.MAX_DISPLAY).forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="search-result-title">${item.title}</span><span class="search-result-path">${item.displayPath}</span>`;
+                    li.dataset.path = JSON.stringify(item.replayablePath);
+                    resultsList.appendChild(li);
+                });
+            };
+
+            const debounced = debounce((q) => renderResults(q), 180);
+            input.addEventListener('input', () => debounced(input.value.trim()));
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) destroySearchUI();
+            });
+
+            resultsList.addEventListener('click', async (e) => {
+                const li = e.target.closest('li');
+                if (li && li.dataset.path) {
+                    const path = JSON.parse(li.dataset.path);
+                    destroySearchUI();
+                    await sleep(120);
+                    const lastClickedElement = await replayPath(path);
+                    await this.nextStepManager.checkForNextStep(lastClickedElement);
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                const items = resultsList.querySelectorAll('li');
+                if (e.key === 'Escape' || e.key === 'Esc') {
+                    e.preventDefault();
+                    destroySearchUI();
+                    return;
+                }
+                if (!items.length) return;
+
+                const setHighlightIndex = (index) => {
+                    items.forEach(it => it.classList.remove('highlighted'));
+                    currentHighlight = index;
+                    if (index < 0) currentHighlight = items.length - 1;
+                    if (index >= items.length) currentHighlight = 0;
+                    items[currentHighlight].classList.add('highlighted');
+                    items[currentHighlight].scrollIntoView({block: 'nearest'});
+                };
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setHighlightIndex(currentHighlight + 1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHighlightIndex(currentHighlight - 1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentHighlight >= 0 && currentHighlight < items.length) {
+                        items[currentHighlight].click();
+                    } else {
+                        // 如果没有高亮，默认点击第一个
+                        items[0].click();
+                    }
+                }
+            });
+
+            // 显示并聚焦
+            requestAnimationFrame(() => {
+                overlay.classList.add('visible');
+                input.focus();
+                input.select();
+            });
+        }
+    }
 
     const favBtn = new FavBtn();
+    const searchSpotlight = new SearchBtn();
 
 })();
