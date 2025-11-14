@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.0
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -224,6 +224,19 @@
         return lastClickedElement;
     }
 
+    async function savePathForReplay(path = null) {
+        try {
+            if (!path) {
+                if (!notLogin()) return;
+                path = captureCurrentPath();
+            }
+            // 防止在登录页面触发保存空路径
+            if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
+        } catch (e) {
+            console.warn('保存回放路径失败：', e);
+        }
+    }
+
     /* 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展 */
     class NextStepManager {
         constructor() {
@@ -280,33 +293,42 @@
 
         close() {
             if (!this.drawerEl && !this.overlay) return;
-            this.drawerEl?.classList.remove('open');
-            this.overlay?.classList.remove('visible');
+            this.drawerEl.classList.remove('open');
+            this.overlay.classList.remove('visible');
             setTimeout(() => {
-                this.overlay?.remove();
-                this.drawerEl?.remove();
+                this.overlay.remove();
+                this.drawerEl.remove();
                 this.overlay = null;
                 this.drawerEl = null;
                 this.listEl = null;
+                savePathForReplay();
             }, 300);
         }
 
-        async checkForNextStep(lastElement) {
-            if (!lastElement) return;
+        checkNextStep(lastElement) {
+            if (!lastElement) {
+                return false;
+            }
             const parentLi = lastElement.closest('li[role="treeitem"]');
             if (!parentLi) {
-                console.log("下一步检测：未能找到父级 treeitem 容器。");
-                return;
+                return false;
             }
             const childTree = parentLi.querySelector('ul.ant-tree-child-tree');
             if (childTree && childTree.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
-                    console.log(`下一步检测：找到 ${childrenWrappers.length} 个子节点，准备弹出抽屉。`);
                     this.open(childrenWrappers);
+                    return true;
                 }
-            } else {
-                console.log("下一步检测：未找到子节点或子节点列表为空。");
+            }
+            console.log("下一步检测：未找到子节点或子节点列表为空。");
+            return false;
+        }
+
+        async replayWithNextStep(path) {
+            const lastElement = await replayPath(path);
+            if (!this.checkNextStep(lastElement)) {
+                await savePathForReplay(path);
             }
         }
     }
@@ -502,8 +524,7 @@
                     try {
                         const activeFolder = document.querySelector('div.folderName.active');
                         if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
-                        const lastClickedElement = await replayPath(fav.path);
-                        await this.nextStepManager.checkForNextStep(lastClickedElement);
+                        await this.nextStepManager.replayWithNextStep(fav.path);
                     } catch (error) {
                         console.error("Replay or next step check failed:", error);
                     }
@@ -756,8 +777,7 @@
                     const path = JSON.parse(li.dataset.path);
                     destroySearchUI();
                     await sleep(120);
-                    const lastClickedElement = await replayPath(path);
-                    await this.nextStepManager.checkForNextStep(lastClickedElement);
+                    await this.nextStepManager.replayWithNextStep(path);
                 }
             });
 
@@ -811,7 +831,10 @@
                 'hard-refresh-btn',
                 '强制刷新',
                 `<div class="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24.0703125" viewBox="0 0 1024 1027"><path fill="currentColor" d="M990 1L856 135q-69-63-157.5-98.5T512 1Q353 1 223.5 90.5T37 323l119 48q43-108 139.5-175T512 129q145 0 254 97L640 353q-1 14 8.5 23.5T672 385h309q14 0 27.5-13.5T1023 344l1-320q1-24-34-23M512 897q-145 0-254-96l126-127q1-14-8.5-23.5T352 641H43q-14 1-27.5 14.5T1 683l-1 320q-1 24 34 23l134-134q69 63 157.5 98t186.5 35q159 0 288.5-89T987 703l-119-47q-43 108-139.5 174.5T512 897"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                        <path fill="currentColor" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
+                        </path>
+                    </svg>
                 </div>`,
                 null
             );
@@ -822,17 +845,6 @@
             this.longPressTriggered = false;
             this.activePointerId = null;
             this.oldHref = window.location.href;
-
-            // 绑定实例方法 this
-            /*this.replayIfLogin = this.replayIfLogin.bind(this);
-            this.savePathForReplay = this.savePathForReplay.bind(this);
-            this.replaySavedPathIfAny = this.replaySavedPathIfAny.bind(this);
-            this.sendLogoutRequest = this.sendLogoutRequest.bind(this);
-            this.nukeAndReload = this.nukeAndReload.bind(this);
-            this.onClickHandler = this.onClickHandler.bind(this);
-            this.handleShortPress = this.handleShortPress.bind(this);
-            this.clearPressTimer = this.clearPressTimer.bind(this);
-            this.triggerLongPress = this.triggerLongPress.bind(this);*/
 
             // pagehide/pageshow 清理按钮 loading 状态
             window.addEventListener('pagehide', () => {
@@ -875,13 +887,13 @@
                 this.replayIfLogin();
             };
 
-            window.addEventListener('beforeunload', () => this.savePathForReplay());
+            window.addEventListener('beforeunload', () => savePathForReplay());
 
             document.addEventListener('click', (event) => {
                 if (!event.isTrusted) return;
                 const navContainer = event.target.closest('.menu, .folder');
                 if (navContainer) {
-                    setTimeout(this.savePathForReplay, 100);
+                    setTimeout(() => savePathForReplay(), 100);
                 }
             }, true);
 
@@ -938,17 +950,6 @@
                 setTimeout(this.replaySavedPathIfAny, 300);
             }
             this.oldHref = window.location.href;
-        }
-
-        async savePathForReplay() {
-            try {
-                if (!notLogin()) return;
-                const path = captureCurrentPath();
-                // 防止在登录页面触发保存空路径
-                if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
-            } catch (e) {
-                console.warn('保存回放路径失败：', e);
-            }
         }
 
         async replaySavedPathIfAny() {
@@ -1030,7 +1031,7 @@
             this.button.classList.add('loading');
             this.button.disabled = true;
             try {
-                await this.savePathForReplay();
+                await savePathForReplay();
             } catch (e) {
             }
             try {
@@ -1062,7 +1063,7 @@
                     this.button.classList.add('loading');
                     this.button.disabled = true;
                     try {
-                        await this.savePathForReplay();
+                        await savePathForReplay();
                     } catch (e) {
                     }
                     setTimeout(() => {
@@ -1083,7 +1084,7 @@
     }
 
     const favBtn = new FavBtn();
-    const searchbtn = new SearchBtn();
+    const searchBtn = new SearchBtn();
     const hardRefreshBtn = new HardRefreshBtn();
 
 })();
