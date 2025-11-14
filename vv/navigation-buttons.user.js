@@ -18,8 +18,8 @@
     'use strict';
 
     // 配置
-    const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 想改名，但是不想删已有记录，不改了。。。
-    const REPLAY_STORAGE_KEY = 'hard_refresh_replay_path';
+    const FAVORITES_STORAGE_KEY = 'xny_favorites_paths';
+    const REPLAY_STORAGE_KEY = 'xny_replay_path';
 
     // 收藏夹样式
     GM_addStyle(`
@@ -114,7 +114,7 @@
         .search-spotlight-input { width:100%; height:44px; border: none; outline:none; font-size:16px; background:transparent; color:#111827; }
         .search-results-list { max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px; }
         .search-results-list li { padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease; display:flex; flex-direction:column; }
-        .search-results-list li:hover, .search-results-list li.highlighted { background:#f3f4f6; }
+        .search-results-list li:hover, .search-results-list li.highlighted { background:#eef2ff; }
         .search-result-title { font-size:0.95rem; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .search-result-path { font-size:0.78rem; color:#6b7280; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .search-empty-state { padding:40px; text-align:center; color:#9ca3af; }
