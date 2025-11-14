@@ -17,8 +17,9 @@
 (function () {
     'use strict';
 
-    // 收藏夹配置
+    // 配置
     const FAVORITES_STORAGE_KEY = 'bdfz_path_favorites_v2'; // 想改名，但是不想删已有记录，不改了。。。
+    const REPLAY_STORAGE_KEY = 'hard_refresh_replay_path';
 
     // 收藏夹样式
     GM_addStyle(`
@@ -35,6 +36,7 @@
         #add-favorite-btn{bottom:170px}
         #show-favorites-btn{bottom:230px}
         #search-btn { bottom: 110px; }
+        #hard-refresh-btn { bottom: 50px; }
 
         .drawer-overlay{
             position:fixed;top:0;left:0;width:100%;height:100%;
@@ -101,10 +103,7 @@
 
         /* 高亮选择（键盘上下选择） */
         #favorites-drawer .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
-    `);
 
-    // 搜索样式
-    GM_addStyle(`
         /* 搜索 Overlay */
         .search-spotlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px); z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
         .search-spotlight-overlay.visible { opacity: 1; pointer-events: auto; }
@@ -118,6 +117,15 @@
         .search-result-title { font-size:0.95rem; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .search-result-path { font-size:0.78rem; color:#6b7280; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .search-empty-state { padding:40px; text-align:center; color:#9ca3af; }
+        
+        /* 刷新按钮 */    
+        #hard-refresh-btn.loading svg {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     `);
 
     // 通用函数
@@ -311,7 +319,7 @@
             this.button.title = title;
             this.button.innerHTML = html;
             document.body.appendChild(this.button);
-            this.button.addEventListener('click', onclick);
+            if (onclick) this.button.addEventListener('click', onclick);
         }
     }
 
@@ -797,7 +805,286 @@
         }
     }
 
+    class HardRefreshBtn extends NavigationButton {
+        constructor() {
+            super(
+                'hard-refresh-btn',
+                '强制刷新',
+                `<div class="icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24.0703125" viewBox="0 0 1024 1027"><path fill="currentColor" d="M990 1L856 135q-69-63-157.5-98.5T512 1Q353 1 223.5 90.5T37 323l119 48q43-108 139.5-175T512 129q145 0 254 97L640 353q-1 14 8.5 23.5T672 385h309q14 0 27.5-13.5T1023 344l1-320q1-24-34-23M512 897q-145 0-254-96l126-127q1-14-8.5-23.5T352 641H43q-14 1-27.5 14.5T1 683l-1 320q-1 24 34 23l134-134q69 63 157.5 98t186.5 35q159 0 288.5-89T987 703l-119-47q-43 108-139.5 174.5T512 897"></path></svg>
+                </div>`,
+                null
+            );
+
+            // 状态
+            this.LONG_PRESS_MS = 2500;
+            this.pressTimer = null;
+            this.longPressTriggered = false;
+            this.activePointerId = null;
+            this.oldHref = window.location.href;
+
+            // 绑定实例方法 this
+            /*this.replayIfLogin = this.replayIfLogin.bind(this);
+            this.savePathForReplay = this.savePathForReplay.bind(this);
+            this.replaySavedPathIfAny = this.replaySavedPathIfAny.bind(this);
+            this.sendLogoutRequest = this.sendLogoutRequest.bind(this);
+            this.nukeAndReload = this.nukeAndReload.bind(this);
+            this.onClickHandler = this.onClickHandler.bind(this);
+            this.handleShortPress = this.handleShortPress.bind(this);
+            this.clearPressTimer = this.clearPressTimer.bind(this);
+            this.triggerLongPress = this.triggerLongPress.bind(this);*/
+
+            // pagehide/pageshow 清理按钮 loading 状态
+            window.addEventListener('pagehide', () => {
+                try {
+                    this.button.classList.remove('loading');
+                    this.button.disabled = false;
+                } catch (e) {
+                }
+            });
+            window.addEventListener('pageshow', () => {
+                try {
+                    this.button.classList.remove('loading');
+                    this.button.disabled = false;
+                } catch (e) {
+                }
+            });
+
+            // 初次页面就绪后尝试回放
+            if (document.readyState === 'loading') {
+                window.addEventListener('DOMContentLoaded', () => {
+                    if (notLogin()) setTimeout(() => this.replaySavedPathIfAny(), 300);
+                });
+            } else {
+                if (notLogin()) setTimeout(() => this.replaySavedPathIfAny(), 300);
+            }
+
+            window.addEventListener('popstate', () => this.replayIfLogin());
+
+            // 劫持 pushState/replaceState，触发回放检查
+            const originalPushState = history.pushState;
+            history.pushState = (...args) => {
+                originalPushState.apply(history, args);
+                this.replayIfLogin();
+            };
+
+            // 拦截 replaceState
+            const originalReplaceState = history.replaceState;
+            history.replaceState = (...args) => {
+                originalReplaceState.apply(history, args);
+                this.replayIfLogin();
+            };
+
+            window.addEventListener('beforeunload', () => this.savePathForReplay());
+
+            document.addEventListener('click', (event) => {
+                if (!event.isTrusted) return;
+                const navContainer = event.target.closest('.menu, .folder');
+                if (navContainer) {
+                    setTimeout(this.savePathForReplay, 100);
+                }
+            }, true);
+
+            // 阻止 click 透传（按钮本身）
+            this.button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, {capture: true});
+
+            // pointer 事件（长按/短按逻辑）
+            this.button.addEventListener('pointerdown', (e) => {
+                if (this.button.classList.contains('loading')) return;
+                this.clearPressTimer();
+                this.longPressTriggered = false;
+                this.activePointerId = e.pointerId;
+                try {
+                    if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
+                } catch (err) {
+                }
+                this.pressTimer = setTimeout(() => this.triggerLongPress(), this.LONG_PRESS_MS);
+            }, {passive: true});
+
+            this.button.addEventListener('pointerup', () => {
+                if (this.button.classList.contains('loading')) {
+                    this.clearPressTimer();
+                    return;
+                }
+                try {
+                    if (this.activePointerId !== null && this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
+                } catch (err) {
+                }
+                if (this.longPressTriggered) {
+                    this.clearPressTimer();
+                    this.longPressTriggered = false;
+                    return;
+                }
+                this.clearPressTimer();
+                this.handleShortPress().catch(() => {
+                    this.button.classList.remove('loading');
+                    this.button.disabled = false;
+                });
+            }, {passive: true});
+
+            ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(evt => {
+                this.button.addEventListener(evt, () => {
+                    this.longPressTriggered = false;
+                    this.clearPressTimer();
+                });
+            });
+        }
+
+        replayIfLogin() {
+            if (!notLogin(this.oldHref) && notLogin()) {
+                setTimeout(this.replaySavedPathIfAny, 300);
+            }
+            this.oldHref = window.location.href;
+        }
+
+        async savePathForReplay() {
+            try {
+                if (!notLogin()) return;
+                const path = captureCurrentPath();
+                // 防止在登录页面触发保存空路径
+                if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
+            } catch (e) {
+                console.warn('保存回放路径失败：', e);
+            }
+        }
+
+        async replaySavedPathIfAny() {
+            const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
+            if (!pathJSON || pathJSON === 'null') return;
+            const path = JSON.parse(pathJSON);
+            await replayPath(path);
+        }
+
+        async sendLogoutRequest() {
+            const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
+            const TIMEOUT_MS = 5000;
+
+            // fetch with AbortController timeout
+            try {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+                const res = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-cache',
+                    headers: {'Accept': 'application/json, text/plain, */*'},
+                    signal: controller.signal
+                });
+                clearTimeout(id);
+                return res;
+            } catch (e) {
+            }
+        }
+
+        async nukeAndReload() {
+            if (!this.button.classList.contains('loading')) {
+                this.button.classList.add('loading');
+                this.button.disabled = true;
+            }
+
+            try {
+                await this.sendLogoutRequest();
+
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(key => caches.delete(key)));
+                }
+
+                const localStorageSize = localStorage.length;
+                const sessionStorageSize = sessionStorage.length;
+                localStorage.clear();
+                sessionStorage.clear();
+                console.log('已清理 LocalStorage 和 SessionStorage:', localStorageSize, sessionStorageSize);
+
+                const cookies = document.cookie ? document.cookie.split(";") : [];
+                for (const cookie of cookies) {
+                    const name = cookie.split("=")[0].trim();
+                    if (!name) continue;
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.xnykcxt.com`;
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                }
+            } catch (error) {
+                console.error('Hard Refresh 过程中发生错误:', error);
+            } finally {
+                setTimeout(() => {
+                    try {
+                        this.button.classList.remove('loading');
+                        this.button.disabled = false;
+                        window.location.replace("https://bdfz.xnykcxt.com:5002/stu/#/login")
+                    } catch (e) {
+                        try {
+                            window.location.reload();
+                        } catch (e2) {
+                            window.location.replace(window.location.href);
+                        }
+                    }
+                }, 500);
+            }
+        }
+
+        async handleShortPress() {
+            if (this.button.classList.contains('loading')) return;
+            this.button.classList.add('loading');
+            this.button.disabled = true;
+            try {
+                await this.savePathForReplay();
+            } catch (e) {
+            }
+            try {
+                window.location.reload();
+            } catch (e) {
+                window.location.replace(window.location.href);
+            }
+        }
+
+        clearPressTimer() {
+            if (this.pressTimer) {
+                clearTimeout(this.pressTimer);
+                this.pressTimer = null;
+            }
+            if (this.activePointerId !== null) {
+                try {
+                    if (this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
+                } catch (e) {
+                }
+                this.activePointerId = null;
+            }
+        }
+
+        async triggerLongPress() {
+            if (this.longPressTriggered) return;
+            this.longPressTriggered = true;
+            try {
+                if (!this.button.classList.contains('loading')) {
+                    this.button.classList.add('loading');
+                    this.button.disabled = true;
+                    try {
+                        await this.savePathForReplay();
+                    } catch (e) {
+                    }
+                    setTimeout(() => {
+                        this.nukeAndReload().catch(() => {
+                            this.button.classList.remove('loading');
+                            this.button.disabled = false;
+                        });
+                    }, 50);
+                }
+            } catch (e) {
+                this.button.classList.remove('loading');
+                this.button.disabled = false;
+            } finally {
+                this.longPressTriggered = false;
+                this.clearPressTimer();
+            }
+        }
+    }
+
     const favBtn = new FavBtn();
-    const searchSpotlight = new SearchBtn();
+    const searchbtn = new SearchBtn();
+    const hardRefreshBtn = new HardRefreshBtn();
 
 })();
+
