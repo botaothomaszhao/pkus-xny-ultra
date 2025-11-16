@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -23,50 +23,64 @@
 
     // 收藏夹样式
     GM_addStyle(`
-        .nav-btn{
-            position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;
-            background-color:#fff;border:none;border-radius:50%;
-            box-shadow:0 4px 12px rgba(0,0,0,0.15);
-            cursor:pointer;display:flex;align-items:center;justify-content:center;
-            transition:transform .15s ease,box-shadow .15s ease;
+        .nav-btn {
+            position: fixed;
+            right: 25px;
+            z-index: 2147483646;
+            width: 48px;
+            height: 48px;
+            background-color: #fff;
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform .15s ease, box-shadow .15s ease;
         }
-        .nav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
-        .nav-btn .icon{width:24px;height:24px}
-        .nav-btn .icon svg{width:100%;height:100%}
-        #add-favorite-btn{bottom:170px}
-        #show-favorites-btn{bottom:230px}
+        .nav-btn:hover { transform: scale(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+        .nav-btn .icon { width: 24px; height: 24px; }
+        .nav-btn .icon svg { width: 100%; height: 100%; }
+        #add-favorite-btn { bottom: 170px; }
+        #show-favorites-btn { bottom: 230px; }
         #search-btn { bottom: 110px; }
         #hard-refresh-btn { bottom: 50px; }
 
-        .drawer-overlay{
-            position:fixed;top:0;left:0;width:100%;height:100%;
-            background-color:rgba(0,0,0,0.4);backdrop-filter:blur(4px);
-            z-index:2147483647;opacity:0;visibility:hidden;
-            transition:opacity .25s ease;
+        .drawer-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            z-index: 2147483647;
+            opacity: 0; visibility: hidden;
+            transition: opacity .25s ease;
         }
-        .drawer-overlay.visible{opacity:1;visibility:visible}
+        .drawer-overlay.visible { opacity: 1; visibility: visible; }
 
-        .bottom-sheet-drawer{
-            position:fixed;left:0;right:0;bottom:0;max-height:70%;
-            background-color:#f9f9f9;border-top-left-radius:16px;border-top-right-radius:16px;
-            box-shadow:0 -4px 20px rgba(0,0,0,0.12);
-            transform:translateY(100%);transition:transform .25s ease-out;
-            z-index:2147483648;display:flex;flex-direction:column;overflow:hidden;
-            outline:none;
+        .bottom-sheet-drawer {
+            position: fixed; left: 0; right: 0; bottom: 0; max-height: 70%;
+            background-color: #f9f9f9;
+            border-top-left-radius: 16px; border-top-right-radius: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+            transform: translateY(100%);
+            transition: transform .25s ease-out;
+            z-index: 2147483648;
+            display: flex; flex-direction: column; overflow: hidden;
+            outline: none;
         }
-        .bottom-sheet-drawer.open{transform:translateY(0)}
+        .bottom-sheet-drawer.open { transform: translateY(0); }
 
-        .drawer-header{
-            padding:12px 16px;text-align:center;flex-shrink:0;position:relative;background:#f9f9f9;
+        .drawer-header { padding: 12px 16px; text-align: center; flex-shrink: 0; position: relative; background: #f9f9f9; }
+        .drawer-header::before {
+            content: '';
+            position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 4px; background-color: #d1d5db; border-radius: 2px;
         }
-        .drawer-header::before{
-            content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
-            width:40px;height:4px;background-color:#d1d5db;border-radius:2px;
-        }
-        .drawer-header h2{margin:12px 0 0;font-size:1.1rem;font-weight:600;color:#111827}
+        .drawer-header h2 { margin: 12px 0 0; font-size: 1.1rem; font-weight: 600; color: #111827; }
 
-        /* 统一列表项样式（基于搜索的紧凑版） */
-        .unified-list { 
+        /* 统一列表项样式 */
+        .unified-list {
             max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px;
         }
         .unified-list-item {
@@ -75,41 +89,66 @@
         .unified-list li:hover, .unified-list li.highlighted {
             background:#eef2ff;
         }
-        
-        /* 收藏夹列表项扩展（包含编辑/删除按钮） */
-        #favorites-drawer .unified-list-item {
-            flex-direction:row;align-items:center;
-        }
-        
-        .item-text-content {flex-grow:1;min-width:0;display:flex;flex-direction:column;}
-        .item-title{
-            font-size:0.95rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
-        }
-        .item-path{
-            font-size:0.78rem;color:#6b7280;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
-        }
-        .title-edit-input{
-            width:100%;border:1px solid #3b82f6;border-radius:6px;padding:2px 4px;font-size:0.95rem;font-weight:500;color:#111827;outline:none;box-shadow:0 0 0 2px rgba(59,130,246,0.2)
-        }
-        .item-actions{display:flex;align-items:center;flex-shrink:0}
-        .action-btn{
-            background:none;border:none;color:#9ca3af;cursor:pointer;padding:8px;line-height:1;border-radius:50%;
-            display:flex;align-items:center;justify-content:center
-        }
-        .action-btn:hover{background-color:#f3f4f6;color:#374151}
-        .action-btn.delete:hover{color:#ef4444}
-        .action-btn .icon{width:20px;height:20px;display:block}
+        .empty-list { padding:20px; text-align:center; color:#9ca3af; }
 
-        /* 搜索 Overlay */
-        .search-spotlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px); z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
+        #favorites-drawer .unified-list-item { flex-direction: row; align-items: center; }
+
+        .item-text-content { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; }
+        .item-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #111827;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .item-path {
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin-top: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .title-edit-input {
+            width: 100%; border: 1px solid #3b82f6; border-radius: 6px; padding: 2px 4px;
+            font-size: 0.95rem; font-weight: 500; color: #111827; outline: none;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+        .item-actions { display: flex; align-items: center; flex-shrink: 0; }
+        .action-btn { background: none; border: none; color: #9ca3af; cursor: pointer;
+            padding: 8px; line-height: 1; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .action-btn:hover { background-color: #f3f4f6; color: #374151; }
+        .action-btn.delete:hover { color: #ef4444; }
+        .action-btn .icon { width: 20px; height: 20px; display: block; }
+
+        .search-spotlight-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px);
+            z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none;
+        }
         .search-spotlight-overlay.visible { opacity: 1; pointer-events: auto; }
-        .search-spotlight-card { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px; background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 2147483648; overflow: hidden; }
-        .search-input-wrapper { display:flex; align-items:center; padding: 12px 16px; border-bottom:1px solid #eee; }
-        .search-input-wrapper .icon { width:20px;height:20px;color:#9ca3af;margin-right:10px; display:flex; align-items:center; justify-content:center; }
-        .search-spotlight-input { width:100%; height:44px; border: none; outline:none; font-size:16px; background:transparent; color:#111827; }
-        .search-empty-state { padding:40px; text-align:center; color:#9ca3af; }
-        
-        /* 刷新按钮 */    
+        .search-spotlight-card {
+            position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
+            background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            z-index: 2147483648; overflow: hidden;
+        }
+        .search-input-wrapper { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; }
+        .search-input-wrapper .icon {
+            width: 20px; height: 20px; color: #9ca3af; margin-right: 10px; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .search-spotlight-input {
+            width: 100%; height: 44px; border: none; outline: none; font-size: 16px;
+            background: transparent; color: #111827;
+        }
+        .search-empty-state { padding: 40px; text-align: center; color: #9ca3af; }
+
+        /* 刷新按钮 */
         #hard-refresh-btn.loading svg {
             animation: spin 1s linear infinite;
         }
@@ -140,6 +179,7 @@
         };
     }
 
+    // todo: 整合
     function escape(e, close) {
         if (e.key === 'Escape' || e.key === 'Esc') {
             e.preventDefault();
@@ -313,7 +353,6 @@
 
         open(children) {
             this.close();
-
             this.overlay = document.createElement('div');
             this.overlay.className = 'drawer-overlay';
 
@@ -517,7 +556,9 @@
             this.favoritesList.innerHTML = '';
 
             if (favorites.length === 0) {
-                this.favoritesList.innerHTML = '<li id="empty-favorites-msg" style="border:none;background:transparent;cursor:default;">您的收藏夹夹是空的<br>点击"+"按钮添加吧</li>';
+                this.favoritesList.innerHTML = `<div class="empty-list">
+                                                您的收藏夹夹是空的<br>点击"+"按钮添加吧
+                                                </div>`;
                 this.favoritesDrawer.addEventListener('keydown', (e) => {
                     escape(e, () => this.closeFavoritesDrawer());
                 });
@@ -527,22 +568,36 @@
             favorites.forEach((fav, index) => {
                 const li = document.createElement('li');
                 li.className = 'unified-list-item';
-                const fullPath = fav.path.map(p => p.text).join(' / ');
-                li.innerHTML = `
-                    <div class="item-text-content">
-                        <span class="item-title">${fav.title}</span>
-                        <span class="item-path">${fullPath}</span>
-                    </div>
-                    <div class="item-actions">
-                        <button class="action-btn edit" title="重命名">
+
+                const textContentDiv = document.createElement('div');
+                textContentDiv.className = 'item-text-content';
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                titleSpan.textContent = fav.title;
+                const pathSpan = document.createElement('span');
+                pathSpan.className = 'item-path';
+                pathSpan.textContent = fav.path.map(p => p.text).join(' / ');
+                textContentDiv.appendChild(titleSpan);
+                textContentDiv.appendChild(pathSpan);
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'item-actions';
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-btn edit';
+                editBtn.title = '重命名';
+                editBtn.innerHTML = `
                             <span class="icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path d="M12 20h9" />
                                     <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
                                 </svg>
-                            </span>
-                        </button>
-                        <button class="action-btn delete" title="删除">
+                            </span>`;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn delete';
+                deleteBtn.title = '删除';
+                deleteBtn.innerHTML = `
                             <span class="icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <polyline points="3 6 5 6 21 6"/>
@@ -551,15 +606,12 @@
                                     <path d="M14 11v6"/>
                                     <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/>
                                 </svg>
-                            </span>
-                        </button>
-                    </div>
-                `;
+                            </span>`;
 
-                const textContentDiv = li.querySelector('.item-text-content');
-                const titleSpan = li.querySelector('.item-title');
-                const editBtn = li.querySelector('.edit');
-                const deleteBtn = li.querySelector('.delete');
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(deleteBtn);
+                li.appendChild(textContentDiv);
+                li.appendChild(actionsDiv);
 
                 li.addEventListener('click', async (e) => {
                     if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
@@ -631,7 +683,6 @@
         }
     }
 
-    // 替换原有的 class searchBtn ... 的定义为下面的新类（修复 function 在 class 内的错误写法，修复 this 在 super 前使用等问题）
     class SearchBtn extends NavigationButton {
         constructor() {
             super(
@@ -649,11 +700,11 @@
             this.MAX_DISPLAY = 50;
             this.nextStepManager = new NextStepManager();
 
-            // 启动 XHR 拦截以捕获 catalog/entity 响应
+            // todo: 切换边栏时刷新
             this.setupXHRInterceptorForCatalog();
         }
 
-        /* -------------------- XHR 拦截：监听 catalog/entity 返回 -------------------- */
+        // XHR 拦截：监听 catalog/entity 返回
         setupXHRInterceptorForCatalog() {
             const origOpen = XMLHttpRequest.prototype.open;
             const origSend = XMLHttpRequest.prototype.send;
@@ -690,7 +741,7 @@
             };
         }
 
-        /* -------------------- 将目录树扁平化为 searchableItems -------------------- */
+        // 将目录树扁平化为 searchableItems
         processCatalogData(response, mainMenuContext, subjectContext) {
             if (!response || !response.extra || subjectContext === '未知科目') {
                 this.searchableItems = [];
@@ -734,22 +785,39 @@
             overlay.id = 'search-spotlight-overlay';
             overlay.className = 'search-spotlight-overlay';
 
-            overlay.innerHTML = `
-                <div class="search-spotlight-card" role="dialog" aria-modal="true">
-                    <div class="search-input-wrapper">
-                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" class="search-spotlight-input" placeholder="搜索课程目录 (支持拼音或拼音首字母)..." autocomplete="off" />
-                    </div>
-                    <ul class="unified-list"></ul>
-                </div>
-            `;
+            const card = document.createElement('div');
+            card.className = 'search-spotlight-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+
+            const inputWrapper = document.createElement('div');
+            inputWrapper.className = 'search-input-wrapper';
+
+            const iconWrapper = document.createElement('div');
+            iconWrapper.className = 'icon';
+            iconWrapper.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>`;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'search-spotlight-input';
+            input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
+            input.autocomplete = 'off';
+
+            inputWrapper.appendChild(iconWrapper);
+            inputWrapper.appendChild(input);
+
+            const resultsList = document.createElement('ul');
+            resultsList.className = 'unified-list';
+
+            card.appendChild(inputWrapper);
+            card.appendChild(resultsList);
+            overlay.appendChild(card);
             document.body.appendChild(overlay);
 
-            const input = overlay.querySelector('.search-spotlight-input');
-            const resultsList = overlay.querySelector('.unified-list');
             let searchKeyboardNav = null;
 
             const destroySearchUI = () => {
@@ -761,7 +829,7 @@
                 resultsList.innerHTML = '';
                 if (!query) return;
                 if (!this.searchableItems || this.searchableItems.length === 0) {
-                    resultsList.innerHTML = `<div class="search-empty-state">请先点击左侧的科目以加载目录数据。</div>`;
+                    resultsList.innerHTML = `<div class="empty-list">请先点击左侧的科目以加载目录数据。</div>`;
                     return;
                 }
                 const results = this.searchableItems.filter(item => {
@@ -772,7 +840,7 @@
                     }
                 });
                 if (!results || results.length === 0) {
-                    resultsList.innerHTML = `<div class="search-empty-state">无匹配结果</div>`;
+                    resultsList.innerHTML = `<div class="empty-list">无匹配结果</div>`;
                     return;
                 }
                 results.slice(0, this.MAX_DISPLAY).forEach(item => {
@@ -808,8 +876,8 @@
                     await this.nextStepManager.replayWithNextStep(path);
                 }
             });
-            input.addEventListener("keydown", (e) => escape(e, destroySearchUI));
-            input.addEventListener("keyup", (e) => escape(e, destroySearchUI));
+            input.addEventListener('keydown', (e) => escape(e, destroySearchUI));
+            input.addEventListener('keyup', (e) => escape(e, destroySearchUI));
 
             // 显示并聚焦
             requestAnimationFrame(() => {

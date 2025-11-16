@@ -130,7 +130,30 @@
             }
         };
         overlay.addEventListener('keydown', keyHandler, true);
+        overlay.addEventListener('keyup', keyHandler, true);
         overlay._keyHandler = keyHandler;
+    }
+
+    function cleanup(overlay, fromPop) {
+        try {
+            if (overlay && overlay._keyHandler) {
+                overlay.removeEventListener('keydown', overlay._keyHandler, true);
+                overlay.removeEventListener('keyup', overlay._keyHandler, true);
+            }
+        } catch (_) {
+        }
+        try {
+            overlay.remove();
+        } catch (_) {
+        }
+        if (!fromPop && chooserHistoryPushed) {
+            suppressNextPop = true;
+            try {
+                history.back();
+            } catch (_) {
+            }
+        }
+        removeChooserPopHandler();
     }
 
     // 显示选择菜单
@@ -167,34 +190,18 @@
             window.removeEventListener('popstate', chooserPopHandler);
         }
 
-        function cleanup(fromPop) {
-            try {
-                if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true);
-            } catch (_) {
-            }
-            removeIf('upload-chooser');
-            if (!fromPop && chooserHistoryPushed) {
-                suppressNextPop = true;
-                try {
-                    history.back();
-                } catch (_) {
-                }
-            }
-            removeChooserPopHandler();
-        }
-
-        overlay._cleanup = cleanup;
+        overlay._cleanup = (fromPop) => cleanup(overlay, fromPop);
 
         overlay.addEventListener('click', (ev) => {
             if (ev.target === overlay) {
-                cleanup();
+                overlay._cleanup();
             }
         });
 
         btnGallery.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            cleanup();
+            overlay._cleanup();
             try {
                 openSystemFilePickerAndCopyTo(origInput);
             } catch (err) {
@@ -205,7 +212,7 @@
         btnCamera.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            cleanup(true);
+            overlay._cleanup(true);
             openCameraOverlay(origInput);
         });
     }
@@ -363,27 +370,10 @@
             window.removeEventListener('popstate', chooserPopHandler);
         }
 
-        function cleanup(fromPop) {
-            try {
-                if (overlay && overlay._keyHandler) overlay.removeEventListener('keydown', overlay._keyHandler, true);
-            } catch (_) {
-            }
+        overlay._cleanup = (fromPop) => {
             stopStream();
-            try {
-                overlay.remove();
-            } catch (_) {
-            }
-            if (!fromPop && chooserHistoryPushed) {
-                suppressNextPop = true;
-                try {
-                    history.back();
-                } catch (_) {
-                }
-            }
-            removeChooserPopHandler();
-        }
-
-        overlay._cleanup = cleanup;
+            cleanup(overlay, fromPop);
+        };
 
         // 捕获一帧真实像素并生成 Blob
         async function captureOnce() {
@@ -463,11 +453,11 @@
                 type: lastBlob.type || 'image/jpeg', lastModified: Date.now()
             });
             copyFilesToInput([file], origInput);
-            cleanup();
+            overlay._cleanup();
         });
 
         // 取消按钮
-        btnCancel.addEventListener('click', cleanup);
+        btnCancel.addEventListener('click', overlay._cleanup);
 
         // 切换摄像头
         btnSwitch.addEventListener('click', async () => {
@@ -484,7 +474,7 @@
         startStream().catch(err => {
             console.error('getUserMedia error', err);
             alert('无法访问摄像头');
-            cleanup();
+            overlay._cleanup();
         });
 
         // 窗口尺寸变更时调整 frame
