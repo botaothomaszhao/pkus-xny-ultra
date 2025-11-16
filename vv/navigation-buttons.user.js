@@ -23,16 +23,16 @@
 
     // 收藏夹样式
     GM_addStyle(`
-        .btn{
+        .nav-btn{
             position:fixed;right:25px;z-index:2147483646;width:48px;height:48px;
             background-color:#fff;border:none;border-radius:50%;
             box-shadow:0 4px 12px rgba(0,0,0,0.15);
             cursor:pointer;display:flex;align-items:center;justify-content:center;
             transition:transform .15s ease,box-shadow .15s ease;
         }
-        .btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
-        .btn .icon{width:24px;height:24px}
-        .btn .icon svg{width:100%;height:100%}
+        .nav-btn:hover{transform:scale(1.1);box-shadow:0 8px 20px rgba(0,0,0,0.2)}
+        .nav-btn .icon{width:24px;height:24px}
+        .nav-btn .icon svg{width:100%;height:100%}
         #add-favorite-btn{bottom:170px}
         #show-favorites-btn{bottom:230px}
         #search-btn { bottom: 110px; }
@@ -65,17 +65,15 @@
         }
         .drawer-header h2{margin:12px 0 0;font-size:1.1rem;font-weight:600;color:#111827}
 
-        .drawer-content{padding:0 16px 16px;overflow-y:auto}
-        .drawer-content ul{list-style:none;margin:0;padding:0}
-
         /* 统一列表项样式（基于搜索的紧凑版） */
-        .unified-list-item {
-            padding:12px 16px;border-radius:8px;cursor:pointer;
-            transition: background-color .12s ease;display:flex;flex-direction:column;
-            background:#fff;margin-top:8px;border:1px solid #f0f0f0;
+        .unified-list { 
+            max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px;
         }
-        .unified-list-item:hover, .unified-list-item.highlighted {
-            background:#f3f4f6;
+        .unified-list-item {
+            padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease; display:flex; flex-direction:column;
+        }
+        .unified-list li:hover, .unified-list li.highlighted {
+            background:#eef2ff;
         }
         
         /* 收藏夹列表项扩展（包含编辑/删除按钮） */
@@ -83,11 +81,11 @@
             flex-direction:row;align-items:center;
         }
         
-        .item-text-content{flex-grow:1;min-width:0;display:flex;flex-direction:column;}
+        .item-text-content {flex-grow:1;min-width:0;display:flex;flex-direction:column;}
         .item-title{
             font-size:0.95rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
         }
-        .item-fullpath{
+        .item-path{
             font-size:0.78rem;color:#6b7280;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
         }
         .title-edit-input{
@@ -101,9 +99,6 @@
         .action-btn:hover{background-color:#f3f4f6;color:#374151}
         .action-btn.delete:hover{color:#ef4444}
         .action-btn .icon{width:20px;height:20px;display:block}
-        
-        /* 高亮选择（键盘上下选择） */
-        .drawer-content li.highlighted { background: #eef2ff; transform: none; box-shadow: none; }
 
         /* 搜索 Overlay */
         .search-spotlight-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px); z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
@@ -112,11 +107,6 @@
         .search-input-wrapper { display:flex; align-items:center; padding: 12px 16px; border-bottom:1px solid #eee; }
         .search-input-wrapper .icon { width:20px;height:20px;color:#9ca3af;margin-right:10px; display:flex; align-items:center; justify-content:center; }
         .search-spotlight-input { width:100%; height:44px; border: none; outline:none; font-size:16px; background:transparent; color:#111827; }
-        .search-results-list { max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px; }
-        .search-results-list li { padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease; display:flex; flex-direction:column; }
-        .search-results-list li:hover, .search-results-list li.highlighted { background:#eef2ff; }
-        .search-result-title { font-size:0.95rem; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .search-result-path { font-size:0.78rem; color:#6b7280; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .search-empty-state { padding:40px; text-align:center; color:#9ca3af; }
         
         /* 刷新按钮 */    
@@ -249,10 +239,10 @@
 
     // 统一的键盘导航管理
     class UnifiedKeyboardNav {
-        constructor(container, itemSelector, onClose, element) {
+        constructor(container, onClose, element) {
             this.onClose = onClose;
             this.currentIndex = -1;
-            this.items = Array.from(container.querySelectorAll(itemSelector));
+            this.items = Array.from(container.querySelectorAll('.unified-list-item'));
             element.addEventListener('keydown', (e) => this.handleKeydown(e));
             element.addEventListener('keyup', (e) => {
                 escape(e, this.onClose);
@@ -333,9 +323,9 @@
             this.drawerEl.tabIndex = -1;
             this.drawerEl.innerHTML = `
                 <div class="drawer-header"><h2>可能的下一步</h2></div>
-                <div class="drawer-content"><ul id="next-step-list"></ul></div>
+                <ul class="unified-list"></ul>
             `;
-            this.listEl = this.drawerEl.querySelector('#next-step-list');
+            this.listEl = this.drawerEl.querySelector('.unified-list');
 
             document.body.append(this.overlay, this.drawerEl);
             this.overlay.addEventListener('click', () => this.close(), {once: true});
@@ -344,7 +334,6 @@
 
             this.keyboardNav = new UnifiedKeyboardNav(
                 this.listEl,
-                '.unified-list-item',
                 () => this.close(),
                 this.drawerEl
             );
@@ -401,7 +390,7 @@
     class NavigationButton {
         constructor(id, title, html, onclick) {
             this.button = document.createElement('button');
-            this.button.className = 'btn';
+            this.button.className = 'nav-btn';
             this.button.id = id;
             this.button.title = title;
             this.button.innerHTML = html;
@@ -463,10 +452,10 @@
             this.favoritesDrawer.className = 'bottom-sheet-drawer';
             this.favoritesDrawer.innerHTML = `
                 <div class="drawer-header"><h2>路径收藏夹</h2></div>
-                <div class="drawer-content"><ul id="favorites-list"></ul></div>
+                <ul class="unified-list"></ul>
             `;
             this.favoritesDrawer.tabIndex = -1;
-            this.favoritesList = this.favoritesDrawer.querySelector('#favorites-list');
+            this.favoritesList = this.favoritesDrawer.querySelector('.unified-list');
 
             document.body.append(this.favoritesOverlay, this.favoritesDrawer);
             this.favoritesOverlay.addEventListener('click', () => this.closeFavoritesDrawer(), {once: true});
@@ -542,7 +531,7 @@
                 li.innerHTML = `
                     <div class="item-text-content">
                         <span class="item-title">${fav.title}</span>
-                        <span class="item-fullpath">${fullPath}</span>
+                        <span class="item-path">${fullPath}</span>
                     </div>
                     <div class="item-actions">
                         <button class="action-btn edit" title="重命名">
@@ -634,7 +623,6 @@
             // 使用统一的键盘导航类
             this.keyboardNav = new UnifiedKeyboardNav(
                 this.favoritesList,
-                '.unified-list-item',
                 () => this.closeFavoritesDrawer(),
                 this.favoritesDrawer
             );
@@ -755,13 +743,13 @@
                         </svg>
                         <input type="text" class="search-spotlight-input" placeholder="搜索课程目录 (支持拼音或拼音首字母)..." autocomplete="off" />
                     </div>
-                    <ul class="search-results-list"></ul>
+                    <ul class="unified-list"></ul>
                 </div>
             `;
             document.body.appendChild(overlay);
 
             const input = overlay.querySelector('.search-spotlight-input');
-            const resultsList = overlay.querySelector('.search-results-list');
+            const resultsList = overlay.querySelector('.unified-list');
             let searchKeyboardNav = null;
 
             const destroySearchUI = () => {
@@ -789,7 +777,9 @@
                 }
                 results.slice(0, this.MAX_DISPLAY).forEach(item => {
                     const li = document.createElement('li');
-                    li.innerHTML = `<span class="search-result-title">${item.title}</span><span class="search-result-path">${item.displayPath}</span>`;
+                    li.className = 'unified-list-item';
+                    li.innerHTML = `<span class="item-title">${item.title}</span>
+                                    <span class="item-path">${item.displayPath}</span>`;
                     li.dataset.path = JSON.stringify(item.replayablePath);
                     resultsList.appendChild(li);
                 });
@@ -797,7 +787,6 @@
                 // 重新创建键盘导航
                 searchKeyboardNav = new UnifiedKeyboardNav(
                     resultsList,
-                    'li',
                     destroySearchUI,
                     input
                 );
