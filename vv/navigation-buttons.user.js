@@ -25,10 +25,9 @@
     GM_addStyle(`
         .nav-btn {
             position: fixed;
-            right: 25px;
-            z-index: 2147483646;
-            width: 48px;
-            height: 48px;
+            left: 4px;
+            z-index: 999;
+            width: 42px; height: 42px;
             background-color: #fff;
             border: none;
             border-radius: 50%;
@@ -42,10 +41,11 @@
         .nav-btn:hover { transform: scale(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
         .nav-btn .icon { width: 24px; height: 24px; }
         .nav-btn .icon svg { width: 100%; height: 100%; }
-        #add-favorite-btn { bottom: 170px; }
-        #show-favorites-btn { bottom: 230px; }
-        #search-btn { bottom: 110px; }
-        #hard-refresh-btn { bottom: 50px; }
+        
+        #show-favorites-btn { bottom: 280px; }
+        #add-favorite-btn { bottom: 225px; }
+        #search-btn { bottom: 170px; }
+        #hard-refresh-btn { bottom: 115px; }
 
         .drawer-overlay {
             position: fixed;
@@ -79,12 +79,12 @@
         }
         .drawer-header h2 { margin: 12px 0 0; font-size: 1.1rem; font-weight: 600; color: #111827; }
 
-        /* 统一列表项样式 */
         .unified-list {
             max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px;
         }
         .unified-list-item {
-            padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease; display:flex; flex-direction:column;
+            padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease;
+            display:flex; flex-direction:column;
         }
         .unified-list li:hover, .unified-list li.highlighted {
             background:#eef2ff;
@@ -98,19 +98,13 @@
             font-size: 0.95rem;
             font-weight: 500;
             color: #111827;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
         }
         .item-path {
             font-size: 0.78rem;
             color: #6b7280;
             margin-top: 6px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
         }
         .title-edit-input {
             width: 100%; border: 1px solid #3b82f6; border-radius: 6px; padding: 2px 4px;
@@ -123,7 +117,7 @@
             align-items: center; justify-content: center;
         }
         .action-btn:hover { background-color: #f3f4f6; color: #374151; }
-        .action-btn.delete:hover { color: #ef4444; }
+        .action-btn .delete:hover { color: #ef4444; }
         .action-btn .icon { width: 20px; height: 20px; display: block; }
 
         .search-spotlight-overlay {
@@ -148,7 +142,6 @@
         }
         .search-empty-state { padding: 40px; text-align: center; color: #9ca3af; }
 
-        /* 刷新按钮 */
         #hard-refresh-btn.loading svg {
             animation: spin 1s linear infinite;
         }
