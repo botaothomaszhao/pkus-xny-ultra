@@ -179,14 +179,19 @@
         };
     }
 
-    // todo: 整合
-    function escape(e, close) {
-        if (e.key === 'Escape' || e.key === 'Esc') {
-            e.preventDefault();
-            close();
-            return true;
+    function registerEsc(overlay, close) {
+        function escHandle (e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                } catch (_) {
+                }
+                close();
+            }
         }
-        return false;
+        overlay.addEventListener('keydown', escHandle, {once: true}, true);
+        overlay.addEventListener('keyup', escHandle, {once: true}, true);
     }
 
     function cleanInnerText(el) {
@@ -280,18 +285,13 @@
     // 统一的键盘导航管理
     class UnifiedKeyboardNav {
         constructor(container, onClose, element) {
-            this.onClose = onClose;
             this.currentIndex = -1;
             this.items = Array.from(container.querySelectorAll('.unified-list-item'));
             element.addEventListener('keydown', (e) => this.handleKeydown(e));
-            element.addEventListener('keyup', (e) => {
-                escape(e, this.onClose);
-            });
+            registerEsc(element, onClose);
         }
 
         handleKeydown(e) {
-            if (escape(e, this.onClose)) return;
-
             if (!this.items.length) return;
 
             if (e.key === 'ArrowDown') {
@@ -559,9 +559,7 @@
                 this.favoritesList.innerHTML = `<div class="empty-list">
                                                 您的收藏夹夹是空的<br>点击"+"按钮添加吧
                                                 </div>`;
-                this.favoritesDrawer.addEventListener('keydown', (e) => {
-                    escape(e, () => this.closeFavoritesDrawer());
-                });
+                registerEsc(this.favoritesDrawer,  () => this.closeFavoritesDrawer());
                 return;
             }
 
@@ -876,8 +874,7 @@
                     await this.nextStepManager.replayWithNextStep(path);
                 }
             });
-            input.addEventListener('keydown', (e) => escape(e, destroySearchUI));
-            input.addEventListener('keyup', (e) => escape(e, destroySearchUI));
+            registerEsc(input, destroySearchUI);
 
             // 显示并聚焦
             requestAnimationFrame(() => {
