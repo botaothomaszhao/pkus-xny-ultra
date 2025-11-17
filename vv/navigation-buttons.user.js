@@ -21,6 +21,8 @@
     const FAVORITES_STORAGE_KEY = 'xny_favorites_paths';
     const REPLAY_STORAGE_KEY = 'xny_replay_path';
 
+    const btnBaseY = 100, offset = 55;
+
     // 收藏夹样式
     GM_addStyle(`
         .nav-btn {
@@ -42,10 +44,10 @@
         .nav-btn .icon { width: 24px; height: 24px; }
         .nav-btn .icon svg { width: 100%; height: 100%; }
         
-        #show-favorites-btn { bottom: 280px; }
-        #add-favorite-btn { bottom: 225px; }
-        #search-btn { bottom: 170px; }
-        #hard-refresh-btn { bottom: 115px; }
+        #show-favorites-btn { bottom: ${btnBaseY + offset * 3}px; }
+        #add-favorite-btn { bottom: ${btnBaseY + offset * 2}px; }
+        #search-btn { bottom: ${btnBaseY + offset}px; }
+        #hard-refresh-btn { bottom: ${btnBaseY}px; }
 
         .drawer-overlay {
             position: fixed;
@@ -150,6 +152,56 @@
             to { transform: rotate(360deg); }
         }
     `);
+
+    // 统一图标映射（把所有内联 SVG 统一管理）
+    const ICONS = {
+        // 左侧浮动按钮使用的图标（包含外层 .icon 容器以兼容样式）
+        'add-favorite-btn': `<div class="icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                        <line x1="12" y1="8" x2="12" y2="14"></line>
+                        <line x1="9" y1="11" x2="15" y2="11"></line>
+                    </svg>
+                </div>`,
+        'show-favorites-btn': `<div class="icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>`,
+        'search-btn': `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>`,
+        'hard-refresh-btn': `<div class="icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                        <path fill="currentColor" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
+                        </path>
+                    </svg>
+                </div>`,
+
+        // 编辑/删除操作按钮图标（列表项内）
+        'edit': `<span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                </svg>
+                            </span>`,
+        'delete': `<span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                    <path d="M10 11v6"/>
+                                    <path d="M14 11v6"/>
+                                    <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/>
+                                </svg>
+                            </span>`,
+
+        // 搜索框左侧放大的图标
+        'search-input-icon': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>`
+    };
 
     // 通用函数
     function notLogin(url = window.location.href) {
@@ -419,13 +471,15 @@
         }
     }
 
+    // NavigationButton 现在只接受 id/title/onclick，图标从 ICONS map 中获取
     class NavigationButton {
-        constructor(id, title, html, onclick) {
+        constructor(id, title, onclick) {
             this.button = document.createElement('button');
             this.button.className = 'nav-btn';
             this.button.id = id;
             this.button.title = title;
-            this.button.innerHTML = html;
+            // 从 ICONS 中获取对应的图标（容错）
+            this.button.innerHTML = ICONS[id] || '';
             document.body.appendChild(this.button);
             if (onclick) this.button.addEventListener('click', onclick);
         }
@@ -443,24 +497,12 @@
             this.addBtn = new NavigationButton(
                 'add-favorite-btn',
                 '添加到收藏夹',
-                `<div class="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                        <line x1="12" y1="8" x2="12" y2="14"></line>
-                        <line x1="9" y1="11" x2="15" y2="11"></line>
-                    </svg>
-                </div>`,
                 () => this.addCurrentPathToFavorites()
             );
 
             this.showBtn = new NavigationButton(
                 'show-favorites-btn',
                 '显示收藏夹',
-                `<div class="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                </div>`,
                 () => this.openFavoritesDrawer()
             );
         }
@@ -577,27 +619,12 @@
                 const editBtn = document.createElement('button');
                 editBtn.className = 'action-btn edit';
                 editBtn.title = '重命名';
-                editBtn.innerHTML = `
-                            <span class="icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M12 20h9" />
-                                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
-                                </svg>
-                            </span>`;
+                editBtn.innerHTML = ICONS['edit'];
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn delete';
                 deleteBtn.title = '删除';
-                deleteBtn.innerHTML = `
-                            <span class="icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                                    <path d="M10 11v6"/>
-                                    <path d="M14 11v6"/>
-                                    <path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/>
-                                </svg>
-                            </span>`;
+                deleteBtn.innerHTML = ICONS['delete'];
 
                 actionsDiv.appendChild(editBtn);
                 actionsDiv.appendChild(deleteBtn);
@@ -679,10 +706,6 @@
             super(
                 'search-btn',
                 '目录搜索',
-                `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>`,
                 () => this.createSearchUI()
             );
 
@@ -786,11 +809,7 @@
 
             const iconWrapper = document.createElement('div');
             iconWrapper.className = 'icon';
-            iconWrapper.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>`;
+            iconWrapper.innerHTML = ICONS['search-input-icon'];
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -883,12 +902,6 @@
             super(
                 'hard-refresh-btn',
                 '强制刷新',
-                `<div class="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
-                        </path>
-                    </svg>
-                </div>`,
                 null
             );
 
