@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.3
+// @version      vv.2.4
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -833,6 +833,8 @@
                 overlay.classList.remove('visible');
                 overlay.addEventListener('transitionend', () => overlay.remove(), {once: true});
             };
+             // todo: fix
+            registerEsc(input, destroySearchUI);
 
             const renderResults = (query) => {
                 resultsList.innerHTML = '';
@@ -885,7 +887,6 @@
                     await this.nextStepManager.replayWithNextStep(path);
                 }
             });
-            registerEsc(input, destroySearchUI);
 
             // 显示并聚焦
             requestAnimationFrame(() => {

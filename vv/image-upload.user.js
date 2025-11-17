@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         拍照上传照片
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.6
+// @version      vv.2.7
 // @license      GPL-3.0
 // @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”，在网页内实现拍照功能，解决浏览器无法唤起相机的问题。
 // @match        https://bdfz.xnykcxt.com:5002/*
@@ -333,7 +333,7 @@
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
-                video: {facingMode: {ideal: facingMode}, width: {ideal: 3840}, height: {ideal: 2160}}, audio: false
+                video: {facingMode: {ideal: facingMode}, width: {ideal: 3840}, height: {ideal: 2160}}, audio: false, frameRate: { ideal: 30, max: 30 }
             };
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
