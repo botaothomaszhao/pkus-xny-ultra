@@ -30,19 +30,17 @@
             left: 4px;
             z-index: 999;
             width: 42px; height: 42px;
-            background-color: #fff;
+            background-color: transparent;
             border: none;
             border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: transform .15s ease, box-shadow .15s ease;
         }
-        .nav-btn:hover { transform: scale(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
-        .nav-btn .icon { width: 24px; height: 24px; }
-        .nav-btn .icon svg { width: 100%; height: 100%; }
+        .nav-btn:hover { transform: scale(1.1); }
+        .nav-btn svg { width: 75%; height: 75%; stroke: white; }
         
         #show-favorites-btn { bottom: ${btnBaseY + offset * 3}px; }
         #add-favorite-btn { bottom: ${btnBaseY + offset * 2}px; }
@@ -156,28 +154,25 @@
     // 统一图标映射（把所有内联 SVG 统一管理）
     const ICONS = {
         // 左侧浮动按钮使用的图标（包含外层 .icon 容器以兼容样式）
-        'add-favorite-btn': `<div class="icon">
+        'add-favorite-btn': `
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                         <line x1="12" y1="8" x2="12" y2="14"></line>
                         <line x1="9" y1="11" x2="15" y2="11"></line>
-                    </svg>
-                </div>`,
-        'show-favorites-btn': `<div class="icon">
+                    </svg>`,
+        'show-favorites-btn': `
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                </div>`,
+                    </svg>`,
         'search-btn': `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="7"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>`,
-        'hard-refresh-btn': `<div class="icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
+        'hard-refresh-btn': `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor">
+                        <path fill="white" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
                         </path>
-                    </svg>
-                </div>`,
+                    </svg>`,
 
         // 编辑/删除操作按钮图标（列表项内）
         'edit': `<span class="icon">
