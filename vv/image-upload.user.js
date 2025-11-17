@@ -333,7 +333,7 @@
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
-                video: {facingMode: {ideal: facingMode}, width: {ideal: 1920}, height: {ideal: 1080}}, audio: false
+                video: {facingMode: {ideal: facingMode}, width: {ideal: 3840}, height: {ideal: 2160}}, audio: false
             };
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -377,7 +377,7 @@
 
         // 捕获一帧真实像素并生成 Blob
         async function captureOnce() {
-            const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+            const vw = video.videoWidth || 1920, vh = video.videoHeight || 1080;
             canvas.width = vw;
             canvas.height = vh;
             const ctx = canvas.getContext('2d');
