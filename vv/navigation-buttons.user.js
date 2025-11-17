@@ -234,8 +234,8 @@
             }
         }
 
-        overlay.addEventListener('keydown', escHandle, {once: true}, true);
-        overlay.addEventListener('keyup', escHandle, {once: true}, true);
+        overlay.addEventListener('keydown', escHandle, true);
+        overlay.addEventListener('keyup', escHandle, true);
     }
 
     function cleanInnerText(el) {
