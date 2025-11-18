@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.4
+// @version      vv.2.5
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -143,7 +143,7 @@
             width: 100%; height: 44px; border: none; outline: none; font-size: 16px;
             background: transparent; color: #111827;
         }
-        .search-empty-state { padding: 40px; text-align: center; color: #9ca3af; }
+        .search-empty-state { padding: 40px; text-align: center; color:#9ca3af; }
 
         #hard-refresh-btn.loading svg {
             animation: spin 1s linear infinite;
@@ -287,7 +287,13 @@
         return path.length > 0 ? path : null;
     }
 
-    async function replayPath(path) {
+    // ---------- 回放相关：支持取消/中断旧回放的机制 ----------
+    // 全局递增 token：每次开始新的回放都 ++，旧回放在检测到 token 变化后中止
+    let replayToken = 0;
+
+    // replayPath 现在只接收 myToken，用于决定是否中止。
+    // 每步之间检查一次 token（用户要求：每步之间检查1次即可）。
+    async function replayPath(path, myToken) {
         let lastClickedElement = null;
 
         async function click(sel, text) {
@@ -299,18 +305,47 @@
                         return true;
                     }
                 }
+                if (replayToken !== myToken) {
+                    throw new Error('Replay cancelled');
+                }
                 await sleep(100);
             }
             return false;
         }
 
         for (const step of path) {
+            // 在每一步开始前检查 token（若被替换则中断）
+            if (replayToken !== myToken) {
+                throw new Error('Replay cancelled');
+            }
+
             if (!(await click(step.selector, step.text))) {
                 throw new Error('Replay failed');
             }
+
+            // 在每步之间只检查一次（把原来的 sleep(250) 保持语义）
             await sleep(250);
         }
         return lastClickedElement;
+    }
+
+    // startReplay：中断旧回放并立即开始新的
+    async function startReplay(path, openNextStep = true) {
+        const myToken = ++replayToken;
+        try {
+            const last = await replayPath(path, myToken);
+            if (!openNextStep) {
+                // 如果调用者不希望自动唤起 next step，保存当前路径供下次回放
+                await savePathForReplay(path);
+            }
+            return last;
+        } catch (e) {
+            if (e && e.message === 'Replay cancelled') {
+                // 被中断：安静返回 null
+                return null;
+            }
+            throw e;
+        }
     }
 
     async function savePathForReplay(path = null) {
@@ -367,7 +402,7 @@
         }
     }
 
-    /* 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展 */
+    // 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展
     class NextStepManager {
         constructor() {
             this.overlay = null;
@@ -463,7 +498,8 @@
         }
 
         async replayWithNextStep(path) {
-            const lastElement = await replayPath(path);
+            // 调用 startReplay 并传入 openNextStep = true（参数已移到 startReplay）
+            const lastElement = await startReplay(path, true);
             if (!this.checkNextStep(lastElement)) {
                 await savePathForReplay(path);
             }
@@ -1022,7 +1058,8 @@
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
-            await replayPath(path);
+            // 使用 startReplay，并传入 openNextStep = false（原先直接 replayPath 的行为）
+            await startReplay(path, false);
         }
 
         async sendLogoutRequest() {
