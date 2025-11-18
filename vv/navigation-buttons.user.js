@@ -21,6 +21,8 @@
     const FAVORITES_STORAGE_KEY = 'xny_favorites_paths';
     const REPLAY_STORAGE_KEY = 'xny_replay_path';
 
+    const HARD_REFRESH_PRESS_MS = 2500;
+
     const btnBaseY = 100, offset = 50;
 
     // 收藏夹样式
@@ -156,7 +158,6 @@
 
     // 统一图标映射（把所有内联 SVG 统一管理）
     const ICONS = {
-        // 左侧浮动按钮使用的图标（包含外层 .icon 容器以兼容样式）
         'add-favorite-btn':
             `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
@@ -287,12 +288,9 @@
         return path.length > 0 ? path : null;
     }
 
-    // ---------- 回放相关：支持取消/中断旧回放的机制 ----------
-    // 全局递增 token：每次开始新的回放都 ++，旧回放在检测到 token 变化后中止
+    // 全局递增 token：每次开始新回放都 ++，旧回放在检测到 token 变化后中止
     let replayToken = 0;
 
-    // replayPath 现在只接收 myToken，用于决定是否中止。
-    // 每步之间检查一次 token（用户要求：每步之间检查1次即可）。
     async function replayPath(path, myToken) {
         let lastClickedElement = null;
 
@@ -318,12 +316,9 @@
             if (replayToken !== myToken) {
                 throw new Error('Replay cancelled');
             }
-
             if (!(await click(step.selector, step.text))) {
                 throw new Error('Replay failed');
             }
-
-            // 在每步之间只检查一次（把原来的 sleep(250) 保持语义）
             await sleep(250);
         }
         return lastClickedElement;
@@ -331,20 +326,19 @@
 
     // startReplay：中断旧回放并立即开始新的
     async function startReplay(path, openNextStep = true) {
-        const myToken = ++replayToken;
+        replayToken ++;
         try {
-            const last = await replayPath(path, myToken);
-            if (!openNextStep) {
-                // 如果调用者不希望自动唤起 next step，保存当前路径供下次回放
-                await savePathForReplay(path);
+            const last = await replayPath(path, replayToken);
+            if (openNextStep) {
+                const nextStep = new NextStepManager();
+                if (!nextStep.checkNextStep(last)) {
+                    await savePathForReplay(path);
+                }
             }
-            return last;
         } catch (e) {
-            if (e && e.message === 'Replay cancelled') {
-                // 被中断：安静返回 null
-                return null;
+            if (!e || e.message !== 'Replay cancelled') {
+                throw e;
             }
-            throw e;
         }
     }
 
@@ -421,6 +415,7 @@
                 li.addEventListener('click', () => {
                     try {
                         childElement.click();
+                        savePathForReplay();
                     } catch (e) {
                         console.error(e);
                     }
@@ -441,8 +436,7 @@
             this.drawerEl.tabIndex = -1;
             this.drawerEl.innerHTML = `
                 <div class="drawer-header"><h2>可能的下一步</h2></div>
-                <ul class="unified-list"></ul>
-            `;
+                <ul class="unified-list"></ul>`;
             this.listEl = this.drawerEl.querySelector('.unified-list');
 
             document.body.append(this.overlay, this.drawerEl);
@@ -477,6 +471,7 @@
             }, 300);
         }
 
+        // 检测是否有子节点可展开，若有则展开并返回 true，否则返回 false
         checkNextStep(lastElement) {
             if (!lastElement) {
                 return false;
@@ -495,14 +490,6 @@
             }
             console.log("下一步检测：未找到子节点或子节点列表为空。");
             return false;
-        }
-
-        async replayWithNextStep(path) {
-            // 调用 startReplay 并传入 openNextStep = true（参数已移到 startReplay）
-            const lastElement = await startReplay(path, true);
-            if (!this.checkNextStep(lastElement)) {
-                await savePathForReplay(path);
-            }
         }
     }
 
@@ -526,7 +513,6 @@
             this.favoritesOverlay = null;
             this.favoritesList = null;
             this.keyboardNav = null;
-            this.nextStepManager = new NextStepManager();
 
             // 创建按钮，传入绑定的方法引用（避免立即执行）
             this.addBtn = new NavigationButton(
@@ -672,7 +658,7 @@
                     try {
                         const activeFolder = document.querySelector('div.folderName.active');
                         if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
-                        await this.nextStepManager.replayWithNextStep(fav.path);
+                        await startReplay(fav.path, true);
                     } catch (error) {
                         console.error("Replay or next step check failed:", error);
                     }
@@ -747,7 +733,6 @@
             // 实例状态
             this.searchableItems = []; // { title, displayPath, replayablePath }
             this.MAX_DISPLAY = 50;
-            this.nextStepManager = new NextStepManager();
 
             // todo: 切换边栏时刷新
             this.setupXHRInterceptorForCatalog();
@@ -869,7 +854,6 @@
                 overlay.classList.remove('visible');
                 overlay.addEventListener('transitionend', () => overlay.remove(), {once: true});
             };
-             // todo: fix
             registerEsc(input, destroySearchUI);
 
             const renderResults = (query) => {
@@ -920,7 +904,7 @@
                     const path = JSON.parse(li.dataset.path);
                     destroySearchUI();
                     await sleep(120);
-                    await this.nextStepManager.replayWithNextStep(path);
+                    await startReplay(path, true);
                 }
             });
 
@@ -942,7 +926,6 @@
             );
 
             // 状态
-            this.LONG_PRESS_MS = 2500;
             this.pressTimer = null;
             this.longPressTriggered = false;
             this.activePointerId = null;
@@ -1015,7 +998,7 @@
                     if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
                 } catch (err) {
                 }
-                this.pressTimer = setTimeout(() => this.triggerLongPress(), this.LONG_PRESS_MS);
+                this.pressTimer = setTimeout(() => this.triggerLongPress(), HARD_REFRESH_PRESS_MS);
             }, {passive: true});
 
             this.button.addEventListener('pointerup', () => {
@@ -1058,7 +1041,7 @@
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
-            // 使用 startReplay，并传入 openNextStep = false（原先直接 replayPath 的行为）
+            // 刷新后回放不自动展开下一步
             await startReplay(path, false);
         }
 
