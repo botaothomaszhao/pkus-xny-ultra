@@ -7,6 +7,7 @@
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
+// @exclude      https://bdfz.xnykcxt.com:5002/stu/#/login
 // @grant        none
 // ==/UserScript==
 
@@ -52,7 +53,6 @@
         if (isSidebarOpen() === targetOpen) return;
         const btn = findToggleButton();
         if (!btn) {
-            console.warn('Auto-collapse: 找不到 .put 切换按钮，无法自动切换。');
             return;
         }
         try {

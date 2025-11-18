@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.5
+// @version      vv.2.6
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -324,24 +324,6 @@
         return lastClickedElement;
     }
 
-    // startReplay：中断旧回放并立即开始新的
-    async function startReplay(path, openNextStep = true) {
-        replayToken ++;
-        try {
-            const last = await replayPath(path, replayToken);
-            if (openNextStep) {
-                const nextStep = new NextStepManager();
-                if (!nextStep.checkNextStep(last)) {
-                    await savePathForReplay(path);
-                }
-            }
-        } catch (e) {
-            if (!e || e.message !== 'Replay cancelled') {
-                throw e;
-            }
-        }
-    }
-
     async function savePathForReplay(path = null) {
         try {
             if (!path) {
@@ -403,6 +385,10 @@
             this.drawerEl = null;
             this.listEl = null;
             this.keyboardNav = null;
+        }
+
+        onLoginPage() {
+            this.close();
         }
 
         renderList(children) {
@@ -493,7 +479,29 @@
         }
     }
 
-    // NavigationButton 现在只接受 id/title/onclick，图标从 ICONS map 中获取
+    const nextStepManager = new NextStepManager();
+
+    // startReplay：中断旧回放并立即开始新的
+    async function startReplay(path, openNextStep = true) {
+        replayToken++;
+        try {
+            const last = await replayPath(path, replayToken);
+            if (openNextStep) {
+                //const nextStep = new NextStepManager();
+                if (!nextStepManager.checkNextStep(last)) {
+                    await savePathForReplay(path);
+
+                }
+            }
+        } catch (e) {
+            if (!e || e.message !== 'Replay cancelled') {
+                throw e;
+            }
+        }
+    }
+
+
+    // 图标直接从 ICONS map 中根据id获取
     class NavigationButton {
         constructor(id, title, onclick) {
             this.button = document.createElement('button');
@@ -504,6 +512,14 @@
             this.button.innerHTML = ICONS[id] || '';
             document.body.appendChild(this.button);
             if (onclick) this.button.addEventListener('click', onclick);
+        }
+
+        onLoginPage() {
+            this.button.style.setProperty('visibility', 'hidden');
+        }
+
+        onAppPage() {
+            this.button.style.setProperty('visibility', 'visible');
         }
     }
 
@@ -526,6 +542,17 @@
                 '显示收藏夹',
                 () => this.openFavoritesDrawer()
             );
+        }
+
+        onLoginPage() {
+            this.closeFavoritesDrawer();
+            this.addBtn.onLoginPage();
+            this.showBtn.onLoginPage();
+        }
+
+        onAppPage() {
+            this.addBtn.onAppPage();
+            this.showBtn.onAppPage();
         }
 
         async getFavorites() {
@@ -733,9 +760,15 @@
             // 实例状态
             this.searchableItems = []; // { title, displayPath, replayablePath }
             this.MAX_DISPLAY = 50;
+            this.overlay = null;
 
             // todo: 切换边栏时刷新
             this.setupXHRInterceptorForCatalog();
+        }
+
+        onLoginPage() {
+            this.destroySearchUI();
+            super.onLoginPage();
         }
 
         // XHR 拦截：监听 catalog/entity 返回
@@ -813,11 +846,21 @@
             console.log(`Search Spotlight: loaded ${this.searchableItems.length} items for "${subjectContext}"`);
         }
 
+        destroySearchUI  ()  {
+            if (this.overlay){
+                this.overlay.classList.remove('visible');
+                this.overlay.addEventListener('transitionend', () => {
+                    this.overlay.remove();
+                    this.overlay = null;
+                }, {once: true});
+            }
+        }
+
         createSearchUI() {
-            if (document.getElementById('search-spotlight-overlay')) return;
-            const overlay = document.createElement('div');
-            overlay.id = 'search-spotlight-overlay';
-            overlay.className = 'search-spotlight-overlay';
+            if (this.overlay) return;
+            this.overlay = document.createElement('div');
+            this.overlay.id = 'search-spotlight-overlay';
+            this.overlay.className = 'search-spotlight-overlay';
 
             const card = document.createElement('div');
             card.className = 'search-spotlight-card';
@@ -845,17 +888,14 @@
 
             card.appendChild(inputWrapper);
             card.appendChild(resultsList);
-            overlay.appendChild(card);
-            document.body.appendChild(overlay);
+            this.overlay.appendChild(card);
+            document.body.appendChild(this.overlay);
 
             let searchKeyboardNav = null;
 
-            const destroySearchUI = () => {
-                overlay.classList.remove('visible');
-                overlay.addEventListener('transitionend', () => overlay.remove(), {once: true});
-            };
-            registerEsc(input, destroySearchUI);
+            registerEsc(input, this.destroySearchUI);
 
+             // 用const函数保留this引用
             const renderResults = (query) => {
                 resultsList.innerHTML = '';
                 if (!query) return;
@@ -886,23 +926,23 @@
                 // 重新创建键盘导航
                 searchKeyboardNav = new UnifiedKeyboardNav(
                     resultsList,
-                    destroySearchUI,
+                    this.destroySearchUI,
                     input
                 );
-            };
+            }
 
             const debounced = debounce((q) => renderResults(q), 180);
             input.addEventListener('input', () => debounced(input.value.trim()));
 
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) destroySearchUI();
+            this.overlay.addEventListener('click', (e) => {
+                if (e.target === this.overlay) this.destroySearchUI();
             });
 
             resultsList.addEventListener('click', async (e) => {
                 const li = e.target.closest('li');
                 if (li && li.dataset.path) {
                     const path = JSON.parse(li.dataset.path);
-                    destroySearchUI();
+                    this.destroySearchUI();
                     await sleep(120);
                     await startReplay(path, true);
                 }
@@ -910,7 +950,7 @@
 
             // 显示并聚焦
             requestAnimationFrame(() => {
-                overlay.classList.add('visible');
+                this.overlay.classList.add('visible');
                 input.focus();
                 input.select();
             });
@@ -929,9 +969,9 @@
             this.pressTimer = null;
             this.longPressTriggered = false;
             this.activePointerId = null;
-            this.oldHref = window.location.href;
 
             // pagehide/pageshow 清理按钮 loading 状态
+            // 是否移除？
             window.addEventListener('pagehide', () => {
                 try {
                     this.button.classList.remove('loading');
@@ -946,31 +986,6 @@
                 } catch (e) {
                 }
             });
-
-            // 初次页面就绪后尝试回放
-            if (document.readyState === 'loading') {
-                window.addEventListener('DOMContentLoaded', () => {
-                    if (notLogin()) setTimeout(() => this.replaySavedPathIfAny(), 300);
-                });
-            } else {
-                if (notLogin()) setTimeout(() => this.replaySavedPathIfAny(), 300);
-            }
-
-            window.addEventListener('popstate', () => this.replayIfLogin());
-
-            // 劫持 pushState/replaceState，触发回放检查
-            const originalPushState = history.pushState;
-            history.pushState = (...args) => {
-                originalPushState.apply(history, args);
-                this.replayIfLogin();
-            };
-
-            // 拦截 replaceState
-            const originalReplaceState = history.replaceState;
-            history.replaceState = (...args) => {
-                originalReplaceState.apply(history, args);
-                this.replayIfLogin();
-            };
 
             window.addEventListener('beforeunload', () => savePathForReplay());
 
@@ -1030,11 +1045,14 @@
             });
         }
 
-        replayIfLogin() {
-            if (!notLogin(this.oldHref) && notLogin()) {
-                setTimeout(this.replaySavedPathIfAny, 300);
-            }
-            this.oldHref = window.location.href;
+        onLoginPage() {
+        } // 刷新按钮不隐藏
+
+        onAppPage() {
+            super.onAppPage();
+            setTimeout(this.replaySavedPathIfAny, 300);
+            this.button.classList.remove('loading');
+            this.button.disabled = false;
         }
 
         async replaySavedPathIfAny() {
@@ -1172,5 +1190,43 @@
     const favBtn = new FavBtn();
     const searchBtn = new SearchBtn();
     const hardRefreshBtn = new HardRefreshBtn();
+
+    let oldHref = "";
+
+    function checkLogin() {
+        if (!notLogin(oldHref) && notLogin()) {
+            favBtn.onAppPage();
+            searchBtn.onAppPage();
+            hardRefreshBtn.onAppPage();
+            console.log("检测到应用页面，显示导航按钮。");
+        } else if (notLogin(oldHref) && !notLogin()) {
+            favBtn.onLoginPage();
+            searchBtn.onLoginPage();
+            hardRefreshBtn.onLoginPage();
+            nextStepManager.onLoginPage();
+            console.log("检测到登录页面，隐藏导航按钮。");
+        }
+        oldHref = window.location.href;
+    }
+
+    checkLogin();
+
+    window.addEventListener('popstate', checkLogin);
+
+    // 劫持 pushState/replaceState，触发回放检查
+    const originalPushState = history.pushState;
+    history.pushState = (...args) => {
+        originalPushState.apply(history, args);
+        checkLogin();
+    };
+
+    // 拦截 replaceState
+    const originalReplaceState = history.replaceState;
+    history.replaceState = (...args) => {
+        originalReplaceState.apply(history, args);
+        checkLogin();
+    };
+
+    // todo: onPageChange
 
 })();
