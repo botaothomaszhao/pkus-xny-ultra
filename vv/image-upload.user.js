@@ -13,6 +13,11 @@
 (function () {
     'use strict';
 
+    // 配置
+    const CAPTURE_WIDTH = 1920; // 请求的宽度（必填）
+    const CAPTURE_HEIGHT = 1080; // 请求的高度（必填）
+    const CAPTURE_FRAME_RATE = 30; // 请求的帧率（可选：若为 null 则不添加 frameRate 约束）
+
     GM_addStyle(`
         .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
         .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
@@ -333,8 +338,9 @@
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
-                video: {facingMode: {ideal: facingMode}, width: {ideal: 3840}, height: {ideal: 2160}}, audio: false, frameRate: { ideal: 30, max: 30 }
+                video: {facingMode: {ideal: facingMode}, width: {ideal: CAPTURE_WIDTH}, height: {ideal: CAPTURE_HEIGHT}}, audio: false
             };
+            if (CAPTURE_FRAME_RATE) constraints.frameRate = {ideal: CAPTURE_FRAME_RATE};
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
             } catch (err) {
@@ -346,7 +352,7 @@
             video.style.display = 'block';
             canvas.style.display = 'none';
             await new Promise(resolve => {
-                if (video.readyState >= 1 && video.videoWidth && video.videoHeight) return resolve();
+                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) return resolve();
                 const onMeta = () => {
                     video.removeEventListener('loadedmetadata', onMeta);
                     resolve();
@@ -377,7 +383,10 @@
 
         // 捕获一帧真实像素并生成 Blob
         async function captureOnce() {
-            const vw = video.videoWidth || 1920, vh = video.videoHeight || 1080;
+            if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
+            const vw = video.videoWidth, vh = video.videoHeight;
+            // 若仍然没有合理尺寸，则认为无法拍摄，返回 null 
+            if (!vw || !vh) return null;
             canvas.width = vw;
             canvas.height = vh;
             const ctx = canvas.getContext('2d');
