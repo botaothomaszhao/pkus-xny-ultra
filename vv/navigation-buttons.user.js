@@ -479,7 +479,6 @@
                     return true;
                 }
             }
-            console.log("下一步检测：未找到子节点或子节点列表为空。");
             return false;
         }
     }
@@ -492,10 +491,8 @@
         try {
             const last = await replayPath(path, replayToken);
             if (openNextStep) {
-                //const nextStep = new NextStepManager();
                 if (!nextStepManager.checkNextStep(last)) {
-                    await savePathForReplay(path);
-
+                    await savePathForReplay();
                 }
             }
         } catch (e) {
@@ -1235,6 +1232,7 @@
     }
 
     checkPageChange();
+    hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 

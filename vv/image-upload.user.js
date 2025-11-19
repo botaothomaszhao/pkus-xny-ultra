@@ -338,7 +338,10 @@
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
-                video: {facingMode: {ideal: facingMode}, width: {ideal: CAPTURE_WIDTH}, height: {ideal: CAPTURE_HEIGHT}}, audio: false
+                video: {
+                    facingMode: {ideal: facingMode}, width: {ideal: CAPTURE_WIDTH}, height: {ideal: CAPTURE_HEIGHT}
+                },
+                audio: false
             };
             if (CAPTURE_FRAME_RATE) constraints.frameRate = {ideal: CAPTURE_FRAME_RATE};
             try {
@@ -352,7 +355,9 @@
             video.style.display = 'block';
             canvas.style.display = 'none';
             await new Promise(resolve => {
-                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) return resolve();
+                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) {
+                    return resolve();
+                }
                 const onMeta = () => {
                     video.removeEventListener('loadedmetadata', onMeta);
                     resolve();
@@ -385,7 +390,7 @@
         async function captureOnce() {
             if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
             const vw = video.videoWidth, vh = video.videoHeight;
-            // 若仍然没有合理尺寸，则认为无法拍摄，返回 null 
+            // 若仍然没有合理尺寸，则认为无法拍摄，返回 null
             if (!vw || !vh) return null;
             canvas.width = vw;
             canvas.height = vh;
