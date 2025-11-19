@@ -30,7 +30,7 @@
         .nav-btn {
             position: fixed;
             left: 0;
-            z-index: 999;
+            z-index: 990;
             width: 50px;
             height: ${offset}px;
             background-color: transparent;
@@ -391,6 +391,10 @@
             this.close();
         }
 
+        onPageChange() {
+            this.close();
+        }
+
         renderList(children) {
             if (!this.listEl) return;
             this.listEl.innerHTML = '';
@@ -455,6 +459,7 @@
                 this.listEl = null;
                 savePathForReplay();
             }, 300);
+            // todo: 将drawer作为overlay子节点，之后仿搜索直接监听动画完成
         }
 
         // 检测是否有子节点可展开，若有则展开并返回 true，否则返回 false
@@ -508,7 +513,7 @@
             this.button.className = 'nav-btn';
             this.button.id = id;
             this.button.title = title;
-            // 从 ICONS 中获取对应的图标（容错）
+            // 从 ICONS 中获取对应的图标
             this.button.innerHTML = ICONS[id] || '';
             document.body.appendChild(this.button);
             if (onclick) this.button.addEventListener('click', onclick);
@@ -553,6 +558,10 @@
         onAppPage() {
             this.addBtn.onAppPage();
             this.showBtn.onAppPage();
+        }
+
+        onPageChange() {
+            this.closeFavoritesDrawer();
         }
 
         async getFavorites() {
@@ -762,13 +771,19 @@
             this.MAX_DISPLAY = 50;
             this.overlay = null;
 
-            // todo: 切换边栏时刷新
             this.setupXHRInterceptorForCatalog();
         }
 
         onLoginPage() {
             this.destroySearchUI();
             super.onLoginPage();
+        }
+
+        onPageChange(oldUrl, newUrl) {
+            this.destroySearchUI();
+            if (oldUrl !== newUrl) {
+                this.searchableItems = [];
+            }
         }
 
         // XHR 拦截：监听 catalog/entity 返回
@@ -846,13 +861,12 @@
             console.log(`Search Spotlight: loaded ${this.searchableItems.length} items for "${subjectContext}"`);
         }
 
-        destroySearchUI  ()  {
-            if (this.overlay){
-                this.overlay.classList.remove('visible');
-                this.overlay.addEventListener('transitionend', () => {
-                    this.overlay.remove();
-                    this.overlay = null;
-                }, {once: true});
+        destroySearchUI() {
+            if (this.overlay) {
+                const oldOverlay = this.overlay;
+                oldOverlay.classList.remove('visible');
+                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
+                this.overlay = null; // 防止重复销毁
             }
         }
 
@@ -893,9 +907,9 @@
 
             let searchKeyboardNav = null;
 
-            registerEsc(input, this.destroySearchUI);
+            registerEsc(input, () => this.destroySearchUI());
 
-             // 用const函数保留this引用
+            // 用const函数保留this引用
             const renderResults = (query) => {
                 resultsList.innerHTML = '';
                 if (!query) return;
@@ -1055,6 +1069,11 @@
             this.button.disabled = false;
         }
 
+        onPageChange() {
+            this.button.classList.remove('loading');
+            this.button.disabled = false;
+        }
+
         async replaySavedPathIfAny() {
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
@@ -1191,9 +1210,9 @@
     const searchBtn = new SearchBtn();
     const hardRefreshBtn = new HardRefreshBtn();
 
-    let oldHref = "";
+    let oldHref = window.location.href;
 
-    function checkLogin() {
+    function checkPageChange() {
         if (!notLogin(oldHref) && notLogin()) {
             favBtn.onAppPage();
             searchBtn.onAppPage();
@@ -1205,28 +1224,32 @@
             hardRefreshBtn.onLoginPage();
             nextStepManager.onLoginPage();
             console.log("检测到登录页面，隐藏导航按钮。");
+        } else {
+            favBtn.onPageChange();
+            searchBtn.onPageChange(oldHref, window.location.href);
+            hardRefreshBtn.onPageChange();
+            nextStepManager.onPageChange();
+            console.log("检测到页面变化，执行页面变更处理。");
         }
         oldHref = window.location.href;
     }
 
-    checkLogin();
+    checkPageChange();
 
-    window.addEventListener('popstate', checkLogin);
+    window.addEventListener('popstate', checkPageChange);
 
     // 劫持 pushState/replaceState，触发回放检查
     const originalPushState = history.pushState;
     history.pushState = (...args) => {
         originalPushState.apply(history, args);
-        checkLogin();
+        checkPageChange();
     };
 
     // 拦截 replaceState
     const originalReplaceState = history.replaceState;
     history.replaceState = (...args) => {
         originalReplaceState.apply(history, args);
-        checkLogin();
+        checkPageChange();
     };
-
-    // todo: onPageChange
 
 })();
