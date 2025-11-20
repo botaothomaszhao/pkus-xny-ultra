@@ -4,6 +4,7 @@
 // @version      vv.2.7
 // @license      GPL-3.0
 // @description  点击上传照片按钮时弹窗选择“从相册选择”或“从相机拍照”，在网页内实现拍照功能，解决浏览器无法唤起相机的问题。
+// @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_addStyle

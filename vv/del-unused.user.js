@@ -4,6 +4,7 @@
 // @version      vv.2.2
 // @license      GPL-3.0
 // @description  自动删除指定的元素；隐藏空图片框，并在检测到有图片后恢复。
+// @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        none
