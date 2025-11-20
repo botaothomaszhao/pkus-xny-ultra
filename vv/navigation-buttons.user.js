@@ -486,13 +486,17 @@
     const nextStepManager = new NextStepManager();
 
     // startReplay：中断旧回放并立即开始新的
-    async function startReplay(path, openNextStep = true) {
+    async function startReplay(path, openNextStep, closeFolder = false) {
+        if(closeFolder){
+            const activeFolder = document.querySelector('div.folderName.active');
+            if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
+        }
         replayToken++;
         try {
             const last = await replayPath(path, replayToken);
             if (openNextStep) {
                 if (!nextStepManager.checkNextStep(last)) {
-                    await savePathForReplay();
+                    await savePathForReplay(path); // 若无下一步，直接保存
                 }
             }
         } catch (e) {
@@ -689,9 +693,7 @@
                     if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
                     this.closeFavoritesDrawer();
                     try {
-                        const activeFolder = document.querySelector('div.folderName.active');
-                        if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
-                        await startReplay(fav.path, true);
+                        await startReplay(fav.path, true, true);
                     } catch (error) {
                         console.error("Replay or next step check failed:", error);
                     }
@@ -831,8 +833,7 @@
             const mainMenuStep = {selector: "div.menu > div", text: mainMenuContext};
             const subjectStep = {selector: "div.folderName", text: subjectContext};
 
-            // 重复 subjectStep 一次以实现先关闭再展开
-            const initialPath = [mainMenuStep, subjectStep, subjectStep];
+            const initialPath = [mainMenuStep, subjectStep];
 
             const flattenTree = (nodes, parentPath) => {
                 if (!nodes || nodes.length === 0) return;
@@ -954,8 +955,7 @@
                 if (li && li.dataset.path) {
                     const path = JSON.parse(li.dataset.path);
                     this.destroySearchUI();
-                    await sleep(120);
-                    await startReplay(path, true);
+                    await startReplay(path, true, true);
                 }
             });
 
