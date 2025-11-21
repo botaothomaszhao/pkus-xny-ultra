@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.6
+// @version      vv.2.7
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -378,6 +378,115 @@
         }
     }
 
+
+    class ItemDrawer {
+        /*
+        keyInput: () => HTMLInputElement
+        elements: (input: HTMLInputElement, itemEl: HTMLUListElement) => HTMLElement
+         */
+        constructor(id, className, keyInput, elements) {
+            this.overlay = document.createElement('div');
+            this.overlay.id = id;
+            this.overlay.className = className;
+
+
+            this.input = keyInput();
+
+            this.itemEl = document.createElement('ul');
+            this.itemEl.className = 'unified-list';
+
+            this.overlay.appendChild(elements(this.input, this.itemEl));
+            document.body.appendChild(this.overlay);
+
+            registerEsc(this.input, () => this.close());
+
+            this.overlay.addEventListener('click', (e) => {
+                if (e.target === this.overlay) this.close();
+            });
+
+            // 显示并聚焦
+            requestAnimationFrame(() => {
+                this.overlay.classList.add('visible');
+                this.input.focus();
+                this.input.select();
+            });
+        }
+
+        renderList(items, onItem) {
+            this.itemEl.innerHTML = '';
+            if (!items) return;
+
+            if (!items || items.length === 0) {
+                this.itemEl.innerHTML = `<div class="empty-list">无匹配结果</div>`;
+                return;
+            }
+            this.items = [];
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'unified-list-item';
+
+                li.innerHTML = `<span class="item-title">${item.title}</span>
+                                    <span class="item-path">${item.displayPath}</span>`;
+
+                this.itemEl.appendChild(li);
+                this.items.push(li);
+
+                li.addEventListener('click', async () => {
+                    const path = item.replayablePath;
+                    this.close();
+                    await startReplay(path, true, true);
+                });
+            });
+
+            this.currentIndex = -1;
+            this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+        }
+
+        handleKeydown(e) {
+            if (!this.items.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.highlightIndex(this.currentIndex + 1, this.items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.highlightIndex(this.currentIndex - 1, this.items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.currentIndex >= 0 && this.currentIndex < this.items.length) {
+                    this.items[this.currentIndex].click();
+                } else if (this.items.length > 0) {
+                    this.items[0].click();
+                }
+            }
+        }
+
+        highlightIndex(index) {
+            if (!this.items.length) return;
+
+            if (index < 0) index = this.items.length - 1;
+            if (index >= this.items.length) index = 0;
+
+            this.currentIndex = index;
+            this.items.forEach(it => it.classList.remove('highlighted'));
+            this.items[this.currentIndex].classList.add('highlighted');
+            this.items[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
+        }
+
+        close() {
+            if (this.overlay) {
+                const oldOverlay = this.overlay;
+                oldOverlay.classList.remove('visible');
+                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
+                this.overlay = null; // 防止重复销毁
+                this.items = [];
+                this.input = null;
+            }
+        }
+    }
+
+
+
     // 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展
     class NextStepManager {
         constructor() {
@@ -385,6 +494,8 @@
             this.drawerEl = null;
             this.listEl = null;
             this.keyboardNav = null;
+
+            this.drawer = null;
         }
 
         onLoginPage() {
@@ -416,6 +527,16 @@
         }
 
         open(children) {
+            if (this.drawer) this.drawer.close();
+
+            this.drawer = new ItemDrawer(
+                'next-step-drawer',
+                'drawer-overlay',
+                null,
+                0
+            )
+
+
             this.close();
             this.overlay = document.createElement('div');
             this.overlay.className = 'drawer-overlay';
@@ -751,7 +872,7 @@
             // 实例状态
             this.searchableItems = []; // { title, displayPath, replayablePath }
             this.MAX_DISPLAY = 50;
-            this.overlay = null;
+            this.drawer = null;
 
             this.setupXHRInterceptorForCatalog();
         }
@@ -763,7 +884,8 @@
 
         onPageChange(oldUrl, newUrl) {
             this.destroySearchUI();
-            if (oldUrl !== newUrl) {
+            // 不检测url ?后参数
+            if (oldUrl.split('?')[0] !== newUrl.split('?')[0]) {
                 this.searchableItems = [];
             }
         }
@@ -843,16 +965,70 @@
         }
 
         destroySearchUI() {
-            if (this.overlay) {
+            if (this.drawer) {
+                this.drawer.close();
+                this.drawer = null;
+            }
+            /*if (this.overlay) {
                 const oldOverlay = this.overlay;
                 oldOverlay.classList.remove('visible');
                 oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
                 this.overlay = null; // 防止重复销毁
-            }
+            }*/
         }
 
         createSearchUI() {
-            if (this.overlay) return;
+            if (this.drawer) this.drawer.close();
+            this.drawer = new ItemDrawer(
+                'search-spotlight-overlay',
+                'search-spotlight-overlay',
+                () => {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'search-spotlight-input';
+                    input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
+                    input.autocomplete = 'off';
+                    return input;
+                },
+                (input, itemEl) => {
+                    const card = document.createElement('div');
+                    card.className = 'search-spotlight-card';
+                    card.setAttribute('role', 'dialog');
+                    card.setAttribute('aria-modal', 'true');
+
+                    const inputWrapper = document.createElement('div');
+                    inputWrapper.className = 'search-input-wrapper';
+
+                    const iconWrapper = document.createElement('div');
+                    iconWrapper.className = 'icon';
+                    iconWrapper.innerHTML = ICONS['search-input-icon'];
+
+                    inputWrapper.appendChild(iconWrapper);
+                    inputWrapper.appendChild(input);
+
+                    card.appendChild(inputWrapper);
+                    card.appendChild(itemEl);
+                    return card;
+                }
+            );
+
+            const debounced = debounce((q) => {
+                if (!this.searchableItems || this.searchableItems.length === 0) {
+                    this.drawer.itemEl.innerHTML = `<div class="empty-list">请先点击左侧的科目以加载目录数据。</div>`;
+                    return;
+                }
+                const items = this.searchableItems.filter(item => {
+                    try {
+                        return PinyinMatch.match(item.title, q);
+                    } catch (e) {
+                        return item.title && item.title.includes(q);
+                    }
+                });
+                this.drawer.renderList(items.slice(0, this.MAX_DISPLAY), );
+            }, 180);
+            this.drawer.input.addEventListener('input', () => debounced(this.input.value.trim()));
+
+            /*
             this.overlay = document.createElement('div');
             this.overlay.id = 'search-spotlight-overlay';
             this.overlay.className = 'search-spotlight-overlay';
@@ -943,7 +1119,7 @@
                 this.overlay.classList.add('visible');
                 input.focus();
                 input.select();
-            });
+            });*/
         }
     }
 
