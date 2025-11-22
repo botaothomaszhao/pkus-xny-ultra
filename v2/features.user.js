@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         新能源课程系统增强 - 功能脚本（不含样式）
 // @namespace    http://tampermonkey.net/
-// @version      2.0-features.3
+// @version      2.0-features.4
 // @license      MIT
 // @description  从 v2/main.js 拆出的完整功能脚本：收藏夹、路径回放、目录搜索、XHR 拦截、手写修复、设置页、Pill 菜单与智能提示等；不包含站点的全局黑白配色与字体样式（这些在 ui-only 脚本中）。
 // @author       c-jeremy
@@ -12,6 +12,7 @@
 // @grant        GM_getValue
 // @grant        GM_notification
 // @run-at       document-start
+// @connect      bdfz.xnykcxt.com
 // @require      https://unpkg.com/pinyin-match@1.2.8/dist/main.js
 // ==/UserScript==
 
@@ -226,6 +227,26 @@
     let settings = {}; // 运行时缓存设置
     let searchableItems = []; // 用于存储所有可搜索的目录项
 
+    /* -------------------- 等待 body 准备就绪 -------------------- */
+    function waitForBody() {
+        return new Promise((resolve) => {
+            if (document.body) {
+                resolve();
+            } else if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+            } else {
+                // Fallback: poll for body
+                const checkBody = setInterval(() => {
+                    if (document.body) {
+                        clearInterval(checkBody);
+                        resolve();
+                    }
+                }, 50);
+            }
+        });
+    }
+
+
     /* -------------------- 收藏夹核心逻辑 (来自旧脚本，未作修改) -------------------- */
     function cleanInnerText(el) { if (!el) return ""; const clone = el.cloneNode(true); clone.querySelectorAll("i, svg, path").forEach(n => n.remove()); return clone.textContent.trim(); }
 
@@ -325,13 +346,46 @@ function modifyContentData(data) {
     }
 }
 
-/* -------------------- XHR 请求拦截器 -------------------- */
-function setupXHRInterceptor() {
+/* -------------------- XHR 请求拦截器（注入到页面上下文） -------------------- */
+function injectXHRInterceptorToPage(config) {
+    const script = document.createElement('script');
+    script.textContent = `
+(function() {
+    const settings = ${JSON.stringify(config)};
+    
+    // 修改题目内容以强制显示答案
+    function modifyContentData(data) {
+        try {
+            if (data && Array.isArray(data.extra)) {
+                data.extra.forEach(item => {
+                    if (item && item.content) {
+                        const content = item.content;
+                        const keysToEnable = [
+                            "previewAnswer", "answerWayHandle", "answerWayPhoto",
+                            "answerWayTalking", "answerWayVideo", "answerWayKeyboard",
+                            "questionTalkingSwitch"
+                        ];
+                        keysToEnable.forEach(key => {
+                            if (typeof content[key] !== 'undefined') { content[key] = 1; }
+                        });
+                        if (typeof content.mustDoSwitch !== 'undefined') {
+                            content.mustDoSwitch = 0;
+                        }
+                    }
+                });
+            }
+            return data;
+        } catch (e) {
+            console.error('[Content Modifier] Error modifying data:', e);
+            return data;
+        }
+    }
+    
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
 
     XMLHttpRequest.prototype.open = function(method, url) {
-        if (typeof url === 'string' && url.endsWith('enchance')) { /* ATTENTION: 这里务必注意！新能源课程系统网站原始API有拼写错误，该API路径就是enchance，而不是enhance，严禁修改。*/
+        if (typeof url === 'string' && url.endsWith('enchance')) {
             this._isMockTarget = true;
         } else if (typeof url === 'string' && url.includes('catalog/entity')) {
             this._isCatalogTarget = true;
@@ -342,7 +396,7 @@ function setupXHRInterceptor() {
     };
 
     XMLHttpRequest.prototype.send = function() {
-        // 1. 处理 Mock 请求（这种请求会提前结束，需要 return）
+        // 1. 处理 Mock 请求
         if (this._isMockTarget && settings.enableMockEnhance) {
             console.log('⚡️ XHR Interceptor: Mocking request to', this.responseURL);
             const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
@@ -360,7 +414,7 @@ function setupXHRInterceptor() {
             return;
         }
 
-        // 2. 独立处理“强制答案”请求
+        // 2. 处理"强制答案"请求
         if (this._isContentTarget && settings.enableAnswerForce) {
             const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
             const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
@@ -389,20 +443,13 @@ function setupXHRInterceptor() {
             });
         }
 
-        // 3. 独立处理“搜索目录”请求
+        // 3. 处理"搜索目录"请求 - 发送自定义事件给用户脚本
         if (this._isCatalogTarget) {
             this.addEventListener('load', function() {
                 if (this.status === 200) {
-                    try {
-                        const response = JSON.parse(this.responseText);
-                        const activeMainMenu = document.querySelector('.menu > div.active');
-                        const mainMenuContext = activeMainMenu ? cleanInnerText(activeMainMenu) : '课程';
-                        const activeSubject = document.querySelector('.folderName.active');
-                        const subjectContext = activeSubject ? cleanInnerText(activeSubject) : '未知科目';
-                        processCatalogData(response, mainMenuContext, subjectContext);
-                    } catch (e) {
-                        console.error('目录数据处理失败:', e);
-                    }
+                    window.dispatchEvent(new CustomEvent('xnyultra-catalog-loaded', {
+                        detail: { responseText: this.responseText }
+                    }));
                 }
             });
         }
@@ -410,6 +457,26 @@ function setupXHRInterceptor() {
         // 4. 最终总是调用原始的 send 方法
         originalSend.apply(this, arguments);
     };
+})();
+`;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+}
+
+// 在用户脚本上下文中监听目录加载事件
+function setupCatalogEventListener() {
+    window.addEventListener('xnyultra-catalog-loaded', (e) => {
+        try {
+            const response = JSON.parse(e.detail.responseText);
+            const activeMainMenu = document.querySelector('.menu > div.active');
+            const mainMenuContext = activeMainMenu ? cleanInnerText(activeMainMenu) : '课程';
+            const activeSubject = document.querySelector('.folderName.active');
+            const subjectContext = activeSubject ? cleanInnerText(activeSubject) : '未知科目';
+            processCatalogData(response, mainMenuContext, subjectContext);
+        } catch (err) {
+            console.error('目录数据处理失败:', err);
+        }
+    });
 }
 
 function processCatalogData(response, mainMenuContext, subjectContext) {
@@ -780,7 +847,7 @@ function initializeAnswerAreaObserver() {
                 const newSettings = await getSettings();
                 newSettings[key] = this.checked;
                 await saveSettings(newSettings);
-                updateConditionalStyles(newSettings);
+                if (typeof updateConditionalStyles === 'function') { updateConditionalStyles(newSettings); }
                 GM_notification({ title: '设置已保存', text: `“${def.title}”已${this.checked ? '开启' : '关闭'}。`, timeout: 2000 });
             });
         }
@@ -987,12 +1054,19 @@ const path = captureCurrentPath();
     (async function main() {
         settings = await getSettings();
 
+        // 注入 XHR 拦截器到页面上下文（越早越好）
+        injectXHRInterceptorToPage(settings);
+        setupCatalogEventListener();
+
+        // 等待 body 准备就绪后再执行 DOM 操作
+        await waitForBody();
+
+
         // DEPRECATED: updateConditionalStyles(settings);
         injectPillAndDrawers();
         setupPillBehavior();
         setupMenuIndicator();
         attachGuardianListeners();
-        setupXHRInterceptor();
         initializePdfIframeObserver();
         initializeAnswerAreaObserver();
         setupMenuDoubleClick();
