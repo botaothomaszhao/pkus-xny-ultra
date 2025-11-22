@@ -428,11 +428,7 @@
 
             this.renderList(children);
 
-            this.keyboardNav = new UnifiedKeyboardNav(
-                this.listEl,
-                () => this.close(),
-                this.drawerEl
-            );
+            this.keyboardNav = new UnifiedKeyboardNav(this.listEl, () => this.close(), this.drawerEl);
 
             requestAnimationFrame(() => {
                 this.drawerEl.classList.add('open');
@@ -481,7 +477,7 @@
 
     // startReplay：中断旧回放并立即开始新的
     async function startReplay(path, openNextStep, closeFolder = false) {
-        if(closeFolder){
+        if (closeFolder) {
             const activeFolder = document.querySelector('div.folderName.active');
             if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
         }
@@ -530,18 +526,9 @@
             this.favoritesList = null;
             this.keyboardNav = null;
 
-            // 创建按钮，传入绑定的方法引用（避免立即执行）
-            this.addBtn = new NavigationButton(
-                'add-favorite-btn',
-                '添加到收藏夹',
-                () => this.addCurrentPathToFavorites()
-            );
-
-            this.showBtn = new NavigationButton(
-                'show-favorites-btn',
-                '显示收藏夹',
-                () => this.openFavoritesDrawer()
-            );
+            // 创建按钮，传入绑定的方法引用
+            this.addBtn = new NavigationButton('add-favorite-btn', '添加到收藏夹', () => this.addCurrentPathToFavorites());
+            this.showBtn = new NavigationButton('show-favorites-btn', '显示收藏夹', () => this.openFavoritesDrawer());
         }
 
         onLoginPage() {
@@ -753,11 +740,7 @@
 
     class SearchBtn extends NavigationButton {
         constructor() {
-            super(
-                'search-btn',
-                '目录搜索',
-                () => this.createSearchUI()
-            );
+            super('search-btn', '目录搜索', () => this.createSearchUI());
 
             // 实例状态
             this.searchableItems = []; // { title, displayPath, replayablePath }
@@ -929,11 +912,7 @@
                 });
 
                 // 重新创建键盘导航
-                searchKeyboardNav = new UnifiedKeyboardNav(
-                    resultsList,
-                    this.destroySearchUI,
-                    input
-                );
+                searchKeyboardNav = new UnifiedKeyboardNav(resultsList, this.destroySearchUI, input);
             }
 
             const debounced = debounce((q) => renderResults(q), 180);
@@ -963,11 +942,7 @@
 
     class HardRefreshBtn extends NavigationButton {
         constructor() {
-            super(
-                'hard-refresh-btn',
-                '强制刷新',
-                null
-            );
+            super('hard-refresh-btn', '强制刷新', null);
 
             // 状态
             this.pressTimer = null;
@@ -975,7 +950,6 @@
             this.activePointerId = null;
 
             // pagehide/pageshow 清理按钮 loading 状态
-            // 是否移除？
             window.addEventListener('pagehide', () => {
                 try {
                     this.button.classList.remove('loading');
@@ -1017,7 +991,7 @@
                     if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
                 } catch (err) {
                 }
-                this.pressTimer = setTimeout(() => this.triggerLongPress(), HARD_REFRESH_PRESS_MS);
+                this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
             }, {passive: true});
 
             this.button.addEventListener('pointerup', () => {
@@ -1026,8 +1000,9 @@
                     return;
                 }
                 try {
-                    if (this.activePointerId !== null && this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
-                } catch (err) {
+                    if (this.activePointerId !== null && this.button.releasePointerCapture)
+                        this.button.releasePointerCapture(this.activePointerId);
+                } catch (e) {
                 }
                 if (this.longPressTriggered) {
                     this.clearPressTimer();
@@ -1069,7 +1044,7 @@
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
             // 刷新后回放不自动展开下一步
-            await startReplay(path, false);
+            await startReplay(path, false, false);
         }
 
         async sendLogoutRequest() {
@@ -1143,10 +1118,7 @@
             if (this.button.classList.contains('loading')) return;
             this.button.classList.add('loading');
             this.button.disabled = true;
-            try {
-                await savePathForReplay();
-            } catch (e) {
-            }
+            await savePathForReplay();
             try {
                 window.location.reload();
             } catch (e) {
@@ -1168,17 +1140,14 @@
             }
         }
 
-        async triggerLongPress() {
+        async handleLongPress() {
             if (this.longPressTriggered) return;
             this.longPressTriggered = true;
             try {
                 if (!this.button.classList.contains('loading')) {
                     this.button.classList.add('loading');
                     this.button.disabled = true;
-                    try {
-                        await savePathForReplay();
-                    } catch (e) {
-                    }
+                    await savePathForReplay();
                     setTimeout(() => {
                         this.nukeAndReload().catch(() => {
                             this.button.classList.remove('loading');

@@ -55,11 +55,11 @@
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
             z-index: 2147483647;
-            opacity: 0; visibility: hidden;
-            transition: opacity .25s ease;
+            opacity: 0;
+            transition: opacity .18s ease;
+            background-color: rgba(255,255,255,0.5);
+            backdrop-filter: blur(10px);
         }
         .drawer-overlay.visible { opacity: 1; visibility: visible; }
 
@@ -125,12 +125,6 @@
         .action-btn.delete:hover { color: #ef4444; }
         .action-btn svg { width: 20px; height: 20px; display: block; }
 
-        .search-spotlight-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px);
-            z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none;
-        }
-        .search-spotlight-overlay.visible { opacity: 1; pointer-events: auto; }
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
             background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
@@ -384,10 +378,9 @@
         keyInput: () => HTMLInputElement
         elements: (input: HTMLInputElement, itemEl: HTMLUListElement) => HTMLElement
          */
-        constructor(id, className, keyInput, elements) {
+        constructor( keyInput, elements) {
             this.overlay = document.createElement('div');
-            this.overlay.id = id;
-            this.overlay.className = className;
+            this.overlay.className = 'drawer-overlay';
 
 
             this.input = keyInput();
@@ -530,8 +523,6 @@
             if (this.drawer) this.drawer.close();
 
             this.drawer = new ItemDrawer(
-                'next-step-drawer',
-                'drawer-overlay',
                 null,
                 0
             )
@@ -980,8 +971,6 @@
         createSearchUI() {
             if (this.drawer) this.drawer.close();
             this.drawer = new ItemDrawer(
-                'search-spotlight-overlay',
-                'search-spotlight-overlay',
                 () => {
                     const input = document.createElement('input');
                     input.type = 'text';
