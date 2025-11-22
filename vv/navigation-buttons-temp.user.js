@@ -331,48 +331,7 @@
         }
     }
 
-    // 统一的键盘导航管理
-    class UnifiedKeyboardNav {
-        constructor(container, onClose, element) {
-            this.currentIndex = -1;
-            this.items = Array.from(container.querySelectorAll('.unified-list-item'));
-            element.addEventListener('keydown', (e) => this.handleKeydown(e));
-            registerEsc(element, onClose);
-        }
-
-        handleKeydown(e) {
-            if (!this.items.length) return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                this.highlightIndex(this.currentIndex + 1, this.items);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                this.highlightIndex(this.currentIndex - 1, this.items);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (this.currentIndex >= 0 && this.currentIndex < this.items.length) {
-                    this.items[this.currentIndex].click();
-                } else if (this.items.length > 0) {
-                    this.items[0].click();
-                }
-            }
-        }
-
-        highlightIndex(index) {
-            if (!this.items.length) return;
-
-            if (index < 0) index = this.items.length - 1;
-            if (index >= this.items.length) index = 0;
-
-            this.currentIndex = index;
-            this.items.forEach(it => it.classList.remove('highlighted'));
-            this.items[this.currentIndex].classList.add('highlighted');
-            this.items[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
-        }
-    }
-
-
+    // 通用抽屉组件
     class ItemDrawer {
         /*
         keyInput: (drawer: HTMLDivElement) => HTMLInputElement 返回用于绑定按键的元素
@@ -399,6 +358,7 @@
                 if (e.target === this.overlay) this.close();
             });
             this.itemElsList = [];
+            this.currentIndex = -1;
             this.keyInputEl.addEventListener('keydown', (e) => this.handleKeydown(e));
 
             // 显示并聚焦
@@ -413,21 +373,23 @@
         }
 
         /*
-        items: Array<any>
         onItem: (li: HTMLLIElement, item: any) => void
          */
-        renderList(items, onItem) {
+        renderList(items, onItem, emptyText = '') {
             this.itemEl.innerHTML = '';
             this.itemElsList = [];
-            if (!items || items.length === 0) return;
-            items.forEach(item => {
+            if (!items || items.length === 0) {
+                this.itemEl.innerHTML = `<div class="empty-list">${emptyText}</div>`;
+                return;
+            }
+            items.forEach((item, index) => {
                 const li = document.createElement('li');
                 li.className = 'unified-list-item';
-                onItem(li, item);
+                onItem(li, item, index);
                 this.itemEl.appendChild(li);
                 this.itemElsList.push(li);
             });
-            this.currentIndex = -1;
+            this.keyInputEl.focus();
         }
 
         handleKeydown(e) {
@@ -483,47 +445,45 @@
         }
 
         onLoginPage() {
-            this.close();
+            this.closeDrawer();
         }
 
         onPageChange() {
-            this.close();
+            this.closeDrawer();
         }
 
         open(children) {
-            if (this.drawer) this.drawer.close();
-
+            this.closeDrawer();
             this.drawer = new ItemDrawer(
                 'next-step-drawer',
                 'bottom-sheet-drawer',
                 (drawer, itemEl) => {
-                    drawer.tabIndex = -1;
                     drawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div>`;
+                    drawer.tabIndex = -1;
                     drawer.appendChild(itemEl);
                     return drawer;
-                }
-            );
+                });
             this.drawer.renderList(
                 children,
                 (li, childElement) => {
                     li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
                     li.addEventListener('click', () => {
-                            try {
-                                childElement.click();
-                                savePathForReplay();
-                            } catch (e) {
-                                console.error(e);
-                            }
-                            this.drawer.close();
+                        try {
+                            childElement.click();
+                            savePathForReplay();
+                        } catch (e) {
+                            console.error(e);
                         }
-                    );
-                }
-            );
-
+                        this.closeDrawer();
+                    });
+                });
         }
 
-        close() {
-            if (this.drawer) this.drawer.close();
+        closeDrawer() {
+            if (this.drawer) {
+                this.drawer.close();
+                this.drawer = null;
+            }
         }
 
         // 检测是否有子节点可展开，若有则展开并返回 true，否则返回 false
@@ -564,12 +524,9 @@
                 }
             }
         } catch (e) {
-            if (!e || e.message !== 'Replay cancelled') {
-                throw e;
-            }
+            if (!e || e.message !== 'Replay cancelled') throw e;
         }
     }
-
 
     // 图标直接从 ICONS map 中根据id获取
     class NavigationButton {
@@ -595,18 +552,15 @@
 
     class FavBtn {
         constructor() {
-            this.favoritesDrawer = null;
-            this.favoritesOverlay = null;
-            this.favoritesList = null;
-            this.keyboardNav = null;
+            this.drawer = null;
 
             // 创建按钮，传入绑定的方法引用
-            this.addBtn = new NavigationButton('add-favorite-btn', '添加到收藏夹', () => this.addCurrentPathToFavorites());
             this.showBtn = new NavigationButton('show-favorites-btn', '显示收藏夹', () => this.openFavoritesDrawer());
+            this.addBtn = new NavigationButton('add-favorite-btn', '添加到收藏夹', () => this.addCurrentPathToFavorites());
         }
 
         onLoginPage() {
-            this.closeFavoritesDrawer();
+            this.closeDrawer();
             this.addBtn.onLoginPage();
             this.showBtn.onLoginPage();
         }
@@ -617,7 +571,7 @@
         }
 
         onPageChange() {
-            this.closeFavoritesDrawer();
+            this.closeDrawer();
         }
 
         async getFavorites() {
@@ -628,48 +582,108 @@
             await GM_setValue(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
         }
 
-        openFavoritesDrawer() {
-            this.closeFavoritesDrawer();
+        renderItem = (li, fav, index) => {
+            const textContentDiv = document.createElement('div');
+            textContentDiv.className = 'item-text-content';
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'item-title';
+            titleSpan.textContent = fav.title;
+            const pathSpan = document.createElement('span');
+            pathSpan.className = 'item-path';
+            pathSpan.textContent = fav.path.map(p => p.text).join(' / ');
+            textContentDiv.appendChild(titleSpan);
+            textContentDiv.appendChild(pathSpan);
 
-            this.favoritesOverlay = document.createElement('div');
-            this.favoritesOverlay.className = 'drawer-overlay';
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'item-actions';
 
-            this.favoritesDrawer = document.createElement('div');
-            this.favoritesDrawer.id = 'favorites-drawer';
-            this.favoritesDrawer.className = 'bottom-sheet-drawer';
+            const editBtn = document.createElement('button');
+            editBtn.className = 'action-btn edit';
+            editBtn.title = '重命名';
+            editBtn.innerHTML = ICONS['edit'];
 
-            this.favoritesDrawer.innerHTML = `
-                <div class="drawer-header"><h2>路径收藏夹</h2></div>
-                <ul class="unified-list"></ul>
-            `;
-            this.favoritesDrawer.tabIndex = -1;
-            this.favoritesList = this.favoritesDrawer.querySelector('.unified-list');
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn delete';
+            deleteBtn.title = '删除';
+            deleteBtn.innerHTML = ICONS['delete'];
 
-            document.body.append(this.favoritesOverlay, this.favoritesDrawer);
-            this.favoritesOverlay.addEventListener('click', () => this.closeFavoritesDrawer(), {once: true});
+            actionsDiv.appendChild(editBtn);
+            actionsDiv.appendChild(deleteBtn);
+            li.appendChild(textContentDiv);
+            li.appendChild(actionsDiv);
 
-            this.renderFavoritesList();
+            li.addEventListener('click', async (e) => {
+                if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
+                this.closeDrawer();
+                try {
+                    await startReplay(fav.path, true, true);
+                } catch (error) {
+                    console.error("Replay or next step check failed:", error);
+                }
+            });
 
-            requestAnimationFrame(() => {
-                this.favoritesDrawer.classList.add('open');
-                this.favoritesOverlay.classList.add('visible');
-                this.favoritesDrawer.focus({preventScroll: true});
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteFavorite(index);
+            });
+
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'title-edit-input';
+                input.value = fav.title;
+
+                // 拦截 Enter，避免触发抽屉的回车导航，同时触发保存
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        input.blur(); // 触发保存
+                    }
+                });
+
+                textContentDiv.replaceChild(input, titleSpan);
+                input.focus();
+                input.select();
+
+                input.addEventListener('blur', async () => {
+                    const newTitle = input.value.trim();
+                    if (newTitle && newTitle !== fav.title) {
+                        const c = await this.getFavorites();
+                        c[index].title = newTitle;
+                        await this.saveFavorites(c);
+                        fav.title = newTitle;
+                    }
+                    titleSpan.textContent = fav.title;
+                    textContentDiv.replaceChild(titleSpan, input);
+                    // 保存后把高光定位到该项
+                    this.drawer.highlightIndex(index);
+                    this.drawer.drawer.focus({preventScroll: true});
+                });
             });
         }
 
-        closeFavoritesDrawer() {
-            if (!this.favoritesDrawer && !this.favoritesOverlay) return;
+        async openFavoritesDrawer() {
+            this.closeDrawer();
+            this.drawer = new ItemDrawer(
+                'favorites-drawer',
+                'bottom-sheet-drawer',
+                (drawer, itemEl) => {
+                    drawer.innerHTML = `<div class="drawer-header"><h2>路径收藏夹</h2></div>`;
+                    drawer.tabIndex = -1;
+                    drawer.appendChild(itemEl);
+                    return drawer;
+                }
+            );
+            this.drawer.renderList(await this.getFavorites(), this.renderItem, `您的收藏夹夹是空的<br>点击"+"按钮添加吧`);
+        }
 
-            this.favoritesDrawer?.classList.remove('open');
-            this.favoritesOverlay?.classList.remove('visible');
-
-            setTimeout(() => {
-                this.favoritesOverlay?.remove();
-                this.favoritesDrawer?.remove();
-                this.favoritesOverlay = null;
-                this.favoritesDrawer = null;
-                this.favoritesList = null;
-            }, 300);
+        closeDrawer() {
+            if (this.drawer) {
+                this.drawer.close();
+                this.drawer = null;
+            }
         }
 
         async addCurrentPathToFavorites() {
@@ -683,9 +697,7 @@
                 return;
             }
             const favorites = await this.getFavorites();
-            if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) {
-                return;
-            }
+            if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) return;
             favorites.push({title: path[path.length - 1].text, path: path});
             await this.saveFavorites(favorites);
             console.info(`收藏成功：已将“${path[path.length - 1].text}”加入收藏夹。`);
@@ -695,121 +707,7 @@
             let f = await this.getFavorites();
             f.splice(index, 1);
             await this.saveFavorites(f);
-            await this.renderFavoritesList();
-        }
-
-        async renderFavoritesList() {
-            if (!this.favoritesList || !this.favoritesDrawer) return;
-
-            const favorites = await this.getFavorites();
-            this.favoritesList.innerHTML = '';
-
-            if (favorites.length === 0) {
-                this.favoritesList.innerHTML = `<div class="empty-list">
-                                                您的收藏夹夹是空的<br>点击"+"按钮添加吧
-                                                </div>`;
-                registerEsc(this.favoritesDrawer, () => this.closeFavoritesDrawer());
-                return;
-            }
-
-            favorites.forEach((fav, index) => {
-                const li = document.createElement('li');
-                li.className = 'unified-list-item';
-
-                const textContentDiv = document.createElement('div');
-                textContentDiv.className = 'item-text-content';
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'item-title';
-                titleSpan.textContent = fav.title;
-                const pathSpan = document.createElement('span');
-                pathSpan.className = 'item-path';
-                pathSpan.textContent = fav.path.map(p => p.text).join(' / ');
-                textContentDiv.appendChild(titleSpan);
-                textContentDiv.appendChild(pathSpan);
-
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'item-actions';
-
-                const editBtn = document.createElement('button');
-                editBtn.className = 'action-btn edit';
-                editBtn.title = '重命名';
-                editBtn.innerHTML = ICONS['edit'];
-
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'action-btn delete';
-                deleteBtn.title = '删除';
-                deleteBtn.innerHTML = ICONS['delete'];
-
-                actionsDiv.appendChild(editBtn);
-                actionsDiv.appendChild(deleteBtn);
-                li.appendChild(textContentDiv);
-                li.appendChild(actionsDiv);
-
-                li.addEventListener('click', async (e) => {
-                    if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
-                    this.closeFavoritesDrawer();
-                    try {
-                        await startReplay(fav.path, true, true);
-                    } catch (error) {
-                        console.error("Replay or next step check failed:", error);
-                    }
-                });
-
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteFavorite(index);
-                });
-
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'title-edit-input';
-                    input.value = fav.title;
-
-                    // 拦截 Enter，避免触发抽屉的回车导航，同时触发保存
-                    input.addEventListener('keydown', (ev) => {
-                        if (ev.key === 'Enter') {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            input.blur(); // 触发保存
-                        }
-                    });
-
-                    textContentDiv.replaceChild(input, titleSpan);
-                    input.focus();
-                    input.select();
-
-                    const saveEdit = async () => {
-                        const newTitle = input.value.trim();
-                        if (newTitle && newTitle !== fav.title) {
-                            const c = await this.getFavorites();
-                            c[index].title = newTitle;
-                            await this.saveFavorites(c);
-                            fav.title = newTitle;
-                        }
-                        titleSpan.textContent = fav.title;
-                        textContentDiv.replaceChild(titleSpan, input);
-                        // 保存后把高光定位到该项
-                        if (this.keyboardNav) {
-                            this.keyboardNav.highlightIndex(index);
-                        }
-                        this.favoritesDrawer.focus({preventScroll: true});
-                    };
-                    input.addEventListener('blur', saveEdit);
-                });
-
-                this.favoritesList.appendChild(li);
-            });
-
-            // 使用统一的键盘导航类
-            this.keyboardNav = new UnifiedKeyboardNav(
-                this.favoritesList,
-                () => this.closeFavoritesDrawer(),
-                this.favoritesDrawer
-            );
-
-            this.favoritesDrawer.focus({preventScroll: true});
+            if (this.drawer) await this.drawer.renderList(f, this.renderItem, `您的收藏夹夹是空的<br>点击"+"按钮添加吧`);
         }
     }
 
@@ -826,12 +724,12 @@
         }
 
         onLoginPage() {
-            this.destroySearchUI();
+            this.closeDrawer();
             super.onLoginPage();
         }
 
         onPageChange(oldUrl, newUrl) {
-            this.destroySearchUI();
+            this.closeDrawer();
             // 不检测url ?后参数
             if (oldUrl.split('?')[0] !== newUrl.split('?')[0]) {
                 this.searchableItems = [];
@@ -849,7 +747,7 @@
                     if (typeof url === 'string' && url.includes('catalog/entity')) {
                         this._isCatalogTarget = true;
                     }
-                } catch (e) { /* ignore */
+                } catch (e) {
                 }
                 return origOpen.apply(this, arguments);
             };
@@ -912,7 +810,7 @@
             console.log(`Search Spotlight: loaded ${this.searchableItems.length} items for "${subjectContext}"`);
         }
 
-        destroySearchUI() {
+        closeDrawer() {
             if (this.drawer) {
                 this.drawer.close();
                 this.drawer = null;
@@ -920,7 +818,7 @@
         }
 
         createSearchUI() {
-            if (this.drawer) this.drawer.close();
+            this.closeDrawer();
             this.drawer = new ItemDrawer(
                 'search-drawer',
                 'search-spotlight-card',
@@ -962,10 +860,6 @@
                         return item.title && item.title.includes(q);
                     }
                 });
-                if (!items || items.length === 0) {
-                    this.drawer.itemEl.innerHTML = `<div class="empty-list">无匹配结果</div>`;
-                    return;
-                }
                 this.drawer.renderList(
                     items.slice(0, this.MAX_DISPLAY),
                     (li, item) => {
@@ -976,7 +870,9 @@
                             this.drawer.close();
                             await startReplay(path, true, true);
                         });
-                    });
+                    },
+                    `无匹配结果`
+                );
             }, 180);
             this.drawer.keyInputEl.addEventListener('input', () => debounced(this.drawer.keyInputEl.value.trim()));
         }
@@ -1030,8 +926,9 @@
                 this.longPressTriggered = false;
                 this.activePointerId = e.pointerId;
                 try {
-                    if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
-                } catch (err) {
+                    if (this.button.setPointerCapture)
+                        this.button.setPointerCapture(this.activePointerId);
+                } catch (e) {
                 }
                 this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
             }, {passive: true});
@@ -1115,7 +1012,6 @@
                 this.button.classList.add('loading');
                 this.button.disabled = true;
             }
-
             try {
                 await this.sendLogoutRequest();
 
