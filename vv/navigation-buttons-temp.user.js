@@ -76,7 +76,9 @@
         }
         .drawer-overlay.visible .bottom-sheet-drawer { transform: translateY(0); }
 
-        .drawer-header { padding: 12px 16px; text-align: center; flex-shrink: 0; position: relative; background: #f9f9f9; }
+        .drawer-header {
+            padding: 12px 16px; text-align: center; flex-shrink: 0; position: relative; background: #f9f9f9;
+        }
         .drawer-header::before {
             content: '';
             position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
@@ -85,16 +87,16 @@
         .drawer-header h2 { margin: 12px 0 0; font-size: 1.1rem; font-weight: 600; color: #111827; }
 
         .unified-list {
-            max-height:60vh; overflow-y:auto; list-style:none; margin:0; padding:8px;
+            max-height: 60vh; overflow-y: auto; list-style: none; margin: 0; padding: 8px;
         }
         .unified-list-item {
-            padding:12px 16px; border-radius:8px; cursor:pointer; transition: background-color .12s ease;
-            display:flex; flex-direction:column;
+            padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: background-color .12s ease;
+            display: flex; flex-direction: column;
         }
         .unified-list li:hover, .unified-list li.highlighted {
-            background:#eef2ff;
+            background: #eef2ff;
         }
-        .empty-list { padding:20px; text-align:center; color:#9ca3af; }
+        .empty-list { padding: 20px; text-align: center; color: #9ca3af; }
 
         #favorites-drawer .unified-list-item { flex-direction: row; align-items: center; }
 
@@ -117,7 +119,8 @@
             box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
         }
         .item-actions { display: flex; align-items: center; flex-shrink: 0; }
-        .action-btn { background: none; border: none; color: #9ca3af; cursor: pointer;
+        .action-btn {
+            background: none; border: none; color: #9ca3af; cursor: pointer;
             padding: 8px; line-height: 1; border-radius: 50%; display: flex;
             align-items: center; justify-content: center;
         }
@@ -139,7 +142,6 @@
             width: 100%; height: 44px; border: none; outline: none; font-size: 16px;
             background: transparent; color: #111827;
         }
-        .search-empty-state { padding: 40px; text-align: center; color:#9ca3af; }
 
         #hard-refresh-btn.loading svg {
             animation: spin 1s linear infinite;
@@ -340,16 +342,16 @@
             this.overlay = document.createElement('div');
             this.overlay.className = 'drawer-overlay';
 
-            this.drawer = document.createElement('div');
-            this.drawer.id = drawerID;
-            this.drawer.className = drawerClassName;
+            const drawerEl = document.createElement('div');
+            drawerEl.id = drawerID;
+            drawerEl.className = drawerClassName;
 
             this.itemEl = document.createElement('ul');
             this.itemEl.className = 'unified-list';
 
-            this.keyInputEl = keyInput(this.drawer, this.itemEl); // 绑定按键的元素
+            this.keyInputEl = keyInput(drawerEl, this.itemEl); // 绑定按键的元素
 
-            this.overlay.appendChild(this.drawer);
+            this.overlay.appendChild(drawerEl);
             document.body.appendChild(this.overlay);
 
             registerEsc(this.keyInputEl, () => this.close());
@@ -365,6 +367,7 @@
             requestAnimationFrame(() => {
                 this.overlay.classList.add('visible');
                 // 判断是否为输入框，若是则选中内容
+                this.keyInputEl.tabIndex = -1;
                 this.keyInputEl.focus();
                 if (this.keyInputEl.tagName === 'INPUT') {
                     this.keyInputEl.select();
@@ -429,14 +432,12 @@
                 oldOverlay.classList.remove('visible');
                 oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
                 this.overlay = null; // 防止重复销毁
-                this.drawer = null;
                 this.itemEl = null;
                 this.itemElsList = [];
                 this.keyInputEl = null;
             }
         }
     }
-
 
     // 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展
     class NextStepManager {
@@ -459,7 +460,6 @@
                 'bottom-sheet-drawer',
                 (drawer, itemEl) => {
                     drawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div>`;
-                    drawer.tabIndex = -1;
                     drawer.appendChild(itemEl);
                     return drawer;
                 });
@@ -659,7 +659,7 @@
                     textContentDiv.replaceChild(titleSpan, input);
                     // 保存后把高光定位到该项
                     this.drawer.highlightIndex(index);
-                    this.drawer.drawer.focus({preventScroll: true});
+                    this.drawer.keyInputEl.focus({preventScroll: true});
                 });
             });
         }
@@ -671,7 +671,6 @@
                 'bottom-sheet-drawer',
                 (drawer, itemEl) => {
                     drawer.innerHTML = `<div class="drawer-header"><h2>路径收藏夹</h2></div>`;
-                    drawer.tabIndex = -1;
                     drawer.appendChild(itemEl);
                     return drawer;
                 }
@@ -845,8 +844,7 @@
                     drawer.appendChild(inputWrapper);
                     drawer.appendChild(itemEl);
                     return input;
-                }
-            );
+                });
 
             const debounced = debounce((q) => {
                 if (!this.searchableItems || this.searchableItems.length === 0) {
@@ -871,8 +869,7 @@
                             await startReplay(path, true, true);
                         });
                     },
-                    `无匹配结果`
-                );
+                    `无匹配结果`);
             }, 180);
             this.drawer.keyInputEl.addEventListener('input', () => debounced(this.drawer.keyInputEl.value.trim()));
         }
@@ -913,12 +910,6 @@
                 }
             }, true);
 
-            // 阻止 click 透传（按钮本身）
-            this.button.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, {capture: true});
-
             // pointer 事件（长按/短按逻辑）
             this.button.addEventListener('pointerdown', (e) => {
                 if (this.button.classList.contains('loading')) return;
@@ -926,8 +917,7 @@
                 this.longPressTriggered = false;
                 this.activePointerId = e.pointerId;
                 try {
-                    if (this.button.setPointerCapture)
-                        this.button.setPointerCapture(this.activePointerId);
+                    if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
                 } catch (e) {
                 }
                 this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
@@ -939,8 +929,7 @@
                     return;
                 }
                 try {
-                    if (this.activePointerId !== null && this.button.releasePointerCapture)
-                        this.button.releasePointerCapture(this.activePointerId);
+                    if (this.activePointerId !== null && this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
                 } catch (e) {
                 }
                 if (this.longPressTriggered) {
@@ -1107,7 +1096,7 @@
     const searchBtn = new SearchBtn();
     const hardRefreshBtn = new HardRefreshBtn();
 
-    let oldHref = window.location.href;
+    let oldHref = "";
 
     function checkPageChange() {
         if (!notLogin(oldHref) && notLogin()) {
@@ -1132,7 +1121,7 @@
     }
 
     checkPageChange();
-    hardRefreshBtn.replaySavedPathIfAny();
+    if(notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
@@ -1143,7 +1132,6 @@
         checkPageChange();
     };
 
-    // 拦截 replaceState
     const originalReplaceState = history.replaceState;
     history.replaceState = (...args) => {
         originalReplaceState.apply(history, args);
