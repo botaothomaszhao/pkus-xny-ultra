@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.7
+// @version      vv.2.6
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -55,11 +55,11 @@
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
             z-index: 2147483647;
-            opacity: 0; visibility: hidden;
-            transition: opacity .25s ease;
+            opacity: 0;
+            transition: opacity .18s ease;
+            background-color: rgba(255,255,255,0.5);
+            backdrop-filter: blur(10px);
         }
         .drawer-overlay.visible { opacity: 1; visibility: visible; }
 
@@ -125,12 +125,6 @@
         .action-btn.delete:hover { color: #ef4444; }
         .action-btn svg { width: 20px; height: 20px; display: block; }
 
-        .search-spotlight-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(255,255,255,0.5); backdrop-filter: blur(10px);
-            z-index: 2147483647; opacity: 0; transition: opacity .18s ease; pointer-events: none;
-        }
-        .search-spotlight-overlay.visible { opacity: 1; pointer-events: auto; }
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
             background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
@@ -378,115 +372,6 @@
         }
     }
 
-
-    class ItemDrawer {
-        /*
-        keyInput: () => HTMLInputElement
-        elements: (input: HTMLInputElement, itemEl: HTMLUListElement) => HTMLElement
-         */
-        constructor(id, className, keyInput, elements) {
-            this.overlay = document.createElement('div');
-            this.overlay.id = id;
-            this.overlay.className = className;
-
-
-            this.input = keyInput();
-
-            this.itemEl = document.createElement('ul');
-            this.itemEl.className = 'unified-list';
-
-            this.overlay.appendChild(elements(this.input, this.itemEl));
-            document.body.appendChild(this.overlay);
-
-            registerEsc(this.input, () => this.close());
-
-            this.overlay.addEventListener('click', (e) => {
-                if (e.target === this.overlay) this.close();
-            });
-
-            // 显示并聚焦
-            requestAnimationFrame(() => {
-                this.overlay.classList.add('visible');
-                this.input.focus();
-                this.input.select();
-            });
-        }
-
-        renderList(items, onItem) {
-            this.itemEl.innerHTML = '';
-            if (!items) return;
-
-            if (!items || items.length === 0) {
-                this.itemEl.innerHTML = `<div class="empty-list">无匹配结果</div>`;
-                return;
-            }
-            this.items = [];
-            items.forEach(item => {
-                const li = document.createElement('li');
-                li.className = 'unified-list-item';
-
-                li.innerHTML = `<span class="item-title">${item.title}</span>
-                                    <span class="item-path">${item.displayPath}</span>`;
-
-                this.itemEl.appendChild(li);
-                this.items.push(li);
-
-                li.addEventListener('click', async () => {
-                    const path = item.replayablePath;
-                    this.close();
-                    await startReplay(path, true, true);
-                });
-            });
-
-            this.currentIndex = -1;
-            this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
-        }
-
-        handleKeydown(e) {
-            if (!this.items.length) return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                this.highlightIndex(this.currentIndex + 1, this.items);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                this.highlightIndex(this.currentIndex - 1, this.items);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (this.currentIndex >= 0 && this.currentIndex < this.items.length) {
-                    this.items[this.currentIndex].click();
-                } else if (this.items.length > 0) {
-                    this.items[0].click();
-                }
-            }
-        }
-
-        highlightIndex(index) {
-            if (!this.items.length) return;
-
-            if (index < 0) index = this.items.length - 1;
-            if (index >= this.items.length) index = 0;
-
-            this.currentIndex = index;
-            this.items.forEach(it => it.classList.remove('highlighted'));
-            this.items[this.currentIndex].classList.add('highlighted');
-            this.items[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
-        }
-
-        close() {
-            if (this.overlay) {
-                const oldOverlay = this.overlay;
-                oldOverlay.classList.remove('visible');
-                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
-                this.overlay = null; // 防止重复销毁
-                this.items = [];
-                this.input = null;
-            }
-        }
-    }
-
-
-
     // 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展
     class NextStepManager {
         constructor() {
@@ -494,8 +379,6 @@
             this.drawerEl = null;
             this.listEl = null;
             this.keyboardNav = null;
-
-            this.drawer = null;
         }
 
         onLoginPage() {
@@ -527,16 +410,6 @@
         }
 
         open(children) {
-            if (this.drawer) this.drawer.close();
-
-            this.drawer = new ItemDrawer(
-                'next-step-drawer',
-                'drawer-overlay',
-                null,
-                0
-            )
-
-
             this.close();
             this.overlay = document.createElement('div');
             this.overlay.className = 'drawer-overlay';
@@ -555,7 +428,11 @@
 
             this.renderList(children);
 
-            this.keyboardNav = new UnifiedKeyboardNav(this.listEl, () => this.close(), this.drawerEl);
+            this.keyboardNav = new UnifiedKeyboardNav(
+                this.listEl,
+                () => this.close(),
+                this.drawerEl
+            );
 
             requestAnimationFrame(() => {
                 this.drawerEl.classList.add('open');
@@ -604,7 +481,7 @@
 
     // startReplay：中断旧回放并立即开始新的
     async function startReplay(path, openNextStep, closeFolder = false) {
-        if (closeFolder) {
+        if(closeFolder){
             const activeFolder = document.querySelector('div.folderName.active');
             if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
         }
@@ -653,9 +530,18 @@
             this.favoritesList = null;
             this.keyboardNav = null;
 
-            // 创建按钮，传入绑定的方法引用
-            this.addBtn = new NavigationButton('add-favorite-btn', '添加到收藏夹', () => this.addCurrentPathToFavorites());
-            this.showBtn = new NavigationButton('show-favorites-btn', '显示收藏夹', () => this.openFavoritesDrawer());
+            // 创建按钮，传入绑定的方法引用（避免立即执行）
+            this.addBtn = new NavigationButton(
+                'add-favorite-btn',
+                '添加到收藏夹',
+                () => this.addCurrentPathToFavorites()
+            );
+
+            this.showBtn = new NavigationButton(
+                'show-favorites-btn',
+                '显示收藏夹',
+                () => this.openFavoritesDrawer()
+            );
         }
 
         onLoginPage() {
@@ -867,12 +753,16 @@
 
     class SearchBtn extends NavigationButton {
         constructor() {
-            super('search-btn', '目录搜索', () => this.createSearchUI());
+            super(
+                'search-btn',
+                '目录搜索',
+                () => this.createSearchUI()
+            );
 
             // 实例状态
             this.searchableItems = []; // { title, displayPath, replayablePath }
             this.MAX_DISPLAY = 50;
-            this.drawer = null;
+            this.overlay = null;
 
             this.setupXHRInterceptorForCatalog();
         }
@@ -965,73 +855,18 @@
         }
 
         destroySearchUI() {
-            if (this.drawer) {
-                this.drawer.close();
-                this.drawer = null;
-            }
-            /*if (this.overlay) {
+            if (this.overlay) {
                 const oldOverlay = this.overlay;
                 oldOverlay.classList.remove('visible');
                 oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
                 this.overlay = null; // 防止重复销毁
-            }*/
+            }
         }
 
         createSearchUI() {
-            if (this.drawer) this.drawer.close();
-            this.drawer = new ItemDrawer(
-                'search-spotlight-overlay',
-                'search-spotlight-overlay',
-                () => {
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'search-spotlight-input';
-                    input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
-                    input.autocomplete = 'off';
-                    return input;
-                },
-                (input, itemEl) => {
-                    const card = document.createElement('div');
-                    card.className = 'search-spotlight-card';
-                    card.setAttribute('role', 'dialog');
-                    card.setAttribute('aria-modal', 'true');
-
-                    const inputWrapper = document.createElement('div');
-                    inputWrapper.className = 'search-input-wrapper';
-
-                    const iconWrapper = document.createElement('div');
-                    iconWrapper.className = 'icon';
-                    iconWrapper.innerHTML = ICONS['search-input-icon'];
-
-                    inputWrapper.appendChild(iconWrapper);
-                    inputWrapper.appendChild(input);
-
-                    card.appendChild(inputWrapper);
-                    card.appendChild(itemEl);
-                    return card;
-                }
-            );
-
-            const debounced = debounce((q) => {
-                if (!this.searchableItems || this.searchableItems.length === 0) {
-                    this.drawer.itemEl.innerHTML = `<div class="empty-list">请先点击左侧的科目以加载目录数据。</div>`;
-                    return;
-                }
-                const items = this.searchableItems.filter(item => {
-                    try {
-                        return PinyinMatch.match(item.title, q);
-                    } catch (e) {
-                        return item.title && item.title.includes(q);
-                    }
-                });
-                this.drawer.renderList(items.slice(0, this.MAX_DISPLAY), );
-            }, 180);
-            this.drawer.input.addEventListener('input', () => debounced(this.input.value.trim()));
-
-            /*
+            if (this.overlay) return;
             this.overlay = document.createElement('div');
-            this.overlay.id = 'search-spotlight-overlay';
-            this.overlay.className = 'search-spotlight-overlay';
+            this.overlay.className = 'drawer-overlay';
 
             const card = document.createElement('div');
             card.className = 'search-spotlight-card';
@@ -1095,7 +930,11 @@
                 });
 
                 // 重新创建键盘导航
-                searchKeyboardNav = new UnifiedKeyboardNav(resultsList, this.destroySearchUI, input);
+                searchKeyboardNav = new UnifiedKeyboardNav(
+                    resultsList,
+                    this.destroySearchUI,
+                    input
+                );
             }
 
             const debounced = debounce((q) => renderResults(q), 180);
@@ -1119,13 +958,17 @@
                 this.overlay.classList.add('visible');
                 input.focus();
                 input.select();
-            });*/
+            });
         }
     }
 
     class HardRefreshBtn extends NavigationButton {
         constructor() {
-            super('hard-refresh-btn', '强制刷新', null);
+            super(
+                'hard-refresh-btn',
+                '强制刷新',
+                null
+            );
 
             // 状态
             this.pressTimer = null;
@@ -1133,6 +976,7 @@
             this.activePointerId = null;
 
             // pagehide/pageshow 清理按钮 loading 状态
+            // 是否移除？
             window.addEventListener('pagehide', () => {
                 try {
                     this.button.classList.remove('loading');
@@ -1174,7 +1018,7 @@
                     if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
                 } catch (err) {
                 }
-                this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
+                this.pressTimer = setTimeout(() => this.triggerLongPress(), HARD_REFRESH_PRESS_MS);
             }, {passive: true});
 
             this.button.addEventListener('pointerup', () => {
@@ -1183,9 +1027,8 @@
                     return;
                 }
                 try {
-                    if (this.activePointerId !== null && this.button.releasePointerCapture)
-                        this.button.releasePointerCapture(this.activePointerId);
-                } catch (e) {
+                    if (this.activePointerId !== null && this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
+                } catch (err) {
                 }
                 if (this.longPressTriggered) {
                     this.clearPressTimer();
@@ -1227,7 +1070,7 @@
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
             // 刷新后回放不自动展开下一步
-            await startReplay(path, false, false);
+            await startReplay(path, false);
         }
 
         async sendLogoutRequest() {
@@ -1301,7 +1144,10 @@
             if (this.button.classList.contains('loading')) return;
             this.button.classList.add('loading');
             this.button.disabled = true;
-            await savePathForReplay();
+            try {
+                await savePathForReplay();
+            } catch (e) {
+            }
             try {
                 window.location.reload();
             } catch (e) {
@@ -1323,14 +1169,17 @@
             }
         }
 
-        async handleLongPress() {
+        async triggerLongPress() {
             if (this.longPressTriggered) return;
             this.longPressTriggered = true;
             try {
                 if (!this.button.classList.contains('loading')) {
                     this.button.classList.add('loading');
                     this.button.disabled = true;
-                    await savePathForReplay();
+                    try {
+                        await savePathForReplay();
+                    } catch (e) {
+                    }
                     setTimeout(() => {
                         this.nukeAndReload().catch(() => {
                             this.button.classList.remove('loading');
