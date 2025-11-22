@@ -74,7 +74,7 @@
             display: flex; flex-direction: column; overflow: hidden;
             outline: none;
         }
-        .bottom-sheet-drawer.open { transform: translateY(0); }
+        .drawer-overlay.visible .bottom-sheet-drawer { transform: translateY(0); }
 
         .drawer-header { padding: 12px 16px; text-align: center; flex-shrink: 0; position: relative; background: #f9f9f9; }
         .drawer-header::before {
@@ -375,95 +375,90 @@
 
     class ItemDrawer {
         /*
-        keyInput: () => HTMLInputElement
-        elements: (input: HTMLInputElement, itemEl: HTMLUListElement) => HTMLElement
+        keyInput: (drawer: HTMLDivElement) => HTMLInputElement 返回用于绑定按键的元素
          */
-        constructor( keyInput, elements) {
+        constructor(drawerID, drawerClassName, keyInput) {
             this.overlay = document.createElement('div');
             this.overlay.className = 'drawer-overlay';
 
-
-            this.input = keyInput();
+            this.drawer = document.createElement('div');
+            this.drawer.id = drawerID;
+            this.drawer.className = drawerClassName;
 
             this.itemEl = document.createElement('ul');
             this.itemEl.className = 'unified-list';
 
-            this.overlay.appendChild(elements(this.input, this.itemEl));
+            this.keyInputEl = keyInput(this.drawer, this.itemEl); // 绑定按键的元素
+
+            this.overlay.appendChild(this.drawer);
             document.body.appendChild(this.overlay);
 
-            registerEsc(this.input, () => this.close());
+            registerEsc(this.keyInputEl, () => this.close());
 
             this.overlay.addEventListener('click', (e) => {
                 if (e.target === this.overlay) this.close();
             });
+            this.itemElsList = [];
+            this.keyInputEl.addEventListener('keydown', (e) => this.handleKeydown(e));
 
             // 显示并聚焦
             requestAnimationFrame(() => {
                 this.overlay.classList.add('visible');
-                this.input.focus();
-                this.input.select();
+                // 判断是否为输入框，若是则选中内容
+                this.keyInputEl.focus();
+                if (this.keyInputEl.tagName === 'INPUT') {
+                    this.keyInputEl.select();
+                }
             });
         }
 
+        /*
+        items: Array<any>
+        onItem: (li: HTMLLIElement, item: any) => void
+         */
         renderList(items, onItem) {
             this.itemEl.innerHTML = '';
-            if (!items) return;
-
-            if (!items || items.length === 0) {
-                this.itemEl.innerHTML = `<div class="empty-list">无匹配结果</div>`;
-                return;
-            }
-            this.items = [];
+            this.itemElsList = [];
+            if (!items || items.length === 0) return;
             items.forEach(item => {
                 const li = document.createElement('li');
                 li.className = 'unified-list-item';
-
-                li.innerHTML = `<span class="item-title">${item.title}</span>
-                                    <span class="item-path">${item.displayPath}</span>`;
-
+                onItem(li, item);
                 this.itemEl.appendChild(li);
-                this.items.push(li);
-
-                li.addEventListener('click', async () => {
-                    const path = item.replayablePath;
-                    this.close();
-                    await startReplay(path, true, true);
-                });
+                this.itemElsList.push(li);
             });
-
             this.currentIndex = -1;
-            this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
         }
 
         handleKeydown(e) {
-            if (!this.items.length) return;
+            if (!this.itemElsList.length) return;
 
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                this.highlightIndex(this.currentIndex + 1, this.items);
+                this.highlightIndex(this.currentIndex + 1);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                this.highlightIndex(this.currentIndex - 1, this.items);
+                this.highlightIndex(this.currentIndex - 1);
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (this.currentIndex >= 0 && this.currentIndex < this.items.length) {
-                    this.items[this.currentIndex].click();
-                } else if (this.items.length > 0) {
-                    this.items[0].click();
+                if (this.currentIndex >= 0 && this.currentIndex < this.itemElsList.length) {
+                    this.itemElsList[this.currentIndex].click();
+                } else if (this.itemElsList.length > 0) {
+                    this.itemElsList[0].click();
                 }
             }
         }
 
         highlightIndex(index) {
-            if (!this.items.length) return;
+            if (!this.itemElsList.length) return;
 
-            if (index < 0) index = this.items.length - 1;
-            if (index >= this.items.length) index = 0;
+            if (index < 0) index = this.itemElsList.length - 1;
+            if (index >= this.itemElsList.length) index = 0;
 
             this.currentIndex = index;
-            this.items.forEach(it => it.classList.remove('highlighted'));
-            this.items[this.currentIndex].classList.add('highlighted');
-            this.items[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
+            this.itemElsList.forEach(it => it.classList.remove('highlighted'));
+            this.itemElsList[this.currentIndex].classList.add('highlighted');
+            this.itemElsList[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
         }
 
         close() {
@@ -472,22 +467,18 @@
                 oldOverlay.classList.remove('visible');
                 oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
                 this.overlay = null; // 防止重复销毁
-                this.items = [];
-                this.input = null;
+                this.drawer = null;
+                this.itemEl = null;
+                this.itemElsList = [];
+                this.keyInputEl = null;
             }
         }
     }
 
 
-
     // 用面向对象封装 next-step 抽屉与顶层应用状态，便于后续扩展
     class NextStepManager {
         constructor() {
-            this.overlay = null;
-            this.drawerEl = null;
-            this.listEl = null;
-            this.keyboardNav = null;
-
             this.drawer = null;
         }
 
@@ -499,75 +490,40 @@
             this.close();
         }
 
-        renderList(children) {
-            if (!this.listEl) return;
-            this.listEl.innerHTML = '';
-            children.forEach(childElement => {
-                const li = document.createElement('li');
-                li.className = 'unified-list-item';
-                li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
-                li.addEventListener('click', () => {
-                    try {
-                        childElement.click();
-                        savePathForReplay();
-                    } catch (e) {
-                        console.error(e);
-                    }
-                    this.close();
-                });
-                this.listEl.appendChild(li);
-            });
-        }
-
         open(children) {
             if (this.drawer) this.drawer.close();
 
             this.drawer = new ItemDrawer(
-                null,
-                0
-            )
+                'next-step-drawer',
+                'bottom-sheet-drawer',
+                (drawer, itemEl) => {
+                    drawer.tabIndex = -1;
+                    drawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div>`;
+                    drawer.appendChild(itemEl);
+                    return drawer;
+                }
+            );
+            this.drawer.renderList(
+                children,
+                (li, childElement) => {
+                    li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
+                    li.addEventListener('click', () => {
+                            try {
+                                childElement.click();
+                                savePathForReplay();
+                            } catch (e) {
+                                console.error(e);
+                            }
+                            this.drawer.close();
+                        }
+                    );
+                }
+            );
 
-
-            this.close();
-            this.overlay = document.createElement('div');
-            this.overlay.className = 'drawer-overlay';
-
-            this.drawerEl = document.createElement('div');
-            this.drawerEl.id = 'next-step-drawer';
-            this.drawerEl.className = 'bottom-sheet-drawer';
-            this.drawerEl.tabIndex = -1;
-            this.drawerEl.innerHTML = `
-                <div class="drawer-header"><h2>可能的下一步</h2></div>
-                <ul class="unified-list"></ul>`;
-            this.listEl = this.drawerEl.querySelector('.unified-list');
-
-            document.body.append(this.overlay, this.drawerEl);
-            this.overlay.addEventListener('click', () => this.close(), {once: true});
-
-            this.renderList(children);
-
-            this.keyboardNav = new UnifiedKeyboardNav(this.listEl, () => this.close(), this.drawerEl);
-
-            requestAnimationFrame(() => {
-                this.drawerEl.classList.add('open');
-                this.overlay.classList.add('visible');
-                this.drawerEl.focus({preventScroll: true});
-            });
         }
 
         close() {
-            if (!this.drawerEl && !this.overlay) return;
-            this.drawerEl.classList.remove('open');
-            this.overlay.classList.remove('visible');
-            setTimeout(() => {
-                this.overlay.remove();
-                this.drawerEl.remove();
-                this.overlay = null;
-                this.drawerEl = null;
-                this.listEl = null;
-                savePathForReplay();
-            }, 300);
-            // todo: 将drawer作为overlay子节点，之后仿搜索直接监听动画完成
+            if (this.drawer) this.drawer.close();
         }
 
         // 检测是否有子节点可展开，若有则展开并返回 true，否则返回 false
@@ -681,6 +637,7 @@
             this.favoritesDrawer = document.createElement('div');
             this.favoritesDrawer.id = 'favorites-drawer';
             this.favoritesDrawer.className = 'bottom-sheet-drawer';
+
             this.favoritesDrawer.innerHTML = `
                 <div class="drawer-header"><h2>路径收藏夹</h2></div>
                 <ul class="unified-list"></ul>
@@ -960,30 +917,16 @@
                 this.drawer.close();
                 this.drawer = null;
             }
-            /*if (this.overlay) {
-                const oldOverlay = this.overlay;
-                oldOverlay.classList.remove('visible');
-                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
-                this.overlay = null; // 防止重复销毁
-            }*/
         }
 
         createSearchUI() {
             if (this.drawer) this.drawer.close();
             this.drawer = new ItemDrawer(
-                () => {
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'search-spotlight-input';
-                    input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
-                    input.autocomplete = 'off';
-                    return input;
-                },
-                (input, itemEl) => {
-                    const card = document.createElement('div');
-                    card.className = 'search-spotlight-card';
-                    card.setAttribute('role', 'dialog');
-                    card.setAttribute('aria-modal', 'true');
+                'search-drawer',
+                'search-spotlight-card',
+                (drawer, itemEl) => {
+                    drawer.setAttribute('role', 'dialog');
+                    drawer.setAttribute('aria-modal', 'true');
 
                     const inputWrapper = document.createElement('div');
                     inputWrapper.className = 'search-input-wrapper';
@@ -992,12 +935,18 @@
                     iconWrapper.className = 'icon';
                     iconWrapper.innerHTML = ICONS['search-input-icon'];
 
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'search-spotlight-input';
+                    input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
+                    input.autocomplete = 'off';
+
                     inputWrapper.appendChild(iconWrapper);
                     inputWrapper.appendChild(input);
 
-                    card.appendChild(inputWrapper);
-                    card.appendChild(itemEl);
-                    return card;
+                    drawer.appendChild(inputWrapper);
+                    drawer.appendChild(itemEl);
+                    return input;
                 }
             );
 
@@ -1013,102 +962,23 @@
                         return item.title && item.title.includes(q);
                     }
                 });
-                this.drawer.renderList(items.slice(0, this.MAX_DISPLAY), );
+                if (!items || items.length === 0) {
+                    this.drawer.itemEl.innerHTML = `<div class="empty-list">无匹配结果</div>`;
+                    return;
+                }
+                this.drawer.renderList(
+                    items.slice(0, this.MAX_DISPLAY),
+                    (li, item) => {
+                        li.innerHTML = `<span class="item-title">${item.title}</span>
+                                        <span class="item-path">${item.displayPath}</span>`;
+                        li.addEventListener('click', async () => {
+                            const path = item.replayablePath;
+                            this.drawer.close();
+                            await startReplay(path, true, true);
+                        });
+                    });
             }, 180);
-            this.drawer.input.addEventListener('input', () => debounced(this.input.value.trim()));
-
-            /*
-            this.overlay = document.createElement('div');
-            this.overlay.id = 'search-spotlight-overlay';
-            this.overlay.className = 'search-spotlight-overlay';
-
-            const card = document.createElement('div');
-            card.className = 'search-spotlight-card';
-            card.setAttribute('role', 'dialog');
-            card.setAttribute('aria-modal', 'true');
-
-            const inputWrapper = document.createElement('div');
-            inputWrapper.className = 'search-input-wrapper';
-
-            const iconWrapper = document.createElement('div');
-            iconWrapper.className = 'icon';
-            iconWrapper.innerHTML = ICONS['search-input-icon'];
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'search-spotlight-input';
-            input.placeholder = '搜索课程目录 (支持拼音或拼音首字母)...';
-            input.autocomplete = 'off';
-
-            inputWrapper.appendChild(iconWrapper);
-            inputWrapper.appendChild(input);
-
-            const resultsList = document.createElement('ul');
-            resultsList.className = 'unified-list';
-
-            card.appendChild(inputWrapper);
-            card.appendChild(resultsList);
-            this.overlay.appendChild(card);
-            document.body.appendChild(this.overlay);
-
-            let searchKeyboardNav = null;
-
-            registerEsc(input, () => this.destroySearchUI());
-
-            // 用const函数保留this引用
-            const renderResults = (query) => {
-                resultsList.innerHTML = '';
-                if (!query) return;
-                if (!this.searchableItems || this.searchableItems.length === 0) {
-                    resultsList.innerHTML = `<div class="empty-list">请先点击左侧的科目以加载目录数据。</div>`;
-                    return;
-                }
-                const results = this.searchableItems.filter(item => {
-                    try {
-                        return PinyinMatch.match(item.title, query);
-                    } catch (e) {
-                        return item.title && item.title.includes(query);
-                    }
-                });
-                if (!results || results.length === 0) {
-                    resultsList.innerHTML = `<div class="empty-list">无匹配结果</div>`;
-                    return;
-                }
-                results.slice(0, this.MAX_DISPLAY).forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = 'unified-list-item';
-                    li.innerHTML = `<span class="item-title">${item.title}</span>
-                                    <span class="item-path">${item.displayPath}</span>`;
-                    li.dataset.path = JSON.stringify(item.replayablePath);
-                    resultsList.appendChild(li);
-                });
-
-                // 重新创建键盘导航
-                searchKeyboardNav = new UnifiedKeyboardNav(resultsList, this.destroySearchUI, input);
-            }
-
-            const debounced = debounce((q) => renderResults(q), 180);
-            input.addEventListener('input', () => debounced(input.value.trim()));
-
-            this.overlay.addEventListener('click', (e) => {
-                if (e.target === this.overlay) this.destroySearchUI();
-            });
-
-            resultsList.addEventListener('click', async (e) => {
-                const li = e.target.closest('li');
-                if (li && li.dataset.path) {
-                    const path = JSON.parse(li.dataset.path);
-                    this.destroySearchUI();
-                    await startReplay(path, true, true);
-                }
-            });
-
-            // 显示并聚焦
-            requestAnimationFrame(() => {
-                this.overlay.classList.add('visible');
-                input.focus();
-                input.select();
-            });*/
+            this.drawer.keyInputEl.addEventListener('input', () => debounced(this.drawer.keyInputEl.value.trim()));
         }
     }
 
