@@ -57,7 +57,7 @@
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: 2147483647;
             opacity: 0;
-            transition: opacity .18s ease;
+            transition: opacity .25s ease;
             background-color: rgba(255,255,255,0.5);
             backdrop-filter: blur(10px);
         }
@@ -219,22 +219,6 @@
         };
     }
 
-    function registerEsc(overlay, close) {
-        function escHandle(e) {
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                try {
-                    e.preventDefault();
-                    e.stopPropagation();
-                } catch (_) {
-                }
-                close();
-            }
-        }
-
-        overlay.addEventListener('keydown', escHandle, true);
-        overlay.addEventListener('keyup', escHandle, true);
-    }
-
     function cleanInnerText(el) {
         if (!el) return "";
         const clone = el.cloneNode(true);
@@ -315,18 +299,17 @@
             if (!(await click(step.selector, step.text))) {
                 throw new Error('Replay failed');
             }
-            await sleep(250);
+            await sleep(200);
         }
         return lastClickedElement;
     }
 
     async function savePathForReplay(path = null) {
         try {
-            if (!path) {
+            if (!path) { // 防止在登录页面触发保存空路径
                 if (!notLogin()) return;
                 path = captureCurrentPath();
             }
-            // 防止在登录页面触发保存空路径
             if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
         } catch (e) {
             console.warn('保存回放路径失败：', e);
@@ -336,7 +319,7 @@
     // 通用抽屉组件
     class ItemDrawer {
         /*
-        keyInput: (drawer: HTMLDivElement) => HTMLInputElement 返回用于绑定按键的元素
+        keyInput: (drawer: HTMLDivElement, itemEl: HTMLUListElement) => HTMLInputElement 返回用于绑定按键的元素
          */
         constructor(drawerID, drawerClassName, keyInput) {
             this.overlay = document.createElement('div');
@@ -354,7 +337,8 @@
             this.overlay.appendChild(drawerEl);
             document.body.appendChild(this.overlay);
 
-            registerEsc(this.keyInputEl, () => this.close());
+            this.keyInputEl.addEventListener('keydown', (e) => this.escHandle(e), true);
+            this.keyInputEl.addEventListener('keyup', (e) => this.escHandle(e), true);
 
             this.overlay.addEventListener('click', (e) => {
                 if (e.target === this.overlay) this.close();
@@ -376,7 +360,7 @@
         }
 
         /*
-        onItem: (li: HTMLLIElement, item: any) => void
+        onItem: (li: HTMLLIElement, item: any, index: number) => void
          */
         renderList(items, onItem, emptyText = '') {
             this.itemEl.innerHTML = '';
@@ -426,6 +410,17 @@
             this.itemElsList[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
         }
 
+        escHandle(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                } catch (_) {
+                }
+                this.close();
+            }
+        }
+
         close() {
             if (this.overlay) {
                 const oldOverlay = this.overlay;
@@ -470,7 +465,6 @@
                     li.addEventListener('click', () => {
                         try {
                             childElement.click();
-                            savePathForReplay();
                         } catch (e) {
                             console.error(e);
                         }
@@ -486,24 +480,18 @@
             }
         }
 
-        // 检测是否有子节点可展开，若有则展开并返回 true，否则返回 false
+        // 检测是否有子节点可展开，若有则展开
         checkNextStep(lastElement) {
-            if (!lastElement) {
-                return false;
-            }
+            if (!lastElement) return;
             const parentLi = lastElement.closest('li[role="treeitem"]');
-            if (!parentLi) {
-                return false;
-            }
+            if (!parentLi) return;
             const childTree = parentLi.querySelector('ul.ant-tree-child-tree');
             if (childTree && childTree.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
                     this.open(childrenWrappers);
-                    return true;
                 }
             }
-            return false;
         }
     }
 
@@ -519,9 +507,7 @@
         try {
             const last = await replayPath(path, replayToken);
             if (openNextStep) {
-                if (!nextStepManager.checkNextStep(last)) {
-                    await savePathForReplay(path); // 若无下一步，直接保存
-                }
+                nextStepManager.checkNextStep(last);
             }
         } catch (e) {
             if (!e || e.message !== 'Replay cancelled') throw e;
@@ -884,30 +870,13 @@
             this.longPressTriggered = false;
             this.activePointerId = null;
 
-            // pagehide/pageshow 清理按钮 loading 状态
-            window.addEventListener('pagehide', () => {
-                try {
-                    this.button.classList.remove('loading');
-                    this.button.disabled = false;
-                } catch (e) {
-                }
-            });
-            window.addEventListener('pageshow', () => {
-                try {
-                    this.button.classList.remove('loading');
-                    this.button.disabled = false;
-                } catch (e) {
-                }
-            });
-
             window.addEventListener('beforeunload', () => savePathForReplay());
 
-            document.addEventListener('click', (event) => {
-                if (!event.isTrusted) return;
-                const navContainer = event.target.closest('.menu, .folder');
-                if (navContainer) {
-                    setTimeout(() => savePathForReplay(), 100);
-                }
+            // 点击导航元素自动保存，包括自动回放触发，带防抖
+            const debouncedSavePath = debounce(savePathForReplay, 400);
+            document.addEventListener('click', (e) => {
+                const navContainer = e.target.closest('.menu, .folder');
+                if (navContainer) debouncedSavePath();
             }, true);
 
             // pointer 事件（长按/短按逻辑）
@@ -1121,7 +1090,7 @@
     }
 
     checkPageChange();
-    if(notLogin()) hardRefreshBtn.replaySavedPathIfAny();
+    if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
