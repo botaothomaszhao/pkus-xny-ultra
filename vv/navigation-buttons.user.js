@@ -170,9 +170,12 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>`,
         'hard-refresh-btn': `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor">
-                <path fill="white" fill-rule="evenodd" d="M2.93 11.2c.072-4.96 4.146-8.95 9.149-8.95a9.158 9.158 0 0 1 7.814 4.357a.75.75 0 0 1-1.277.786a7.658 7.658 0 0 0-6.537-3.643c-4.185 0-7.575 3.328-7.648 7.448l.4-.397a.75.75 0 0 1 1.057 1.065l-1.68 1.666a.75.75 0 0 1-1.056 0l-1.68-1.666A.75.75 0 1 1 2.528 10.8zm16.856-.733a.75.75 0 0 1 1.055 0l1.686 1.666a.75.75 0 1 1-1.054 1.067l-.41-.405c-.07 4.965-4.161 8.955-9.18 8.955a9.197 9.197 0 0 1-7.842-4.356a.75.75 0 1 1 1.277-.788a7.697 7.697 0 0 0 6.565 3.644c4.206 0 7.61-3.333 7.68-7.453l-.408.403a.75.75 0 1 1-1.055-1.067z" clip-rule="evenodd">
-                </path>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <g transform="translate(12, 12) scale(0.8) translate(-12, -12)">
+                <path d="M23 4v6h-6"></path>
+                <path d="M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </g>
             </svg>`,
 
         // 编辑/删除操作按钮图标（列表项内）
@@ -278,8 +281,11 @@
             for (let i = 0; i < 50; i++) {
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
-                        node.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
                         node.click();
+                        const noop = node.parentElement.querySelector("span.ant-tree-switcher.ant-tree-switcher-noop");
+                         // 位于文件夹图标左侧的元素，避免横向移动
+                        if (noop) noop.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
+                        else node.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
                         lastClickedElement = node;
                         return true;
                     }
