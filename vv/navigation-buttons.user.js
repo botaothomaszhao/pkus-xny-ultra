@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.0
+// @version      vv.3.1
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -248,10 +248,8 @@
             let li = selected.closest('li[role="treeitem"]');
             while (li) {
                 const wrapper = li.querySelector(':scope > span.ant-tree-node-content-wrapper');
-                if (wrapper) {
-                    if (wrapper.classList.contains('ant-tree-node-content-wrapper-open') || wrapper.classList.contains('ant-tree-node-selected')) {
-                        entries.push(wrapper);
-                    }
+                if (wrapper?.classList.contains('ant-tree-node-content-wrapper-open') || wrapper?.classList.contains('ant-tree-node-selected')) {
+                    entries.push(wrapper);
                 }
                 // 向上寻找包含当前 li 的最近的已展开父 li
                 li = li.parentElement ? li.parentElement.closest('li[role="treeitem"].ant-tree-treenode-switcher-open') : null;
@@ -282,10 +280,8 @@
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
                         node.click();
-                        const noop = node.parentElement.querySelector("span.ant-tree-switcher.ant-tree-switcher-noop");
-                         // 位于文件夹图标左侧的元素，避免横向移动
-                        if (noop) noop.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
-                        else node.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
+                        node.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                        node.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'smooth'}); // 确保左侧始终顶到头
                         lastClickedElement = node;
                         return true;
                     }
@@ -481,19 +477,14 @@
         }
 
         closeDrawer() {
-            if (this.drawer) {
-                this.drawer.close();
-                this.drawer = null;
-            }
+            this.drawer?.close();
+            this.drawer = null;
         }
 
         // 检测是否有子节点可展开，若有则展开
         checkNextStep(lastElement) {
-            if (!lastElement) return;
-            const parentLi = lastElement.closest('li[role="treeitem"]');
-            if (!parentLi) return;
-            const childTree = parentLi.querySelector('ul.ant-tree-child-tree');
-            if (childTree && childTree.children.length > 0) {
+            const childTree = lastElement?.closest('li[role="treeitem"]')?.querySelector('ul.ant-tree-child-tree');
+            if (childTree?.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
                     this.open(childrenWrappers);
@@ -508,7 +499,7 @@
     async function startReplay(path, openNextStep, closeFolder = false) {
         if (closeFolder) {
             const activeFolder = document.querySelector('div.folderName.active');
-            if (activeFolder) activeFolder.click(); // 先点击一次当前科目以将其关闭
+            activeFolder?.click(); // 先点击一次当前科目以将其关闭
         }
         replayToken++;
         try {
@@ -517,7 +508,7 @@
                 nextStepManager.checkNextStep(last);
             }
         } catch (e) {
-            if (!e || e.message !== 'Replay cancelled') throw e;
+            if (e?.message !== 'Replay cancelled') throw e;
         }
     }
 
@@ -672,10 +663,8 @@
         }
 
         closeDrawer() {
-            if (this.drawer) {
-                this.drawer.close();
-                this.drawer = null;
-            }
+            this.drawer?.close();
+            this.drawer = null;
         }
 
         async addCurrentPathToFavorites() {
@@ -791,7 +780,7 @@
                     flatList.push({
                         title: node.catalogName, displayPath: displayPath, replayablePath: replayablePath
                     });
-                    if (node.childList && node.childList.length > 0) {
+                    if (node.childList?.length > 0) {
                         flattenTree(node.childList, replayablePath);
                     }
                 });
@@ -803,10 +792,8 @@
         }
 
         closeDrawer() {
-            if (this.drawer) {
-                this.drawer.close();
-                this.drawer = null;
-            }
+            this.drawer?.close();
+            this.drawer = null;
         }
 
         createSearchUI() {
@@ -893,7 +880,7 @@
                 this.longPressTriggered = false;
                 this.activePointerId = e.pointerId;
                 try {
-                    if (this.button.setPointerCapture) this.button.setPointerCapture(this.activePointerId);
+                    this.button.setPointerCapture(this.activePointerId);
                 } catch (e) {
                 }
                 this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
@@ -905,8 +892,7 @@
                     return;
                 }
                 try {
-                    if (this.activePointerId !== null && this.button.releasePointerCapture)
-                        this.button.releasePointerCapture(this.activePointerId);
+                    if (this.activePointerId !== null) this.button.releasePointerCapture(this.activePointerId);
                 } catch (e) {
                 }
                 if (this.longPressTriggered) {
@@ -1036,7 +1022,7 @@
             }
             if (this.activePointerId !== null) {
                 try {
-                    if (this.button.releasePointerCapture) this.button.releasePointerCapture(this.activePointerId);
+                    this.button.releasePointerCapture(this.activePointerId);
                 } catch (e) {
                 }
                 this.activePointerId = null;
