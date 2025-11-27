@@ -38,9 +38,7 @@
         // Immediate attempt if iframe is already accessible and ready.
         try {
             const doc = iframe.contentDocument || iframe.contentWindow?.document;
-            if (doc && doc.readyState === 'complete') {
-                injectStyleInto(doc);
-            }
+            if (doc?.readyState === 'complete') injectStyleInto(doc);
         } catch (_) {
             // Cross-origin/sandbox access may throw; ignore and rely on load event.
         }
@@ -66,7 +64,7 @@
                     if (node.tagName === 'IFRAME') {
                         processIframe(node);
                     }
-                    node.querySelectorAll?.('iframe').forEach(processIframe);
+                    node.querySelectorAll('iframe').forEach(processIframe);
                 });
             }
         });

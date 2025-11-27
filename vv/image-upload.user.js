@@ -312,7 +312,7 @@
 
         function stopStream() {
             try {
-                if (stream) stream.getTracks().forEach(t => t.stop());
+                stream?.getTracks().forEach(t => t.stop());
             } catch (_) {
             }
             stream = null;
@@ -495,7 +495,7 @@
         // 窗口尺寸变更时调整 frame
         window.addEventListener('resize', () => {
             try {
-                if (video && video.videoWidth && video.videoHeight && !isPreview) adjustFrame();
+                if (video?.videoWidth && video?.videoHeight && !isPreview) adjustFrame();
             } catch (_) {
             }
         });
@@ -506,10 +506,7 @@
         const el = e.target;
         if (el.matches('input[type=file]')) return el;
         const btn = el.closest('.paizhao-btn');
-        if (btn) {
-            return btn.querySelector('input[type=file]');
-        }
-        return null;
+        return btn?.querySelector('input[type=file]');
     }
 
     function onPaizhaoTrigger(e) {

@@ -23,7 +23,7 @@
     const hideAttr = 'data-vu-hidden';
     const style = document.createElement('style');
     style.textContent = `.${hideClass} { display: none !important; }`;
-    document.head && document.head.appendChild(style);
+    document.head.appendChild(style);
 
     function hidePreserve(el) {
         if (!el || el.hasAttribute(hideAttr)) return;
@@ -40,7 +40,7 @@
     // 只对匹配到的 .result2 进行判断：若没有 img[src] 则隐藏，否则恢复
     function processResult2(el) {
         if (!el || el.nodeType !== 1) return;
-        if (el.matches && el.matches(emptyImgSelector)) {
+        if (el.matches(emptyImgSelector)) {
             hidePreserve(el);
         } else {
             restore(el);
@@ -55,19 +55,17 @@
                     return;
                 }
             }
-            if (root.matches(imgBoxSelector)) {
-                processResult2(root);
-            }
+            if (root.matches(imgBoxSelector)) processResult2(root);
         }
 
         // 删除简单选择器
         for (const sel of simpleSelectors) {
-            const els = (root.querySelectorAll ? root.querySelectorAll(sel) : []);
+            const els = root.querySelectorAll(sel);
             els.forEach(e => e.remove());
         }
 
         // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复
-        const resultEls = (root.querySelectorAll ? root.querySelectorAll(imgBoxSelector) : []);
+        const resultEls = root.querySelectorAll(imgBoxSelector);
         resultEls.forEach(el => processResult2(el));
     }
 
@@ -84,7 +82,7 @@
             if (m.addedNodes && m.addedNodes.length) {
                 m.addedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
-                    const r = node.closest && node.closest(imgBoxSelector);
+                    const r = node.closest(imgBoxSelector);
                     if (r) {
                         processResult2(r);
                     } else {
@@ -96,7 +94,7 @@
             if (m.removedNodes && m.removedNodes.length) {
                 m.removedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
-                    const r = node.closest && node.closest(imgBoxSelector);
+                    const r = node.closest(imgBoxSelector);
                     if (r) {
                         processResult2(r);
                     }
