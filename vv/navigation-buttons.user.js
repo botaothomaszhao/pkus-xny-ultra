@@ -23,15 +23,15 @@
 
     const HARD_REFRESH_PRESS_MS = 2500;
 
-    // bottum为按钮距底部高度，offset为按钮所占高度，单位px
+    // bottom为按钮距底部高度，offset为按钮所占高度，单位px
     const bottom = 100, offset = 50;
     // 防止按钮与导航菜单重叠
-    const btnBaseY = Math.min(document.documentElement.clientHeight - 320 - offset * 4, bottum);
+    const btnBaseY = Math.min(document.documentElement.clientHeight - 320 - offset * 4, bottom);
 
     // 收藏夹样式
     GM_addStyle(`
         .nav-btn {
-            position: fixed;
+            position: absolute;
             left: 0;
             z-index: 990;
             width: 50px;
@@ -58,7 +58,7 @@
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 2147483647;
+            z-index: 9999;
             opacity: 0;
             transition: opacity .25s ease;
             background-color: rgba(255,255,255,0.5);
@@ -73,7 +73,7 @@
             box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
             transform: translateY(100%);
             transition: transform .25s ease-out;
-            z-index: 2147483648;
+            z-index: 10000;
             display: flex; flex-direction: column; overflow: hidden;
             outline: none;
         }
@@ -84,10 +84,14 @@
         }
         .drawer-header::before {
             content: '';
-            position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-            width: 40px; height: 4px; background-color: #d1d5db; border-radius: 2px;
+            position: absolute; top: 8px; left: 50%;
+            transform: translateX(-50%);
+            width: 40px; height: 4px;
+            background-color: #d1d5db; border-radius: 2px;
         }
-        .drawer-header h2 { margin: 12px 0 0; font-size: 1.1rem; font-weight: 600; color: #111827; }
+        .drawer-header h2 {
+            margin: 12px 0 0; font-size: 1.1rem; font-weight: 600; color: #111827;
+        }
 
         .unified-list {
             max-height: 60vh; overflow-y: auto; list-style: none; margin: 0; padding: 8px;
@@ -134,9 +138,12 @@
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
             background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-            z-index: 2147483648; overflow: hidden;
+            z-index: 10000;
+            overflow: hidden;
         }
-        .search-input-wrapper { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; }
+        .search-input-wrapper {
+            display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee;
+        }
         .search-input-wrapper .icon {
             width: 20px; height: 20px; color: #9ca3af; margin-right: 10px; display: flex;
             align-items: center; justify-content: center;
