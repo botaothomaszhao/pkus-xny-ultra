@@ -160,7 +160,11 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-    `);
+        
+        .content .top{
+            position: absolute !important;
+        }
+    `); // 让页面顶部提交按钮区固定 todo:是否移到手写优化？
 
     // 统一图标映射（把所有内联 SVG 统一管理）
     const ICONS = {
