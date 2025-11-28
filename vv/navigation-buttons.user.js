@@ -23,7 +23,10 @@
 
     const HARD_REFRESH_PRESS_MS = 2500;
 
-    const btnBaseY = 100, offset = 50;
+    // bottum为按钮距底部高度，offset为按钮所占高度，单位px
+    const bottom = 100, offset = 50;
+    // 防止按钮与导航菜单重叠
+    const btnBaseY = Math.min(document.documentElement.clientHeight - 320 - offset * 4, bottum);
 
     // 收藏夹样式
     GM_addStyle(`
