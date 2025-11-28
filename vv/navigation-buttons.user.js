@@ -239,7 +239,7 @@
         if (activeFolder) {
             path.push({selector: "div.folderName", text: cleanInnerText(activeFolder)});
         }
-        const searchContext = activeFolder ? (activeFolder.closest('div.infinite-list-wrapper') || document) : document;
+        const searchContext = activeFolder?.closest('div.infinite-list-wrapper') || document;
         const selected = searchContext.querySelector('.ant-tree-node-selected');
         const entries = [];
 
@@ -252,7 +252,7 @@
                     entries.push(wrapper);
                 }
                 // 向上寻找包含当前 li 的最近的已展开父 li
-                li = li.parentElement ? li.parentElement.closest('li[role="treeitem"].ant-tree-treenode-switcher-open') : null;
+                li = li.parentElement?.closest('li[role="treeitem"].ant-tree-treenode-switcher-open');
             }
             entries.reverse(); // 顶层 -> 目标
         } else return null
@@ -273,16 +273,16 @@
     let replayToken = 0;
 
     async function replayPath(path, myToken) {
-        let lastClickedElement = null;
+        let lastClickedEl = null;
 
         async function click(sel, text) {
             for (let i = 0; i < 50; i++) {
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
                         node.click();
-                        node.scrollIntoView({block: 'nearest', behavior: 'smooth'});
-                        node.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'smooth'}); // 确保左侧始终顶到头
-                        lastClickedElement = node;
+                        node.scrollIntoView({block: 'nearest', behavior: 'auto'});
+                        node.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'auto'}); // 确保左侧始终顶到头
+                        lastClickedEl = node;
                         return true;
                     }
                 }
@@ -304,7 +304,7 @@
             }
             await sleep(200);
         }
-        return lastClickedElement;
+        return lastClickedEl;
     }
 
     async function savePathForReplay(path = null) {
