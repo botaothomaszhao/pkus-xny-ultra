@@ -160,11 +160,11 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        
+
         .content .top{
             position: absolute !important;
         }
-    `); // 让页面顶部提交按钮区固定 todo:是否移到手写优化？
+    `); // 让页面顶部提交按钮固定 todo:是否移到手写优化？
 
     // 统一图标映射（把所有内联 SVG 统一管理）
     const ICONS = {
@@ -477,11 +477,13 @@
                 });
             this.drawer.renderList(
                 children,
-                (li, childElement) => {
-                    li.innerHTML = `<span class="item-title">${cleanInnerText(childElement)}</span>`;
+                (li, childEl) => {
+                    li.innerHTML = `<span class="item-title">${cleanInnerText(childEl)}</span>`;
                     li.addEventListener('click', () => {
                         try {
-                            childElement.click();
+                            childEl.click();
+                            childEl.scrollIntoView({block: 'nearest', behavior: 'auto'});
+                            childEl.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'auto'}); // 确保左侧始终顶到头
                         } catch (e) {
                             console.error(e);
                         }
