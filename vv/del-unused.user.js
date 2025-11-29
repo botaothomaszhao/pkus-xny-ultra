@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2.2
 // @license      GPL-3.0
-// @description  自动删除指定的元素；隐藏空图片框，并在检测到有图片后恢复。
+// @description  自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*

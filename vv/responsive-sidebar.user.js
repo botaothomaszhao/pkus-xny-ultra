@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.2.1
 // @license      GPL-3.0
-// @description  跟随页面尺寸变化时自动收起/展开侧边栏，或通过点击最左侧导航条展开
+// @description  在屏幕宽度改变时自动收起/展开侧边栏，并可通过点击左侧导航菜单展开。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*

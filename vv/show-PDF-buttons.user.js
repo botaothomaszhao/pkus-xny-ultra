@@ -49,7 +49,7 @@
                 injectStyleInto(iframe.contentDocument || iframe.contentWindow?.document);
             } catch (_) {
             }
-        }, {once: false});
+        });
     }
 
     function watchIframes() {
