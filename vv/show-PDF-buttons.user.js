@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         强制显示PDF完整操作栏
+// @name         PDF操作栏
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1
+// @version      vv.1.0
 // @license      GPL-3.0
 // @description  让预览PDF组件显示通常被隐藏的下载等操作栏按钮。后果自负。
 // @author       c-jeremy botaothomaszhao
@@ -18,8 +18,8 @@
     function injectStyleInto(doc) {
         if (!doc) return false;
         try {
-            const styleId = 'tampermonkey-pdf-button-fix';
-            if (doc.getElementById(styleId)) return true; // avoid duplicates
+            const styleId = 'xny-pdf-button-fix';
+            if (doc.getElementById(styleId)) return true;
             const style = doc.createElement('style');
             style.id = styleId;
             style.textContent = CSS;
