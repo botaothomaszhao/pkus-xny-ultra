@@ -1,57 +1,132 @@
-# PKUS XNY Ultra
+# PKUS XNY Ultra — VV (Version for Via)
+
+> ### 北大附中新能源课程系统增强脚本, Via 浏览器适配版
 
 ---
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![GitHub last commit](https://img.shields.io/github/last-commit/c-jeremy/pkus-xny-ultra)](https://github.com/c-jeremy/pkus-xny-ultra/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/c-jeremy/pkus-xny-ultra)](https://github.com/c-jeremy/pkus-xny-ultra/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/c-jeremy/pkus-xny-ultra)](https://github.com/botaothomaszhao/pkus-xny-ultra/commits/main)
 [![Tampermonkey](https://img.shields.io/badge/Tampermonkey-compatible-green)](https://www.tampermonkey.net/)
-[![Greasemonkey](https://img.shields.io/badge/Greasemonkey-compatible-green)](https://www.greasespot.net/)
+[![Via Browser Compatible](https://img.shields.io/badge/Via-Compatible-blue)](https://viayoo.com/)
 
-This document is also available in [简体中文(Chinese Simplified version)](./README-zh-CN.md).
+## 重要声明
 
-> [!TIP]
-> `v2.0`, which combined all functionalities, is published. Note that it is **NOT COMPATIBLE** with v1 scripts.
+- Fork 自 [c-jeremy/PKUS XNY Ultra](https://github.com/c-jeremy/pkus-xny-ultra)，继续遵循 GPLv3 许可。
+- 本项目用于适配 Via 浏览器，同时保持对 Edge 的兼容，欢迎反馈和贡献。
+- VV版本脚本位于 `vv/` 目录下，`v1/` 和`v2/`目录为原版脚本，详见 [README-original-zh-CN.md](/README-original-zh-CN.md)。
 
-## Mechanism
-This repository contains a collection of user scripts (Tampermonkey/Greasemonkey) that enhance and automate the PKUS XNY system (https://bdfz.xnykcxt.com:5002/stu/) for educational purposes.
+## 功能和特点
 
-Each script targets a specific pain point or use case, providing improvements in usability, automation, UI, and workflow reliability.
+每项功能均为独立脚本，可根据需要选择安装或在脚本管理页面选择是否开启。
 
-Our enhancement is implemented through [Tampermonkey](http://tampermonkey.net). This is a browser extension for managing and running user scripts. Once the configured site is being requested on the browser, Tampermonkey will automatically add the code directly to the correct place of the web page, for the browser to execute, to modify the original website or to automate it.
+脚本基于v1已有功能或v2功能拆分，也开发了更多功能，经测试在Via和安装篡改猴插件的Edge浏览器上可用。
 
-## What Did We Enhance?
-- Added UI/UX improvements such as removing unused elements, custom fonts, and overlay dialogs to Gemini.
-- Automated routine and error-prone actions (like login, navigation, and element cleanup).
-- Provided one-tap solutions for refresh, navigation replay, and path favorites.
-- Improved reliability of navigation and drawing functions, especially under dynamic DOM changes.
-- Included an image Q&A feature using Gemini API by long-pressing images on mobile.
+- 主要功能：路径收藏夹、目录搜索、强制下载pdf、硬刷新、移除界面无用元素、自动收起侧边栏......仍在扩充
+- Via优点：
+    - 极简风、极小空间占用
+    - 支持固定工具栏/点击隐藏工具栏，不会上下滑动（注：展开任务栏那个按钮可以拖动）
+    - 原生支持脚本，无需安装插件
+    - 主页、菜单、长按菜单等均可定制
+    - 支持工具栏色彩模式：让浏览器工具栏和系统任务栏跟随网页颜色
+- 脚本改进、优点：
+    - 完全兼容Via（废话）
+    - 可自行选择是否要更改ui风格
+    - 可自行选择想要使用的脚本
+    - 按钮位于左侧边栏，自然融入页面，完全不遮挡内容，且只需要点一下
+    - 完善可用的路径自动重放功能
+    - 支持选择相机拍照上传
+    - ...
+    - 更多具体功能详见脚本列表
+- 不足：
+    - 多个功能的脚本需要分别安装（太大单一文件不容易排查兼容性问题）
+    - 代码越来越臃肿（都是ai干的）
+    - 见todo list吧...
 
-## File Correspondence and Functionality
+黑白UI修改无兼容性问题且未计划进行修改，可直接使用v1中`ui.user.js`，不再单独提供。
 
-| File Name | Description |
-|-----------|-------------|
-| `ask-gemini.user.js` | Long-press on images to query Google's Gemini model for image-related Q&A. Displays overlay UI, allows model selection, and uses your Gemini API key for inference. *You will need International Internet Connection to use this script*. |
-| `auto-login.user.js` | Automatically finds and clicks the login button on the XNY system login page, streamlining the login process. |
-| `del-unused.user.js` | Removes elements with specific classes (silder, tag, time) automatically from the DOM, both on load and dynamically, keeping the UI clean. |
-| `fav-path.user.js` | Adds a 'favorites' system for navigation paths, including UI for saving, viewing, and deleting favorite locations. |
-| `font-noto-serif.user.js` | Globally applies the Noto Serif Simplified Chinese font to all text elements, improving readability and aesthetics. |
-| `force-download.user.js` | Display buttons such as downloads that are usually hidden when viewing PDF. |
-| `force-show-PDF-buttons.user.js` | Same as above, but available on Via browser. |
-| `handwriting-fix.user.js` | Fixes handwriting canvas scrolling/glitch issues by disabling unwanted scrolling on dynamically loaded canvases only, improving the drawing experience. |
-| `hard-refresh.user.js` | Adds a floating button for a true 'hard refresh': logs user out, clears all web storage, service workers, and cookies, and reloads the page. *The reason for this is because that XNY system has the bug that newly published scores and self-review modals cannot be shown without re-logging in.* **SEE THE SEAMLESS-LOGIN.USER.JS.** |
-| `path-replay.user.js` | Records and replays the most recent navigation path, allowing one-tap restoration to the last location after login or refresh. |
-| `seamless-login.user.js` | Continues to make sure functionalities like score display, self-review usable, without requiring any user interaction. |
-|  `ui.user.js`  | Updates the UI/UX into a shadcn/ui inspired one. |
-| `LICENSE` | GNU General Public License v3.0 – see License section below. |
+## 脚本列表
 
-## How to Install
-1. Install [Tampermonkey](https://www.tampermonkey.net/) (or a similar UserScript manager) in your browser.
-2. Download the desired `.user.js` files from this repo.
-3. Open each file in your browser or Tampermonkey to install the script.
-4. For ask-gemini.user.js, set your Gemini API key in the script source as instructed in the comments. You will also need an International Internet Connection.
+| 文件名                          | 名称      | 描述                                      | 注意                                                                          |
+|------------------------------|---------|-----------------------------------------|-----------------------------------------------------------------------------|
+| `seamless-login.user.js`     | 成绩显示修复  | 无感登录保活。确保成绩显示、自阅等功能总是可用。                | 强烈推荐安装                                                                      |
+| `show-PDF-buttons.user.js`   | PDF操作栏  | 让预览PDF组件显示通常被隐藏的下载等按钮。                  | 需要先打开文件。注意word ppt等也只能下载新能源转换后的pdf文件。开启则表示你愿意为所有下载行为负责，并且已经解除了开发者对你下载行为的责任。 |
+| `navigation-buttons.user.js` | 快捷导航按钮  | 提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径。        | 刷新键单击重载页面，长按退出登录。                                                           |
+| `del-unused.user.js`         | 删除无用元素  | 自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框。 |                                                                             |
+| `responsive-sidebar.user.js` | 自动收起侧边栏 | 在屏幕宽度改变时自动收起/展开侧边栏，并可通过点击左侧导航菜单展开。      |                                                                             |
+| `image-upload.user.js`       | 拍照上传照片  | 在网页内实现相机拍照，上传照片时允许选择直接打开相机或从相册上传。       | 供不支持capture字段的浏览器（如Via）使用。完成拍照后可使用新能源自带旋转、裁剪工具。                             |
 
-## No Warranty & License
-This software is provided "as is", without warranty of any kind. See the [LICENSE](LICENSE) file (GPL v3.0) for details. Use at your own risk.
+## 如何安装
 
-The software is developed, tested, and distributed beforehand for Insiders users on **Tampermonkey on Microsoft Edge** on Android devices. The software is theoretically able to run on any modern browsers as long as similar user scripts management extensions are installed. However, we do not guarantee its liability, and please make sure you know what you are doing if you are using the software on other platforms.
+- Via
+    1. 下载并安装Via浏览器：https://viayoo.com/
+    2.
+        - 打开Via浏览器，访问项目页面，找到需要的脚本文件（`*.user.js`），点击脚本文件中的"Raw"按钮，Via会自动接管安装过程，确认即可完成安装。
+        - 或 打开需要的脚本页面并复制脚本内容，在Via浏览器设置 -> 脚本 中点击右上角加号选择"添加脚本"，将脚本粘贴进去并确认。
+        - 或 下载需要的脚本文件，在Via的脚本管理页面中点击右上角加号选择"导入脚本"，找到下载的文件导入并确认。
+    3. 安装完成后，在Via的脚本管理页面中查看和管理已安装的脚本。
+- Edge
+    - 见原版 [README-original-zh-CN.md#如何安装](/README-original-zh-CN.md#如何安装)
+    - 不需要安装`image-upload.user.js`脚本，但推荐安装`handwriting-fix.user.js`脚本以修复窗口上下滑动问题。
+
+## 贡献与反馈
+
+- 本分支在原作者基础上做出适配修改，如有建议或发现问题，欢迎在仓库 Issues 中反馈或提交 PR。
+- 若引用本代码或二次发布，请遵循 GPLv3 许可证条款并保留原作者署名与许可证信息。
+- 感谢AI工具及提供商，尤其是免费为我提供Copilot教育许可的GitHub，这些工具为我编写陌生语言的代码提供了极大帮助（和添乱）。
+- 再次感谢 c-jeremy 及所有开源贡献者！
+
+## todos:
+
+- [x] 实现分离出搜索功能
+- [x] 修复搜索按钮有时不出现
+- [x] 更新收藏夹按钮图标
+- [x] 关于强制刷新和考试成绩不显示的问题：~~等待原作者后续更新~~已实现
+- [x] 上传照片时允许选择直接打开相机或从相册上传
+- [x] 打开相机后拦截回退
+- [x] ~~相机对焦、缩放功能？~~ 不好实现且无必要
+- [x] 侧边栏根据屏幕宽度自动收起/展开？~~用ai~~已实现
+- [x] 移除未提交的题目上的空“图片”框，放在del-unused中
+- [x] 优化删除元素脚本
+- [x] 刷新路径提前自动保存；尝试在登出重进后仍能重放路径
+- [x] 尝试修复强制刷新按钮自己乱转问题
+- [x] 在点击左侧导航栏时展开侧边栏
+- [x] ~~添加收藏夹按钮不变小~~ 经测试无法解决
+- [x] 同时支持强制刷新和仅页面刷新
+- [x] 修复Via上强制刷新无法登出的问题
+- [x] 合并4个按钮的插件
+- [x] 彻底修复保存路径bug
+    - [x] 修复回放路径遇到已打开文件夹时失败的问题（通过先关闭科目）
+- [x] 在播放路径后更新最新路径（以供刷新使用）
+- [x] 将所有操作按钮移动到页面最左侧并略微减小
+    - [x] 测试移除外框仅留白色图标-决定采用
+- [x] 在登录界面隐藏按钮
+- [x] 在上传照片确认、查看图片、查看解析等页面将按钮置于下层
+- [x] 添加ESC关闭收藏夹/搜索框等的功能
+- [x] 在页面更改、回退时关闭弹窗
+- [x] 相机拍照提高分辨率-稳定性待测试
+- [x] 尝试在开始回放时打断正在进行的回放，避免冲突
+- [x] 导航按钮复用Drawer统一处理监听器释放问题
+- [x] 路径回放自动滚动
+- [ ] 测试能否添加相机对焦操作（可行性未知）
+- [ ] 测试改用ImageCapture
+- [x] 更新强制刷新图标
+- [x] 修复按钮在edge中不固定、可能遮挡导航菜单
+- [ ] 考虑如何合并到main
+- [ ] 修复edge中元素不正确跟随页面
+- [ ] 加入手写优化
+- [ ] 修复AI页顶部按钮栏位置不正确
+- [ ] 即使未打开科目也保存路径
+- [ ] 添加为Edge的拍照上传脚本
+
+- 计划中：
+- [ ] 测试能否保存页面上方标签栏（未成功）
+- [ ] 添加快捷键功能（希望获得反馈：用哪些键）
+- [ ] 相机添加禁用增强选项（从v2获取实现代码）
+- [ ] pdf预览框等添加和查看答案一样的全屏键
+- [ ] 搜索支持先搜科目然后自动打开
+- [ ] 支持搜索收藏夹（有需要吗？）
+
+- 远期：
+- [ ] 上方页面导航栏从只能用两侧按键移动改为可滑动：感觉有点难度
+- [ ] 修复提交照片后只显示第一张预览（估计比较困难，仅作为可能改进方向）
+- [ ] ...
