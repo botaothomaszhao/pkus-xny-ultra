@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.1
+// @version      vv.3.2
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -267,17 +267,18 @@
                 li = li.parentElement?.closest('li[role="treeitem"].ant-tree-treenode-switcher-open');
             }
             entries.reverse(); // 顶层 -> 目标
-        } else return null
-        // 映射为存储结构并合并到 path
-        for (const el of entries) {
-            const text = cleanInnerText(el);
-            if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
+            for (const el of entries) {
+                const text = cleanInnerText(el);
+                if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
+            }
+            // 映射为存储结构并合并到 path
+        
+            /*  顶部标签栏：能正确捕获但无法正确回放
+            const slide = document.querySelector("div.swiper-slide.sideActive");
+            if (slide){
+                path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
+            }*/
         }
-        /*  能正确捕获但无法正确回放
-        const slide = document.querySelector("div.swiper-slide.sideActive");
-        if (slide){
-            path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
-        }*/
         return path.length > 0 ? path : null;
     }
 
@@ -325,7 +326,7 @@
                 if (!notLogin()) return;
                 path = captureCurrentPath();
             }
-            if (path) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
+            if (path?.length > 1) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
         } catch (e) {
             console.warn('保存回放路径失败：', e);
         }
@@ -683,12 +684,8 @@
 
         async addCurrentPathToFavorites() {
             const path = captureCurrentPath();
-            if (!path || path.length === 0) {
+            if (!path || path.length <= 2) {
                 console.warn('收藏失败: 无法捕获当前路径。');
-                return;
-            }
-            if (path.length < 2 && (document.querySelector('.folderName') || document.querySelector('.ant-tree'))) {
-                console.warn('收藏失败: 请先进入一个具体的课程目录。');
                 return;
             }
             const favorites = await this.getFavorites();
