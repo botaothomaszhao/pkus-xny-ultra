@@ -160,11 +160,7 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
-        .content .top{
-            position: absolute !important;
-        }
-    `); // 让页面顶部提交按钮固定 todo:是否移到手写优化？
+    `);
 
     // 统一图标映射（把所有内联 SVG 统一管理）
     const ICONS = {
@@ -272,7 +268,7 @@
                 if (text) path.push({selector: "span.ant-tree-node-content-wrapper", text});
             }
             // 映射为存储结构并合并到 path
-        
+
             /*  顶部标签栏：能正确捕获但无法正确回放
             const slide = document.querySelector("div.swiper-slide.sideActive");
             if (slide){

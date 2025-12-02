@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         纯黑背景模式 - 新能源课程系统
+// @name         纯黑白模式
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      v3.2
 // @license      GPL-3.0
-// @description  将指定元素的背景修改为纯黑色，实现极简的暗黑风格，并为侧边栏添加平滑切换动画。
+// @description  将背景修改为纯黑色，实现极简的暗黑风格，并为侧边栏添加平滑切换动画。
 // @author       c-jeremy ZhongChuTaFei
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
