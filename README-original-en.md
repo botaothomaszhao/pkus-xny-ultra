@@ -37,12 +37,11 @@ Our enhancement is implemented through [Tampermonkey](http://tampermonkey.net). 
 | `fav-path.user.js` | Adds a 'favorites' system for navigation paths, including UI for saving, viewing, and deleting favorite locations. |
 | `font-noto-serif.user.js` | Globally applies the Noto Serif Simplified Chinese font to all text elements, improving readability and aesthetics. |
 | `force-download.user.js` | Display buttons such as downloads that are usually hidden when viewing PDF. |
-| `force-show-PDF-buttons.user.js` | Same as above, but available on Via browser. |
 | `handwriting-fix.user.js` | Fixes handwriting canvas scrolling/glitch issues by disabling unwanted scrolling on dynamically loaded canvases only, improving the drawing experience. |
 | `hard-refresh.user.js` | Adds a floating button for a true 'hard refresh': logs user out, clears all web storage, service workers, and cookies, and reloads the page. *The reason for this is because that XNY system has the bug that newly published scores and self-review modals cannot be shown without re-logging in.* **SEE THE SEAMLESS-LOGIN.USER.JS.** |
 | `path-replay.user.js` | Records and replays the most recent navigation path, allowing one-tap restoration to the last location after login or refresh. |
 | `seamless-login.user.js` | Continues to make sure functionalities like score display, self-review usable, without requiring any user interaction. |
-|  `ui.user.js`  | Updates the UI/UX into a shadcn/ui inspired one. |
+| `ui.user.js`  | Updates the UI/UX into a shadcn/ui inspired one. |
 | `LICENSE` | GNU General Public License v3.0 – see License section below. |
 
 ## How to Install

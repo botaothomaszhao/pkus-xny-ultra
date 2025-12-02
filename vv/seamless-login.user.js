@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         成绩显示修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      1.0
+// @version      v1.0
 // @license      GPL-3.0
 // @description  如果 sessionStorage 中不存在 course_userInfo，则自动注入 {"id":0}，并每5分钟检查一次。能够解决不显示考试成绩的问题。
 // @author       c-jeremy

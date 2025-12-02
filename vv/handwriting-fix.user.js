@@ -1,157 +1,79 @@
 // ==UserScript==
-
-// @name         Optimized Handwriting Fix
-
-// @namespace    http://tampermonkey.net/
-
-// @version      4.0
-
-// @description  Efficiently disables scrolling on multiple, dynamically-loaded handwriting canvases without affecting the rest of the page.
-
-// @author       CJeremy
-
+// @name         手写滑动修复
+// @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
+// @version      v4.0
+// @license      GPL-3.0
+// @description  禁用动态加载的多个手写画板的滚动行为，避免影响绘制。
+// @author       c-jeremy
 // @match        https://bdfz.xnykcxt.com:5002/*
-
 // @grant        none
-
 // @run-at       document-body
-
 // ==/UserScript==
 
 (function () {
-
     'use strict';
 
-    // --- CONFIGURATION ---
+    const containerSelector = 'body'; // 观察的稳定父容器选择器
+    const canvasSelector = '.board.answerCanvas'; // 目标画板元素的选择器
+    const fixedAttribute = 'data-tampermonkey-fixed'; // 用于标记已处理元素的属性
 
-    const containerSelector = 'body'; // The stable parent element to observe.
-
-    const canvasSelector = '.board.answerCanvas'; // The target element for our fix.
-
-    const fixedAttribute = 'data-tampermonkey-fixed'; // Attribute to mark elements we've already processed.
-
-    /**
-
-     * Applies the touch and scroll fixes to a single canvas element.
-
-     * @param {HTMLElement} element The canvas container element to fix.
-
-     */
-
+    // 对单个画板元素应用触摸/滚动修复
     function applyFix(element) {
+        // 如果已经处理过该元素则跳过
+        if (element.hasAttribute(fixedAttribute)) return;
 
-        // First, check if we have already fixed this element. If so, do nothing.
+        console.log('Tampermonkey: 对新画板应用修复。', element);
 
-        if (element.hasAttribute(fixedAttribute)) {
+        // 1. 阻止绘制操作被识别为滚动手势
+        element.addEventListener(
+            'touchmove',
+            function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            },
+            {passive: false}
+        );
 
-            return;
-
-        }
-
-        console.log('Tampermonkey: Applying fix to new canvas element.', element);
-
-        // 1. Prevent drawing from being interpreted as a scroll gesture.
-
-        element.addEventListener('touchmove', function (event) {
-
-            event.preventDefault();
-
-            event.stopPropagation();
-
-        }, {passive: false});
-
-        // 2. Prevent pull-to-refresh when drawing on this specific element.
-
+        // 2. 禁止在该元素上触发下拉刷新
         element.style.overscrollBehaviorY = 'contain';
 
-        // 3. Mark the element as fixed to prevent re-processing.
-
+        // 3. 标记为已处理，避免重复处理
         element.setAttribute(fixedAttribute, 'true');
-
     }
 
-    /**
-
-     * Searches the page for the main container and starts observing it for changes.
-
-     */
-
+    // 查找页面上的容器并开始观察其子元素变化
     function initializeObserver() {
-
         const container = document.querySelector(containerSelector);
 
         if (!container) {
-
-            // If the container isn't on the page yet, wait a moment and try again.
-
-            // This is a fallback for very slow-loading sites.
-
+            // 容器尚未加载时稍后重试（用于加载较慢的页面）
             setTimeout(initializeObserver, 500);
-
             return;
-
         }
 
-        console.log('Tampermonkey: Found container. Observing for new canvases.', container);
+        console.log('Tampermonkey: 找到容器，开始观察新画板。', container);
 
-        // Create an observer that will watch for new elements being added inside the container.
-
+        // 创建 MutationObserver 以监听容器内部新增元素
         const observer = new MutationObserver(function (mutations) {
-
             for (const mutation of mutations) {
-
-                // We only care about nodes that have been added to the page.
-
+                // 仅关心被添加到页面的节点
                 if (mutation.addedNodes.length > 0) {
-
-                    // Find all unfixed canvas elements within the added nodes and apply the fix.
-
-                    mutation.addedNodes.forEach(node => {
-
-                        if (node.nodeType === 1) { // Ensure it's an element
-
-                            // Check if the added node itself is a canvas we need to fix
-
-                            if (node.matches(canvasSelector)) {
-
-                                applyFix(node);
-
-                            }
-
-                            // Also check if the added node CONTAINS any canvases (more common)
-
+                    // 在新增节点中查找未处理的画板并应用修复
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) {
+                            if (node.matches(canvasSelector)) applyFix(node);
                             node.querySelectorAll(canvasSelector).forEach(applyFix);
-
                         }
-
                     });
-
                 }
-
             }
-
         });
 
-        // Start observing the target container for child elements being added or removed.
+        observer.observe(container, {childList: true, subtree: true});
 
-        observer.observe(container, {
-
-            childList: true, // Watch for direct children being added/removed.
-
-            subtree: true    // Watch for all descendants being added/removed.
-
-        });
-
-        // As a final check, run the fix once on page load for any canvases that
-
-        // might have loaded before the observer was attached.
-
+        // 页面加载时再跑一次以处理在观察器附加前已存在的画板
         document.querySelectorAll(canvasSelector).forEach(applyFix);
-
     }
 
-    // Start the process.
-
     initializeObserver();
-
 })();
