@@ -17,7 +17,7 @@
     const SIDEBAR_SELECTOR = '.treeBox';
 
     // 侧边栏固定宽度
-    const SIDEBAR_WIDTH = 200; // px
+    const SIDEBAR_WIDTH = 260; // px
     const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px
 
     // 防抖延迟（resize 后等待 ms）
