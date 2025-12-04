@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         上传照片-系统相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v1.3
+// @version      v1.4
 // @license      GPL-3.0
 // @description  上传照片时可以从“相册上传”或“拍照上传”选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -14,8 +14,9 @@
 (function () {
     'use strict';
 
-    // 配置：使用后置摄像头（environment）
-    const CAPTURE_ATTRIBUTE = 'environment';
+    // 配置
+    const CAPTURE_VALUE = 'environment'; // 唤起相机所用 capture 值
+    const ACCEPT_VALUE = 'image/*'; // 可选，覆盖原 input 的 accept 属性
 
     GM_addStyle(`
         .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
@@ -37,32 +38,23 @@
     // 将 File 注入 input 并触发 change
     function copyFilesToInput(files, input) {
         if (!input) return;
-        try {
-            const dt = new DataTransfer();
-            files.forEach(f => dt.items.add(f));
-            input.files = dt.files;
-            input.dispatchEvent(new Event('change', {bubbles: true}));
-        } catch (err) {
-            // 某些环境下直接设置 files 可能失败；仍然尝试触发 change 以便页面响应
-            input.dispatchEvent(new Event('change', {bubbles: true}));
-        }
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', {bubbles: true}));
     }
 
     // 通用：创建临时 file input，并在选择后回填到 origInput
-    // opts: { accept?: string, multiple?: boolean, capture?: string|null }
-    function openTempFilePickerAndCopyTo(origInput, opts = {}) {
+    function openTempFilePickerAndCopyTo(origInput, capture) {
         if (!origInput) return;
-        const accept = (opts.accept !== undefined) ? opts.accept : (origInput.getAttribute('data-orig-accept') || origInput.getAttribute('accept') || '');
-        const multiple = (opts.multiple !== undefined) ? opts.multiple : origInput.hasAttribute('multiple');
-        const capture = (opts.capture !== undefined) ? opts.capture : null;
-
+        const accept = ACCEPT_VALUE || origInput.getAttribute('accept');
+        const multiple = origInput.hasAttribute('multiple');
         const temp = document.createElement('input');
         temp.type = 'file';
         temp.setAttribute('script-temp-file-input', 'true');
-        if (accept) temp.setAttribute('accept', accept);
+        temp.setAttribute('accept', accept);
         if (multiple) temp.setAttribute('multiple', '');
         if (capture) temp.setAttribute('capture', capture);
-
         Object.assign(temp.style, {
             position: 'fixed',
             left: '-9999px',
@@ -81,13 +73,18 @@
             } finally {
                 temp.removeEventListener('change', onChange);
                 setTimeout(() => {
-                    try { temp.remove(); } catch (_) {}
+                    try {
+                        temp.remove();
+                    } catch (_) {
+                    }
                 }, 0);
             }
         };
         temp.addEventListener('change', onChange, {once: true});
-
-        try { temp.click(); } catch (_) {}
+        try {
+            temp.click();
+        } catch (_) {
+        }
     }
 
     // history 管理（用于覆盖层返回）
@@ -110,10 +107,18 @@
     }
 
     function registerEsc(overlay) {
-        try { overlay.tabIndex = -1; overlay.focus(); } catch (_) {}
+        try {
+            overlay.tabIndex = -1;
+            overlay.focus();
+        } catch (_) {
+        }
         const keyHandler = (e) => {
             if (e.key === 'Escape' || e.key === 'Esc') {
-                try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                } catch (_) {
+                }
                 overlay._cleanup();
             }
         };
@@ -128,11 +133,18 @@
                 overlay.removeEventListener('keydown', overlay._keyHandler, true);
                 overlay.removeEventListener('keyup', overlay._keyHandler, true);
             }
-        } catch (_) {}
-        try { overlay.remove(); } catch (_) {}
+        } catch (_) {
+        }
+        try {
+            overlay.remove();
+        } catch (_) {
+        }
         if (!fromPop && chooserHistoryPushed) {
             suppressNextPop = true;
-            try { history.back(); } catch (_) {}
+            try {
+                history.back();
+            } catch (_) {
+            }
         }
         removeChooserPopHandler();
     }
@@ -185,7 +197,7 @@
             overlay._cleanup();
             try {
                 // 不传 capture，即打开系统文件选择器（相册）
-                openTempFilePickerAndCopyTo(origInput, { capture: null });
+                openTempFilePickerAndCopyTo(origInput, null);
             } catch (err) {
                 console.warn('打开系统相册失败', err);
             }
@@ -197,7 +209,7 @@
             overlay._cleanup(true);
             try {
                 // 使用 capture="environment" 触发后置摄像头
-                openTempFilePickerAndCopyTo(origInput, { capture: CAPTURE_ATTRIBUTE, accept: origInput.getAttribute('accept') || 'image/*' });
+                openTempFilePickerAndCopyTo(origInput, CAPTURE_VALUE);
             } catch (err) {
                 console.warn('打开相机失败', err);
             }
@@ -218,7 +230,11 @@
             if (document.getElementById('upload-chooser')) return;
             const input = findImageInput(e);
             if (!input) return;
-            try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+            } catch (_) {
+            }
             showChoiceMenu(input);
         } catch (err) {
             console.error('image-upload-capture: onPaizhaoTrigger error', err);
@@ -226,5 +242,4 @@
     }
 
     document.addEventListener('click', onPaizhaoTrigger, true);
-
 })();

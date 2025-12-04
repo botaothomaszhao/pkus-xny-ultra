@@ -19,6 +19,8 @@
     const CAPTURE_HEIGHT = 1080; // 请求的高度（必填）
     const CAPTURE_FRAME_RATE = 30; // 请求的帧率（可选：若为 null 则不添加 frameRate 约束）
 
+    const ACCEPT_VALUE = 'image/*'; // 相册上传时 input 元素的 accept 值，若为null则使用原来的
+
     GM_addStyle(`
         .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
         .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
@@ -62,12 +64,12 @@
     // 在用户手势中唤起系统文件选择器并回填
     function openSystemFilePickerAndCopyTo(origInput) {
         if (!origInput) return;
-        const accept = origInput.getAttribute('data-orig-accept') || origInput.getAttribute('accept') || '';
+        const accept = ACCEPT_VALUE || origInput.getAttribute('accept');
         const multiple = origInput.hasAttribute('multiple');
         const temp = document.createElement('input');
         temp.type = 'file';
         temp.setAttribute('script-temp-file-input', 'true'); // 给temp添加标签以在监听时区分
-        if (accept) temp.setAttribute('accept', accept);
+        temp.setAttribute('accept', accept);
         if (multiple) temp.setAttribute('multiple', '');
         Object.assign(temp.style, {
             position: 'fixed',
