@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      v1.3
 // @license      GPL-3.0
-// @description  上传照片时可以选择“从相册选择”或“用相机拍照）”两个选项。拍照选项通过带 capture 属性的 input 唤起系统相机。
+// @description  上传照片时可以从“相册上传”或“拍照上传”选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -154,7 +154,7 @@
             return b;
         }
 
-        const btnGallery = mkBtn('从相册选择'), btnCamera = mkBtn('从相机拍照');
+        const btnGallery = mkBtn('相册上传'), btnCamera = mkBtn('拍照上传');
         panel.appendChild(btnGallery);
         panel.appendChild(btnCamera);
         overlay.appendChild(panel);
