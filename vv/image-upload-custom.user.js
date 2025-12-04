@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         拍照上传照片
+// @name         上传照片-内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.7
+// @version      vv.2.8
 // @license      GPL-3.0
-// @description  在网页内实现相机拍照，上传照片时允许选择直接打开相机或从相册上传，解决浏览器无法唤起相机的问题。
+// @description  在网页内实现相机拍照，上传照片时可以选择“拍照上传”或“相册上传”，解决浏览器无法唤起相机的问题。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -179,7 +179,7 @@
             return b;
         }
 
-        const btnGallery = mkBtn('从相册选择'), btnCamera = mkBtn('从相机拍照');
+        const btnGallery = mkBtn('相册上传'), btnCamera = mkBtn('拍照上传');
         panel.appendChild(btnGallery);
         panel.appendChild(btnCamera);
         overlay.appendChild(panel);
