@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
 // @description  自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框。
 // @author       c-jeremy botaothomaszhao
@@ -15,8 +15,9 @@
     'use strict';
 
     const simpleSelectors = ['.tag', '.time'];
-    const imgBoxSelector = '.result2:not(.pos-relative)';
-    const emptyImgSelector = '.result2:not(.pos-relative):not(:has(img[src]))';
+    const antBtnText = '扫一扫传答案';
+    const imgBoxSelector = '.result2';
+    const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
     // 注入样式，用来可控隐藏但保留 DOM
     const hideClass = 'vu-preserve-hidden';
@@ -62,6 +63,12 @@
         for (const sel of simpleSelectors) {
             const els = root.querySelectorAll(sel);
             els.forEach(e => e.remove());
+        }
+        // 找到特定文字内容的按钮
+        const btn = Array.from(root.querySelectorAll('button.ant-btn'))
+            .find(b => b.querySelector('span')?.textContent.trim() === antBtnText);
+        if (btn) {
+            btn.remove();
         }
 
         // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复

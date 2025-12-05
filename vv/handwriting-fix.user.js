@@ -14,7 +14,7 @@
     'use strict';
 
     GM_addStyle(`
-        .content > .top{
+        .content > .top, .content > div > .top {
             position: absolute !important;
         }
     `);
