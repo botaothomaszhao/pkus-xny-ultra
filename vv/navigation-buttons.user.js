@@ -881,27 +881,35 @@
             }, true);
 
             // pointer 事件（长按/短按逻辑）
-            this.button.addEventListener('pointerdown', (e) => {
+            const downEvent = (e) => {
                 if (this.button.classList.contains('loading')) return;
+                // 仅对 pointerdown 或回车空格的 keydown 响应，忽略重复按键
+                if (e.type === 'pointerdown') {
+                    this.activePointerId = e.pointerId;
+                    try {
+                        this.button.setPointerCapture(this.activePointerId);
+                    } catch (err) {
+                    }
+                } else if (e.type === 'keydown' && ((e.key !== 'Enter' && e.key !== ' ') || e.repeat)) return;
                 this.clearPressTimer();
                 this.longPressTriggered = false;
-                this.activePointerId = e.pointerId;
-                try {
-                    this.button.setPointerCapture(this.activePointerId);
-                } catch (e) {
-                }
                 this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
-            }, {passive: true});
+            }
+            this.button.addEventListener('pointerdown', downEvent, {passive: true});
+            this.button.addEventListener('keydown', downEvent, {passive: true});
 
-            this.button.addEventListener('pointerup', () => {
+            const upEvent = (e) => {
                 if (this.button.classList.contains('loading')) {
                     this.clearPressTimer();
                     return;
                 }
-                try {
-                    if (this.activePointerId !== null) this.button.releasePointerCapture(this.activePointerId);
-                } catch (e) {
+                if (e.type === 'pointerup') {
+                    try {
+                        if (this.activePointerId !== null) this.button.releasePointerCapture(this.activePointerId);
+                    } catch (err) {
+                    }
                 }
+                if (e.type === 'keyup' && e.key !== 'Enter' && e.key !== ' ') return;
                 if (this.longPressTriggered) {
                     this.clearPressTimer();
                     this.longPressTriggered = false;
@@ -912,10 +920,12 @@
                     this.button.classList.remove('loading');
                     this.button.disabled = false;
                 });
-            }, {passive: true});
+            }
+            this.button.addEventListener('pointerup', upEvent, {passive: true});
+            this.button.addEventListener('keyup', upEvent, {passive: true});
 
-            ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(evt => {
-                this.button.addEventListener(evt, () => {
+            ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(e => {
+                this.button.addEventListener(e, () => {
                     this.longPressTriggered = false;
                     this.clearPressTimer();
                 });

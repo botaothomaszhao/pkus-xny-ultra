@@ -31,11 +31,11 @@
         .iu-frame{height:100vh;width:auto;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
         .iu-video,.iu-canvas{width:100%;height:100%;object-fit:cover;background:#000;display:block}
         .iu-canvas{display:none}
-        .iu-rightbar{position:absolute;right:8px;top:0;bottom:0;width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:18px 6px;box-sizing:border-box;pointer-events:auto}
-        .iu-btn-top{position:absolute;right:12px;top:12px;width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,0.36);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box;font-size:22px}
+        .iu-rightbar{position:fixed;right:8px;top:0;bottom:0;width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:18px 6px;box-sizing:border-box;pointer-events:auto}
+        .iu-btn-top{position:fixed;right:12px;top:12px;width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,0.36);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box;font-size:22px}
         .iu-switch{width:52px;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.9);background:rgba(0,0,0,0.28);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box}
         .iu-shutter{width:56px;height:56px;border-radius:28px;background:#fff;border:4px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer;padding:0}
-        .iu-bottombar{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;justify-content:center;z-index:3;pointer-events:auto}
+        .iu-bottombar{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;justify-content:center;z-index:3;pointer-events:auto}
         .iu-retake,.iu-confirm{padding:12px 80px;border-radius:8px;border:none;font-size:16px;cursor:pointer}
         .iu-retake{background:rgba(0,0,0,0.6);color:#fff}
         .iu-confirm{background:#fff;color:#000}
@@ -266,7 +266,11 @@
         btnSwitch.id = 'btn-switch';
         btnSwitch.title = '切换摄像头';
         btnSwitch.className = 'iu-switch';
-        btnSwitch.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"><path fill="currentColor" d="M21.25 7.5a.75.75 0 0 1 .743.648L22 8.25v8.5a3.25 3.25 0 0 1-3.066 3.245L18.75 20H6.061l.72.72a.75.75 0 0 1 .072.976l-.073.084a.75.75 0 0 1-.976.073l-.084-.073l-2-2l-.064-.072l-.007-.01l.07.082a.75.75 0 0 1-.127-.89a.8.8 0 0 1 .128-.17l2-2a.75.75 0 0 1 1.133.976l-.073.084l-.72.72h12.69a1.75 1.75 0 0 0 1.744-1.607l.006-.143v-8.5a.75.75 0 0 1 .75-.75m-3.054-5.353l.084.073l2 2a1 1 0 0 1 .071.081l-.07-.081a.75.75 0 0 1 .004 1.056l-.005.004l-2 2a.75.75 0 0 1-1.133-.976l.073-.084l.718-.72H5.25a1.75 1.75 0 0 0-1.744 1.606L3.5 7.25v8.5a.75.75 0 0 1-1.493.102L2 15.75v-8.5a3.25 3.25 0 0 1 3.066-3.245L5.25 4h12.689l-.72-.72a.75.75 0 0 1-.072-.976l.073-.084a.75.75 0 0 1 .976-.073M12 8a4 4 0 1 1 0 8a4 4 0 0 1 0-8"></path></svg>';
+        btnSwitch.innerHTML =
+            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M21.25 7.5a.75.75 0 0 1 .743.648L22 8.25v8.5a3.25 3.25 0 0 1-3.066 3.245L18.75 20H6.061l.72.72a.75.75 0 0 1 .072.976l-.073.084a.75.75 0 0 1-.976.073l-.084-.073l-2-2l-.064-.072l-.007-.01l.07.082a.75.75 0 0 1-.127-.89a.8.8 0 0 1 .128-.17l2-2a.75.75 0 0 1 1.133.976l-.073.084l-.72.72h12.69a1.75 1.75 0 0 0 1.744-1.607l.006-.143v-8.5a.75.75 0 0 1 .75-.75m-3.054-5.353l.084.073l2 2a1 1 0 0 1 .071.081l-.07-.081a.75.75 0 0 1 .004 1.056l-.005.004l-2 2a.75.75 0 0 1-1.133-.976l.073-.084l.718-.72H5.25a1.75 1.75 0 0 0-1.744 1.606L3.5 7.25v8.5a.75.75 0 0 1-1.493.102L2 15.75v-8.5a3.25 3.25 0 0 1 3.066-3.245L5.25 4h12.689l-.72-.72a.75.75 0 0 1-.072-.976l.073-.084a.75.75 0 0 1 .976-.073M12 8a4 4 0 1 1 0 8a4 4 0 0 1 0-8">
+                </path>
+            </svg>`;
         const btnShutter = document.createElement('button');
         btnShutter.type = 'button';
         btnShutter.id = 'btn-shutter';
