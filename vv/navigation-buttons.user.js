@@ -891,12 +891,10 @@
                     } catch (err) {
                     }
                 } else if (e.type === 'keydown' && ((e.key !== 'Enter' && e.key !== ' ') || e.repeat)) return;
-                this.clearPressTimer();
-                this.longPressTriggered = false;
-                this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
+                if(!this.pressTimer) this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
             }
-            this.button.addEventListener('pointerdown', downEvent, {passive: true});
-            this.button.addEventListener('keydown', downEvent, {passive: true});
+            this.button.addEventListener('pointerdown', downEvent);
+            this.button.addEventListener('keydown', downEvent);
 
             const upEvent = (e) => {
                 if (this.button.classList.contains('loading')) {
@@ -912,7 +910,6 @@
                 if (e.type === 'keyup' && e.key !== 'Enter' && e.key !== ' ') return;
                 if (this.longPressTriggered) {
                     this.clearPressTimer();
-                    this.longPressTriggered = false;
                     return;
                 }
                 this.clearPressTimer();
@@ -921,15 +918,35 @@
                     this.button.disabled = false;
                 });
             }
-            this.button.addEventListener('pointerup', upEvent, {passive: true});
-            this.button.addEventListener('keyup', upEvent, {passive: true});
+            this.button.addEventListener('pointerup', upEvent);
+            this.button.addEventListener('keyup', upEvent);
 
             ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach(e => {
                 this.button.addEventListener(e, () => {
-                    this.longPressTriggered = false;
                     this.clearPressTimer();
                 });
             });
+
+            // 阻止浏览器长按弹出的菜单（只对这个按钮）
+            this.button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        }
+
+        clearPressTimer() {
+            if (this.pressTimer) {
+                clearTimeout(this.pressTimer);
+                this.pressTimer = null;
+            }
+            if (this.activePointerId !== null) {
+                try {
+                    this.button.releasePointerCapture(this.activePointerId);
+                } catch (e) {
+                }
+                this.activePointerId = null;
+            }
+            this.longPressTriggered = false;
         }
 
         onLoginPage() {
@@ -1032,20 +1049,6 @@
             }
         }
 
-        clearPressTimer() {
-            if (this.pressTimer) {
-                clearTimeout(this.pressTimer);
-                this.pressTimer = null;
-            }
-            if (this.activePointerId !== null) {
-                try {
-                    this.button.releasePointerCapture(this.activePointerId);
-                } catch (e) {
-                }
-                this.activePointerId = null;
-            }
-        }
-
         async handleLongPress() {
             if (this.longPressTriggered) return;
             this.longPressTriggered = true;
@@ -1064,7 +1067,6 @@
                 this.button.classList.remove('loading');
                 this.button.disabled = false;
             } finally {
-                this.longPressTriggered = false;
                 this.clearPressTimer();
             }
         }
