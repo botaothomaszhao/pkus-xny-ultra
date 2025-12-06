@@ -39,7 +39,7 @@
     function copyFilesToInput(files, input) {
         if (!input) return;
         const dt = new DataTransfer();
-        files.forEach(f => dt.items.add(f));
+        for(const f of files) dt.items.add(f);
         input.files = dt.files;
         input.dispatchEvent(new Event('change', {bubbles: true}));
     }
@@ -64,14 +64,11 @@
             opacity: '0',
             zIndex: '2147483647'
         });
-
         document.body.appendChild(temp);
-
-        const onChange = () => {
+        temp.addEventListener('change', () => {
             try {
-                if (temp.files && temp.files.length) copyFilesToInput(Array.from(temp.files), origInput);
+                if (temp.files && temp.files.length) copyFilesToInput(temp.files, origInput);
             } finally {
-                temp.removeEventListener('change', onChange);
                 setTimeout(() => {
                     try {
                         temp.remove();
@@ -79,8 +76,7 @@
                     }
                 }, 0);
             }
-        };
-        temp.addEventListener('change', onChange, {once: true});
+        }, {once: true});
         try {
             temp.click();
         } catch (_) {
