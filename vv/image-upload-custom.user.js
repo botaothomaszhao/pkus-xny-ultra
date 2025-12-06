@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         上传照片-内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.8
+// @version      vv.3.0
 // @license      GPL-3.0
 // @description  在网页内实现相机拍照，上传照片时可以选择“拍照上传”或“相册上传”，解决浏览器无法唤起相机的问题。
 // @author       botaothomaszhao
@@ -19,13 +19,7 @@
     const CAPTURE_HEIGHT = 1080; // 请求的高度（必填）
     const CAPTURE_FRAME_RATE = 30; // 请求的帧率（可选：若为 null 则不添加 frameRate 约束）
 
-    const ACCEPT_VALUE = 'image/*'; // 相册上传时 input 元素的 accept 值，若为null则使用原来的
-
     GM_addStyle(`
-        .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
-        .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
-        .iu-panel button{width:100%;padding:14px;border:none;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:16px;cursor:pointer}
-    
         .iu-media-overlay{position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
         .iu-container{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
         .iu-frame{height:100vh;width:auto;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
@@ -41,62 +35,38 @@
         .iu-confirm{background:#fff;color:#000}
     `);
 
-    // 安全移除元素并可执行自定义清理
-    function removeIf(id, doCleanup) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        try {
-            if (doCleanup && typeof el._cleanup === 'function') el._cleanup(true);
-            el.remove();
-        } catch (_) {
-        }
+    const inputSelector = 'input[type="file"]';
+
+    function relaxAccept(el) {
+        if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return;
+        if (el.getAttribute('script-temp-file-input')) return;
+        el.setAttribute('accept', 'image/*');
+        el.setAttribute('capture', 'environment');
     }
+
+    // 处理已有元素
+    document.querySelectorAll(inputSelector).forEach(relaxAccept);
+
+    // 监听动态插入的元素
+    const mo = new MutationObserver(records => {
+        for (const r of records) {
+            for (const n of r.addedNodes) {
+                if (n.nodeType !== 1) continue;
+                if (n.matches(inputSelector)) relaxAccept(n);
+                const list = n.querySelectorAll(inputSelector);
+                if (list?.length) list.forEach(relaxAccept);
+            }
+        }
+    });
+    mo.observe(document.documentElement, {childList: true, subtree: true});
 
     // 将 File 注入 input 并触发 change
     function copyFilesToInput(files, input) {
         if (!input) return;
         const dt = new DataTransfer();
-        for(const f of files) dt.items.add(f);
+        for (const f of files) dt.items.add(f);
         input.files = dt.files;
         input.dispatchEvent(new Event('change', {bubbles: true}));
-    }
-
-    // 唤起系统文件选择器并回填
-    function openSystemFilePickerAndCopyTo(origInput) {
-        if (!origInput) return;
-        const accept = ACCEPT_VALUE || origInput.getAttribute('accept');
-        const multiple = origInput.hasAttribute('multiple');
-        const temp = document.createElement('input');
-        temp.type = 'file';
-        temp.setAttribute('script-temp-file-input', 'true'); // 给temp添加标签以在监听时区分
-        temp.setAttribute('accept', accept);
-        if (multiple) temp.setAttribute('multiple', '');
-        Object.assign(temp.style, {
-            position: 'fixed',
-            left: '-9999px',
-            top: '0',
-            width: '1px',
-            height: '1px',
-            opacity: '0',
-            zIndex: '2147483647'
-        });
-        document.body.appendChild(temp);
-        temp.addEventListener('change', () => {
-            try {
-                if (temp.files && temp.files.length) copyFilesToInput(temp.files, origInput);
-            } finally {
-                setTimeout(() => {
-                    try {
-                        temp.remove();
-                    } catch (_) {
-                    }
-                }, 0);
-            }
-        }, {once: true});
-        try {
-            temp.click();
-        } catch (_) {
-        }
     }
 
     // history 管理
@@ -108,8 +78,14 @@
             suppressNextPop = false;
             return;
         }
-        removeIf('upload-chooser', true);
-        removeIf('media-overlay', true);
+        const el = document.getElementById('media-overlay');
+        if (el) {
+            try {
+                el._cleanup(true);
+                el.remove();
+            } catch (_) {
+            }
+        }
         removeChooserPopHandler();
     }
 
@@ -160,67 +136,6 @@
             }
         }
         removeChooserPopHandler();
-    }
-
-    // 显示选择菜单
-    function showChoiceMenu(origInput) {
-        if (!origInput) return;
-        if (document.getElementById('upload-chooser')) return;
-        const overlay = document.createElement('div');
-        overlay.id = 'upload-chooser';
-        overlay.className = 'iu-overlay';
-        const panel = document.createElement('div');
-        panel.className = 'iu-panel';
-
-        function mkBtn(text) {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.textContent = text;
-            return b;
-        }
-
-        const btnGallery = mkBtn('相册上传'), btnCamera = mkBtn('拍照上传');
-        panel.appendChild(btnGallery);
-        panel.appendChild(btnCamera);
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
-
-        registerEsc(overlay);
-
-        try {
-            window.addEventListener('popstate', chooserPopHandler);
-            history.pushState({uploadChooser: true}, '');
-            chooserHistoryPushed = true;
-        } catch (err) {
-            chooserHistoryPushed = false;
-            window.removeEventListener('popstate', chooserPopHandler);
-        }
-
-        overlay._cleanup = (fromPop) => cleanup(overlay, fromPop);
-
-        overlay.addEventListener('click', (ev) => {
-            if (ev.target === overlay) {
-                overlay._cleanup();
-            }
-        });
-
-        btnGallery.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            overlay._cleanup();
-            try {
-                openSystemFilePickerAndCopyTo(origInput);
-            } catch (err) {
-                console.warn('打开系统相册失败', err);
-            }
-        });
-
-        btnCamera.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            overlay._cleanup(true);
-            openCameraOverlay(origInput);
-        });
     }
 
     // 相机覆盖层与拍照逻辑
@@ -380,6 +295,8 @@
 
         try {
             window.addEventListener('popstate', chooserPopHandler);
+            //if(history.state !== "uploadChooser")
+                history.pushState("mediaOverlay", '');
             chooserHistoryPushed = true;
         } catch (err) {
             chooserHistoryPushed = false;
@@ -505,30 +422,17 @@
         });
     }
 
-    // 拦截 .paizhao-btn 和 追加拍照 的点击
-    function findImageInput(e) {
+    function onCaptureInput(e) {
         const el = e.target;
-        if (el.matches('input[type=file]')) return el;
-        const btn = el.closest('.paizhao-btn');
-        return btn?.querySelector('input[type=file]');
-    }
-
-    function onPaizhaoTrigger(e) {
-        try {
-            if (e.target.getAttribute('script-temp-file-input') === 'true') return;
-            if (document.getElementById('upload-chooser')) return;
-            const input = findImageInput(e);
-            if (!input) return;
-            try {
-                e.preventDefault();
-                e.stopPropagation();
-            } catch (_) {
-            }
-            showChoiceMenu(input);
-        } catch (err) {
-            console.error('image-upload: onPaizhaoTrigger error', err);
+        if (el.matches('input[type=file][capture]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            openCameraOverlay(el);
         }
     }
 
-    document.addEventListener('click', onPaizhaoTrigger, true);
+    setTimeout(() => {
+        document.addEventListener('click', onCaptureInput, true);
+    }, 100);
+    //document.addEventListener('click', onCaptureInput, true);
 })();

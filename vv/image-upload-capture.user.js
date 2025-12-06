@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         上传照片-系统相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v1.4
+// @version      v2.0
 // @license      GPL-3.0
 // @description  上传照片时可以从“相册上传”或“拍照上传”选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -23,17 +23,6 @@
         .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
         .iu-panel button{width:100%;padding:14px;border:none;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:16px;cursor:pointer}
     `);
-
-    // 安全移除元素并可执行自定义清理
-    function removeIf(id, doCleanup) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        try {
-            if (doCleanup && typeof el._cleanup === 'function') el._cleanup(true);
-            el.remove();
-        } catch (_) {
-        }
-    }
 
     // 将 File 注入 input 并触发 change
     function copyFilesToInput(files, input) {
@@ -86,13 +75,21 @@
     // history 管理（用于覆盖层返回）
     let chooserHistoryPushed = false;
     let suppressNextPop = false;
+    // todo: 考虑用history.state更稳妥地判断
 
     function chooserPopHandler() {
         if (suppressNextPop) {
             suppressNextPop = false;
             return;
         }
-        removeIf('upload-chooser', true);
+        const el = document.getElementById('upload-chooser');
+        if (el) {
+            try {
+                el._cleanup(true);
+                el.remove();
+            } catch (_) {
+            }
+        }
         removeChooserPopHandler();
     }
 
@@ -172,7 +169,7 @@
 
         try {
             window.addEventListener('popstate', chooserPopHandler);
-            history.pushState({uploadChooser: true}, '');
+            history.pushState("uploadChooser", '');
             chooserHistoryPushed = true;
         } catch (err) {
             chooserHistoryPushed = false;
@@ -202,7 +199,7 @@
         btnCamera.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            overlay._cleanup(true);
+            overlay._cleanup(); // 目前会导致custom相机无法打开
             try {
                 // 使用 capture="environment" 触发后置摄像头
                 openTempFilePickerAndCopyTo(origInput, CAPTURE_VALUE);
@@ -212,11 +209,12 @@
         });
     }
 
+    /*
     // 辅助：从事件中找到关联的 file input（保留与原脚本一致的查找方式）
     function findImageInput(e) {
         const el = e.target;
-        if (el.matches && el.matches('input[type=file]')) return el;
-        const btn = el.closest && el.closest('.paizhao-btn');
+        if (el.matches('input[type=file]')) return el;
+        const btn = el.closest('.paizhao-btn');
         return btn && btn.querySelector ? btn.querySelector('input[type=file]') : null;
     }
 
@@ -237,5 +235,17 @@
         }
     }
 
-    document.addEventListener('click', onPaizhaoTrigger, true);
+    document.addEventListener('click', onPaizhaoTrigger, true);*/
+
+
+    function onCaptureInput(e) {
+        const el = e.target;
+        if (el.matches('input[type=file]') && !el.getAttribute('script-temp-file-input')) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            showChoiceMenu(el);
+        }
+    }
+
+    document.addEventListener('click', onCaptureInput, true);
 })();
