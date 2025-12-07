@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         上传照片-内置相机
+// @name         网页内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.3.1
 // @license      GPL-3.0
-// @description  在网页内实现相机拍照，上传照片时可以选择“拍照上传”或“相册上传”，解决浏览器无法唤起相机的问题。
+// @description  在网页内实现相机拍照，解决浏览器无法唤起相机的问题。与图片选择框脚本配合会作为“拍照上传”选项，单独使用会对全部图片上传元素生效。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -20,27 +20,141 @@
     const CAPTURE_FRAME_RATE = 30; // 请求的帧率（可选：若为 null 则不添加 frameRate 约束）
 
     GM_addStyle(`
-        .iu-media-overlay{position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
-        .iu-container{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
-        .iu-frame{height:100vh;width:auto;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
-        .iu-video,.iu-canvas{width:100%;height:100%;object-fit:cover;background:#000;display:block}
-        .iu-canvas{display:none}
-        .iu-rightbar{position:fixed;right:8px;top:0;bottom:0;width:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:18px 6px;box-sizing:border-box;pointer-events:auto}
-        .iu-btn-top{position:fixed;right:12px;top:12px;width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,0.36);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box;font-size:22px}
-        .iu-switch{width:52px;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.9);background:rgba(0,0,0,0.28);color:#fff;cursor:pointer;padding:6px;box-sizing:border-box}
-        .iu-shutter{width:56px;height:56px;border-radius:28px;background:#fff;border:4px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer;padding:0}
-        .iu-bottombar{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;justify-content:center;z-index:3;pointer-events:auto}
-        .iu-retake,.iu-confirm{padding:12px 80px;border-radius:8px;border:none;font-size:16px;cursor:pointer}
-        .iu-retake{background:rgba(0,0,0,0.6);color:#fff}
-        .iu-confirm{background:#fff;color:#000}
+        .iu-camera-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .iu-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .iu-frame {
+            height: 100vh;
+            width: auto;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .iu-video, .iu-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+            display: block;
+        }
+        .iu-canvas { display: none; }
+        .iu-rightbar {
+            position: fixed;
+            right: 8px;
+            top: 0;
+            bottom: 0;
+            width: 96px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 18px 6px;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+        .iu-btn-top {
+            position: fixed;
+            right: 12px;
+            top: 12px;
+            width: 48px;
+            height: 48px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: rgba(0,0,0,0.36);
+            color: #fff;
+            cursor: pointer;
+            padding: 6px;
+            box-sizing: border-box;
+            font-size: 22px;
+        }
+        .iu-switch {
+            width: 52px;
+            height: 52px;
+            border-radius: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.9);
+            background: rgba(0,0,0,0.28);
+            color: #fff;
+            cursor: pointer;
+            padding: 6px;
+            box-sizing: border-box;
+        }
+        .iu-shutter {
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #fff;
+            border: 4px solid rgba(255,255,255,0.85);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            cursor: pointer;
+            padding: 0;
+        }
+        .iu-bottombar {
+            position: fixed;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            pointer-events: auto;
+        }
+        .iu-retake, .iu-confirm {
+            padding: 12px 80px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        .iu-retake {
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+        }
+        .iu-confirm {
+            background: #fff;
+            color: #000;
+        }
     `);
 
-    const inputSelector = 'input[type="file"]';
+    // 修改全部 file input，添加 accept 和 capture 属性
+    const inputSelector = 'input[type="file"][accept="image/*"]';
 
     function relaxAccept(el) {
         if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return;
-        if (el.getAttribute('script-temp-file-input')) return;
-        el.setAttribute('accept', 'image/*');
+        if (el.getAttribute('script-temp-file-input')) return; // 忽略图片选择框创建的临时 input
+        //el.setAttribute('accept', 'image/*');
         el.setAttribute('capture', 'environment');
     }
 
@@ -71,7 +185,7 @@
 
     // history 管理，使用 history.state 判断
     function PopHandler() {
-        const el = document.getElementById('media-overlay');
+        const el = document.getElementById('camera-overlay');
         try {
             el?._cleanup();
         } catch (_) {
@@ -117,7 +231,7 @@
         } catch (_) {
         }
         // 仅当当前 history.state 是我们之前 push 的上传选择器状态时，才回退历史记录。
-        if (history.state?.mediaOverlay) {
+        if (history.state?.cameraOverlay) {
             try {
                 history.back();
             } catch (_) {
@@ -128,43 +242,37 @@
 
     // 相机覆盖层与拍照逻辑
     function openCameraOverlay(origInput) {
-        if (document.getElementById('media-overlay')) return;
+        if (document.getElementById('camera-overlay')) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert('当前浏览器不支持拍照');
             return;
         }
 
         const overlay = document.createElement('div');
-        overlay.id = 'media-overlay';
-        overlay.className = 'iu-media-overlay';
+        overlay.id = 'camera-overlay';
+        overlay.className = 'iu-camera-overlay';
         const container = document.createElement('div');
         container.className = 'iu-container';
         const frame = document.createElement('div');
         frame.className = 'iu-frame';
-        frame.id = 'media-frame';
         const video = document.createElement('video');
-        video.id = 'media-video';
         video.autoplay = true;
         video.playsInline = true;
         video.className = 'iu-video';
         const canvas = document.createElement('canvas');
-        canvas.id = 'media-canvas';
         canvas.className = 'iu-canvas';
         frame.appendChild(video);
         frame.appendChild(canvas);
 
         const rightBar = document.createElement('div');
         rightBar.className = 'iu-rightbar';
-        rightBar.id = 'media-rightbar';
         const btnCancel = document.createElement('button');
         btnCancel.type = 'button';
-        btnCancel.id = 'btn-cancel';
         btnCancel.title = '取消';
         btnCancel.className = 'iu-btn-top';
         btnCancel.textContent = '✕';
         const btnSwitch = document.createElement('button');
         btnSwitch.type = 'button';
-        btnSwitch.id = 'btn-switch';
         btnSwitch.title = '切换摄像头';
         btnSwitch.className = 'iu-switch';
         btnSwitch.innerHTML =
@@ -174,31 +282,17 @@
             </svg>`;
         const btnShutter = document.createElement('button');
         btnShutter.type = 'button';
-        btnShutter.id = 'btn-shutter';
         btnShutter.className = 'iu-shutter';
         const bottomBar = document.createElement('div');
         bottomBar.className = 'iu-bottombar';
-        bottomBar.id = 'media-bottombar';
         const btnRetake = document.createElement('button');
         btnRetake.type = 'button';
-        btnRetake.id = 'btn-retake';
         btnRetake.className = 'iu-retake';
         btnRetake.textContent = '重拍';
         const btnConfirm = document.createElement('button');
         btnConfirm.type = 'button';
-        btnConfirm.id = 'btn-confirm';
         btnConfirm.className = 'iu-confirm';
         btnConfirm.textContent = '确定';
-
-        // 保持按钮文字水平显示，避免在竖屏/容器布局变化时文字被旋转或换行
-        const _btnTextFixStyle = {
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            whiteSpace: 'nowrap', // 不换行，保证文字横向排布
-        };
-        Object.assign(btnRetake.style, _btnTextFixStyle);
-        Object.assign(btnConfirm.style, _btnTextFixStyle);
 
         rightBar.appendChild(btnSwitch);
         rightBar.appendChild(btnShutter);
@@ -282,7 +376,7 @@
         registerEsc(overlay);
 
         try {
-            history.pushState({mediaOverlay: true}, '');
+            history.pushState({cameraOverlay: true}, '');
             window.addEventListener('popstate', PopHandler);
         } catch (err) {
             removePopHandler();

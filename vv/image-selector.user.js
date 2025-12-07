@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         上传照片-系统相机
+// @name         图片选择框
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      v2.1
 // @license      GPL-3.0
-// @description  上传照片时可以从“相册上传”或“拍照上传”选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
+// @description  上传图片时可以从“相册上传”或“拍照上传”中选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -19,9 +19,33 @@
     const ACCEPT_VALUE = 'image/*'; // 可选，覆盖原 input 的 accept 属性
 
     GM_addStyle(`
-        .iu-overlay{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:flex-end;justify-content:center;padding:10px;box-sizing:border-box;background:rgba(0,0,0,0.12)}
-        .iu-panel{width:100%;max-width:720px;border-radius:12px;background:#fff;overflow:hidden}
-        .iu-panel button{width:100%;padding:14px;border:none;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:16px;cursor:pointer}
+        .iu-overlay {
+           position: fixed;
+           inset: 0;
+           z-index: 2147483646;
+           display: flex;
+           align-items: flex-end;
+           justify-content: center;
+           padding: 10px;
+           box-sizing: border-box;
+           background: rgba(0, 0, 0, 0.12);
+       }
+       .iu-panel {
+           width: 100%;
+           max-width: 720px;
+           border-radius: 12px;
+           background: #fff;
+           overflow: hidden;
+       }
+       .iu-panel button {
+           width: 100%;
+           padding: 14px;
+           border: none;
+           border-top: 1px solid rgba(0, 0, 0, 0.06);
+           background: #fff;
+           font-size: 16px;
+           cursor: pointer;
+       }
     `);
 
     // 将 File 注入 input 并触发 change
