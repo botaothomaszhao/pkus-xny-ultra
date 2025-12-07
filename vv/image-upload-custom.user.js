@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         上传照片-内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.0
+// @version      vv.3.1
 // @license      GPL-3.0
 // @description  在网页内实现相机拍照，上传照片时可以选择“拍照上传”或“相册上传”，解决浏览器无法唤起相机的问题。
 // @author       botaothomaszhao
@@ -69,30 +69,18 @@
         input.dispatchEvent(new Event('change', {bubbles: true}));
     }
 
-    // history 管理
-    let chooserHistoryPushed = false;
-    let suppressNextPop = false;
-
-    function chooserPopHandler() {
-        if (suppressNextPop) {
-            suppressNextPop = false;
-            return;
-        }
+    // history 管理，使用 history.state 判断
+    function PopHandler() {
         const el = document.getElementById('media-overlay');
-        if (el) {
-            try {
-                el._cleanup(true);
-                el.remove();
-            } catch (_) {
-            }
+        try {
+            el?._cleanup();
+        } catch (_) {
         }
-        removeChooserPopHandler();
+        removePopHandler();
     }
 
-    function removeChooserPopHandler() {
-        window.removeEventListener('popstate', chooserPopHandler);
-        chooserHistoryPushed = false;
-        suppressNextPop = false;
+    function removePopHandler() {
+        window.removeEventListener('popstate', PopHandler);
     }
 
     function registerEsc(overlay) {
@@ -116,9 +104,9 @@
         overlay._keyHandler = keyHandler;
     }
 
-    function cleanup(overlay, fromPop) {
+    function cleanup(overlay) {
         try {
-            if (overlay && overlay._keyHandler) {
+            if (overlay._keyHandler) {
                 overlay.removeEventListener('keydown', overlay._keyHandler, true);
                 overlay.removeEventListener('keyup', overlay._keyHandler, true);
             }
@@ -128,23 +116,23 @@
             overlay.remove();
         } catch (_) {
         }
-        if (!fromPop && chooserHistoryPushed) {
-            suppressNextPop = true;
+        // 仅当当前 history.state 是我们之前 push 的上传选择器状态时，才回退历史记录。
+        if (history.state?.mediaOverlay) {
             try {
                 history.back();
             } catch (_) {
             }
         }
-        removeChooserPopHandler();
+        removePopHandler();
     }
 
     // 相机覆盖层与拍照逻辑
     function openCameraOverlay(origInput) {
+        if (document.getElementById('media-overlay')) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert('当前浏览器不支持拍照');
             return;
         }
-        if (document.getElementById('media-overlay')) return;
 
         const overlay = document.createElement('div');
         overlay.id = 'media-overlay';
@@ -294,18 +282,15 @@
         registerEsc(overlay);
 
         try {
-            window.addEventListener('popstate', chooserPopHandler);
-            //if(history.state !== "uploadChooser")
-                history.pushState("mediaOverlay", '');
-            chooserHistoryPushed = true;
+            history.pushState({mediaOverlay: true}, '');
+            window.addEventListener('popstate', PopHandler);
         } catch (err) {
-            chooserHistoryPushed = false;
-            window.removeEventListener('popstate', chooserPopHandler);
+            removePopHandler();
         }
 
-        overlay._cleanup = (fromPop) => {
+        overlay._cleanup = () => {
             stopStream();
-            cleanup(overlay, fromPop);
+            cleanup(overlay);
         };
 
         // 捕获一帧真实像素并生成 Blob
@@ -431,8 +416,8 @@
         }
     }
 
+    // 延迟绑定，确保在图片上传选择框优先捕获
     setTimeout(() => {
         document.addEventListener('click', onCaptureInput, true);
     }, 100);
-    //document.addEventListener('click', onCaptureInput, true);
 })();

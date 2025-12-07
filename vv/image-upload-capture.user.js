@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         上传照片-系统相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v2.0
+// @version      v2.1
 // @license      GPL-3.0
 // @description  上传照片时可以从“相册上传”或“拍照上传”选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -28,7 +28,7 @@
     function copyFilesToInput(files, input) {
         if (!input) return;
         const dt = new DataTransfer();
-        for(const f of files) dt.items.add(f);
+        for (const f of files) dt.items.add(f);
         input.files = dt.files;
         input.dispatchEvent(new Event('change', {bubbles: true}));
     }
@@ -56,7 +56,7 @@
         document.body.appendChild(temp);
         temp.addEventListener('change', () => {
             try {
-                if (temp.files && temp.files.length) copyFilesToInput(temp.files, origInput);
+                if (temp.files?.length) copyFilesToInput(temp.files, origInput);
             } finally {
                 setTimeout(() => {
                     try {
@@ -73,30 +73,18 @@
     }
 
     // history 管理（用于覆盖层返回）
-    let chooserHistoryPushed = false;
-    let suppressNextPop = false;
-    // todo: 考虑用history.state更稳妥地判断
-
-    function chooserPopHandler() {
-        if (suppressNextPop) {
-            suppressNextPop = false;
-            return;
-        }
+    function popHandler() {
+        // 当 history 发生变动（例如按返回），如果覆盖层仍在页面上则清理它。
         const el = document.getElementById('upload-chooser');
-        if (el) {
-            try {
-                el._cleanup(true);
-                el.remove();
-            } catch (_) {
-            }
+        try {
+            el?._cleanup();
+        } catch (_) {
         }
-        removeChooserPopHandler();
+        removePopHandler();
     }
 
-    function removeChooserPopHandler() {
-        window.removeEventListener('popstate', chooserPopHandler);
-        chooserHistoryPushed = false;
-        suppressNextPop = false;
+    function removePopHandler() {
+        window.removeEventListener('popstate', popHandler);
     }
 
     function registerEsc(overlay) {
@@ -120,9 +108,9 @@
         overlay._keyHandler = keyHandler;
     }
 
-    function cleanup(overlay, fromPop) {
+    function cleanup(overlay) {
         try {
-            if (overlay && overlay._keyHandler) {
+            if (overlay._keyHandler) {
                 overlay.removeEventListener('keydown', overlay._keyHandler, true);
                 overlay.removeEventListener('keyup', overlay._keyHandler, true);
             }
@@ -132,14 +120,14 @@
             overlay.remove();
         } catch (_) {
         }
-        if (!fromPop && chooserHistoryPushed) {
-            suppressNextPop = true;
+        // 仅当当前 history.state 是我们之前 push 的上传选择器状态时，才回退历史记录。
+        if (history.state?.uploadChooser) {
             try {
-                history.back();
+                history.back(); // 注意：back()是异步的，等待完成需要监听 popstate 事件
             } catch (_) {
             }
         }
-        removeChooserPopHandler();
+        removePopHandler();
     }
 
     // 显示选择菜单（相册 / 相机）
@@ -168,15 +156,14 @@
         registerEsc(overlay);
 
         try {
-            window.addEventListener('popstate', chooserPopHandler);
-            history.pushState("uploadChooser", '');
-            chooserHistoryPushed = true;
+            // 将一个标记性的 state 推入历史栈，便于后续通过 history.state 判断是否需要回退
+            history.pushState({uploadChooser: true}, '');
+            window.addEventListener('popstate', popHandler);
         } catch (err) {
-            chooserHistoryPushed = false;
-            window.removeEventListener('popstate', chooserPopHandler);
+            removePopHandler();
         }
 
-        overlay._cleanup = (fromPop) => cleanup(overlay, fromPop);
+        overlay._cleanup = () => cleanup(overlay);
 
         overlay.addEventListener('click', (ev) => {
             if (ev.target === overlay) {
@@ -196,47 +183,19 @@
             }
         });
 
-        btnCamera.addEventListener('click', (e) => {
+        btnCamera.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
-            overlay._cleanup(); // 目前会导致custom相机无法打开
+            overlay._cleanup();
+            // 确保历史记录回退完成
+            await new Promise((resolve) => window.addEventListener('popstate', resolve, {once: true}));
             try {
-                // 使用 capture="environment" 触发后置摄像头
                 openTempFilePickerAndCopyTo(origInput, CAPTURE_VALUE);
             } catch (err) {
                 console.warn('打开相机失败', err);
             }
         });
     }
-
-    /*
-    // 辅助：从事件中找到关联的 file input（保留与原脚本一致的查找方式）
-    function findImageInput(e) {
-        const el = e.target;
-        if (el.matches('input[type=file]')) return el;
-        const btn = el.closest('.paizhao-btn');
-        return btn && btn.querySelector ? btn.querySelector('input[type=file]') : null;
-    }
-
-    function onPaizhaoTrigger(e) {
-        try {
-            if (e.target.getAttribute && e.target.getAttribute('script-temp-file-input') === 'true') return;
-            if (document.getElementById('upload-chooser')) return;
-            const input = findImageInput(e);
-            if (!input) return;
-            try {
-                e.preventDefault();
-                e.stopPropagation();
-            } catch (_) {
-            }
-            showChoiceMenu(input);
-        } catch (err) {
-            console.error('image-upload-capture: onPaizhaoTrigger error', err);
-        }
-    }
-
-    document.addEventListener('click', onPaizhaoTrigger, true);*/
-
 
     function onCaptureInput(e) {
         const el = e.target;
