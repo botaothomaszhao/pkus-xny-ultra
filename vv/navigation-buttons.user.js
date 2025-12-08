@@ -891,7 +891,7 @@
                     } catch (err) {
                     }
                 } else if (e.type === 'keydown' && ((e.key !== 'Enter' && e.key !== ' ') || e.repeat)) return;
-                if(!this.pressTimer) this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
+                if (!this.pressTimer) this.pressTimer = setTimeout(() => this.handleLongPress(), HARD_REFRESH_PRESS_MS);
             }
             this.button.addEventListener('pointerdown', downEvent);
             this.button.addEventListener('keydown', downEvent);

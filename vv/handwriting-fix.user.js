@@ -31,14 +31,10 @@
         console.log('Tampermonkey: 对新画板应用修复。', element);
 
         // 1. 阻止绘制操作被识别为滚动手势
-        element.addEventListener(
-            'touchmove',
-            function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-            },
-            {passive: false}
-        );
+        element.addEventListener('touchmove', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }, {passive: false});
 
         // 2. 禁止在该元素上触发下拉刷新
         element.style.overscrollBehaviorY = 'contain';
