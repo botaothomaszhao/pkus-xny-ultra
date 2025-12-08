@@ -365,7 +365,7 @@
                     resolve();
                 };
                 video.addEventListener('loadedmetadata', onMeta, {once: true});
-                setTimeout(resolve, 600);
+                setTimeout(resolve, 500);
             });
             await video.play().catch(() => {
             });

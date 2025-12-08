@@ -6,12 +6,18 @@
 // @description  禁用动态加载的多个手写画板的滚动行为，避免影响绘制。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
-// @grant        none
+// @grant        GM_addStyle
 // @run-at       document-body
 // ==/UserScript==
 
 (function () {
     'use strict';
+
+    GM_addStyle(`
+        .content > .top, .content > div > .top {
+            position: absolute !important;
+        }
+    `);
 
     const containerSelector = 'body'; // 观察的稳定父容器选择器
     const canvasSelector = '.board.answerCanvas'; // 目标画板元素的选择器
