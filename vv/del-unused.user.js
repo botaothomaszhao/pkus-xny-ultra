@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.0
+// @version      vv.3.1
 // @license      GPL-3.0
 // @description  自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框，并修复顶部操作栏遮挡、滚动问题。
 // @author       c-jeremy botaothomaszhao
@@ -101,21 +101,27 @@
     let debounceTimer = null;
 
     function debounceGroup() {
-        if (debounceTimer) clearTimeout(debounceTimer);
+        if (debounceTimer){
+            clearTimeout(debounceTimer);
+        } else {
+            groupContentChildren();
+            
+        }
         debounceTimer = setTimeout(function () {
-            const url = window.location.href;
+                groupContentChildren();
+                debounceTimer = null;
+            }, 300);
+    }
+
+    // 将 parent 的top以后的子元素收拢到一个 wrapper 中
+    async function groupContentChildren() {
+        const url = window.location.href;
             let parent;
             if (url.includes("/#/course")) {
                 parent = document.querySelector('.content');
             } else if (url.includes("/#/exam")) {
                 parent = document.querySelector('.content > div');
             } else return;
-            groupChildrenAfter(parent);
-        }, 300);
-    }
-
-    // 将 parent 的top以后的子元素收拢到一个 wrapper 中
-    async function groupChildrenAfter(parent) {
         if (!parent || parent.nodeType !== 1 || parent.children.length < 2) return;
         if (!parent.children[0].matches('.top')) return;
         console.log("Tampermonkey: 收拢多余子元素。", parent);
@@ -132,22 +138,34 @@
             return;
         }
 
-        // 要移动的节点（从 startIndex 开始）
-        const toMove = Array.from(parent.children).slice(1);
-        let wrapper;
+        // 要移动的节点（从第 2 个子元素开始）
+    let toMove = Array.from(parent.children).slice(1);
+    let wrapper;
 
-        // 如果已经存在 wrapper，则复用它
-        const wrapperIndex = toMove.findIndex(n => n.classList.contains(WRAPPER_CLASS));
-        if (wrapperIndex !== -1) {
-            wrapper = toMove[wrapperIndex];
-            toMove.splice(wrapperIndex, 1); // 从待移动列表中移除 wrapper 本身
-        } else {
-            wrapper = document.createElement('div');
-            wrapper.classList.add(WRAPPER_CLASS);
-            // 把 wrapper 插到第 startIndex 个位置（或末尾）
-            parent.insertBefore(wrapper, parent.children[1] || null);
+// 找到已有 wrapper
+const wrapperIndex = toMove.findIndex(n => n.classList.contains(WRAPPER_CLASS));
+if (wrapperIndex === -1) {
+    // 不存在 wrapper：创建并把所有 toMove 都塞进去
+    wrapper = document.createElement('div');
+    wrapper.classList.add(WRAPPER_CLASS);
+    parent.insertBefore(wrapper, parent.children[1] || null);
+} else {
+    // 已存在 wrapper：利用 wrapperIndex 分段处理
+    wrapper = toMove[wrapperIndex];
+
+    const before = toMove.slice(0, wrapperIndex);       // wrapper 之前的节点
+    toMove  = toMove.slice(wrapperIndex + 1);      // wrapper 之后的节点
+
+    // 先把 before 段插到 wrapper 最前面（保持原顺序）
+    if (before.length) {
+        const frag = document.createDocumentFragment();
+        for (const node of before) {
+            frag.appendChild(node); // 按当前顺序塞进 fragment
         }
+        wrapper.insertBefore(frag, wrapper.firstChild); // 一次性插到最前
+    }
 
+}
         // 将剩下的节点移动进 wrapper
         for (const node of toMove) {
             wrapper.appendChild(node);
