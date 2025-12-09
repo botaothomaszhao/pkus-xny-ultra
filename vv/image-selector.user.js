@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         图片选择框
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v2.1
+// @version      v2.2
 // @license      GPL-3.0
 // @description  上传图片时可以从“相册上传”或“拍照上传”中选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -45,8 +45,22 @@
            background: #fff;
            font-size: 16px;
            cursor: pointer;
-       }
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           gap: 10px; /* 图标和文字间距 */
+           line-height: normal; 
+        }
+
+    .iu-panel button svg {
+        display: block;
+        transform: translateY(-1px); /* 图标高度微调 */
+}
     `);
+    
+    // 相机和相册图标
+    const ICON_CAMERA = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+    const ICON_IMAGE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
 
     // 将 File 注入 input 并触发 change
     function copyFilesToInput(files, input) {
@@ -158,24 +172,33 @@
     function showChoiceMenu(origInput) {
         if (!origInput) return;
         if (document.getElementById('upload-chooser')) return;
-        const overlay = document.createElement('div');
-        overlay.id = 'upload-chooser';
-        overlay.className = 'iu-overlay';
-        const panel = document.createElement('div');
-        panel.className = 'iu-panel';
 
-        function mkBtn(text) {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.textContent = text;
-            return b;
-        }
+    const overlay = document.createElement('div');
+    overlay.id = 'upload-chooser';
+    overlay.className = 'iu-overlay';
+    
+    const panel = document.createElement('div');
+    panel.className = 'iu-panel';
 
-        const btnGallery = mkBtn('相册上传'), btnCamera = mkBtn('拍照上传');
-        panel.appendChild(btnGallery);
-        panel.appendChild(btnCamera);
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
+    // 辅助函数：创建带图标的按钮
+    function mkBtn(text, iconSvg) {
+        const b = document.createElement('button');
+        b.type = 'button';
+
+        // 注意：这里用 innerHTML 插入 SVG，文字用 createTextNode 防止 XSS（虽然这里是静态文字）
+        b.innerHTML = iconSvg; 
+        b.appendChild(document.createTextNode(text));
+        return b;
+    }
+
+    // 创建按钮并传入对应图标
+    const btnGallery = mkBtn('相册上传', ICON_IMAGE);
+    const btnCamera = mkBtn('拍照上传', ICON_CAMERA);
+
+    panel.appendChild(btnGallery); // 相册在上
+    panel.appendChild(btnCamera);  // 拍照在下
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
 
         registerEsc(overlay);
 
