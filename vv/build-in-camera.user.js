@@ -406,18 +406,20 @@
             // 1. 尝试使用 ImageCapture (高质量，低噪点)
             if (imageCapture) {
                 try {
-                    // takePhoto 会触发相机的自动对焦和后处理
+                    /*const caps = await imageCapture.getPhotoCapabilities();
+                    const targetWidth = Math.min(CAPTURE_WIDTH, caps.imageWidth.max);
+                    const targetHeight = Math.min(CAPTURE_HEIGHT, caps.imageHeight.max);*/
+
                     return await imageCapture.takePhoto({
                         imageWidth: CAPTURE_WIDTH,
                         imageHeight: CAPTURE_HEIGHT,
                     });
-                } catch (err) {
-                    console.warn('ImageCapture.takePhoto failed, falling back to canvas:', err);
-                    // 失败则继续向下执行 Canvas 逻辑
+                } catch (e) { // 失败则继续向下执行 Canvas 逻辑
+                    console.warn('ImageCapture.takePhoto failed, falling back to canvas:', e);
                 }
             }
 
-            // 2. 降级方案：Canvas 截图 (所见即所得，噪点较多)
+            // 降级方案：Canvas 截图 (所见即所得，噪点较多)
             if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
             const vw = video.videoWidth, vh = video.videoHeight;
             if (!vw || !vh) return null;
