@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自动收起侧边栏
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.1
+// @version      vv.2.2
 // @license      GPL-3.0
 // @description  在屏幕宽度改变时自动收起/展开侧边栏，并可通过点击左侧导航菜单展开。
 // @author       botaothomaszhao
@@ -14,11 +14,9 @@
 (function () {
     'use strict';
 
-    const SIDEBAR_SELECTOR = '.treeBox';
-
     // 侧边栏固定宽度
     const SIDEBAR_WIDTH = 260; // px
-    const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px
+    const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px todo: 优化top后修改
 
     // 防抖延迟（resize 后等待 ms）
     const DEBOUNCE_MS = 150;
@@ -30,7 +28,6 @@
         if (!el) return false;
         const s = getComputedStyle(el);
         if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0) return false;
-        if (el.offsetParent === null && s.position !== 'fixed') return false;
         const r = el.getBoundingClientRect();
         return r.width > 1 && r.height > 1;
     }
@@ -44,17 +41,14 @@
     }
 
     function isSidebarOpen() {
-        const sidebarEl = document.querySelector(SIDEBAR_SELECTOR);
+        const sidebarEl = document.querySelector('.treeBox');
         return isVisible(sidebarEl);
     }
 
     function toggleTo(targetOpen) {
-        lastDecision = targetOpen;
         if (isSidebarOpen() === targetOpen) return;
         const btn = findToggleButton();
-        if (!btn) {
-            return;
-        }
+        if (!btn) return;
         try {
             btn.click();
         } catch (e) {
@@ -72,6 +66,7 @@
         debounceTimer = setTimeout(function () {
             const shouldOpen = computeShouldOpen();
             if (lastDecision === shouldOpen) return; // 决策没变则不动作（避免重复点击），且在用户操作后不会改变
+            lastDecision = shouldOpen;
             toggleTo(shouldOpen);
         }, DEBOUNCE_MS);
     }
@@ -99,7 +94,7 @@
             if (!isSidebarOpen()) {
                 toggleTo(true);
             } else if (event.target.closest('.active')) {
-                decideAndApply();
+                toggleTo(computeShouldOpen()); // 效果类似于点put,操作后屏幕宽度变化不会再次触发自动展开/收起
             }
         }
     }, true);
