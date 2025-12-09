@@ -20,47 +20,55 @@
 
     GM_addStyle(`
         .iu-overlay {
-           position: fixed;
-           inset: 0;
-           z-index: 2147483646;
-           display: flex;
-           align-items: flex-end;
-           justify-content: center;
-           padding: 10px;
-           box-sizing: border-box;
-           background: rgba(0, 0, 0, 0.12);
-       }
-       .iu-panel {
-           width: 100%;
-           max-width: 720px;
-           border-radius: 12px;
-           background: #fff;
-           overflow: hidden;
-       }
-       .iu-panel button {
-           width: 100%;
-           padding: 14px;
-           border: none;
-           border-top: 1px solid rgba(0, 0, 0, 0.06);
-           background: #fff;
-           font-size: 16px;
-           cursor: pointer;
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           gap: 10px; /* 图标和文字间距 */
-           line-height: normal; 
+            position: fixed;
+            inset: 0;
+            z-index: 2147483646;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 10px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.12);
         }
-
-    .iu-panel button svg {
-        display: block;
-        transform: translateY(-1px); /* 图标高度微调 */
-}
+        .iu-panel {
+            width: 100%;
+            max-width: 720px;
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .iu-panel button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            background: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px; /* 图标和文字间距 */
+            line-height: normal; 
+        }
+        .iu-panel button svg {
+            display: block;
+            transform: translateY(-1px); /* 图标高度微调 */
+        }
     `);
-    
+
     // 相机和相册图标
-    const ICON_CAMERA = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-    const ICON_IMAGE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+    const ICON_CAMERA = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+        </svg>`;
+    const ICON_IMAGE = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+        </svg>`;
 
     // 将 File 注入 input 并触发 change
     function copyFilesToInput(files, input) {
@@ -173,32 +181,32 @@
         if (!origInput) return;
         if (document.getElementById('upload-chooser')) return;
 
-    const overlay = document.createElement('div');
-    overlay.id = 'upload-chooser';
-    overlay.className = 'iu-overlay';
-    
-    const panel = document.createElement('div');
-    panel.className = 'iu-panel';
+        const overlay = document.createElement('div');
+        overlay.id = 'upload-chooser';
+        overlay.className = 'iu-overlay';
 
-    // 辅助函数：创建带图标的按钮
-    function mkBtn(text, iconSvg) {
-        const b = document.createElement('button');
-        b.type = 'button';
+        const panel = document.createElement('div');
+        panel.className = 'iu-panel';
 
-        // 注意：这里用 innerHTML 插入 SVG，文字用 createTextNode 防止 XSS（虽然这里是静态文字）
-        b.innerHTML = iconSvg; 
-        b.appendChild(document.createTextNode(text));
-        return b;
-    }
+        // 辅助函数：创建带图标的按钮
+        function mkBtn(text, iconSvg) {
+            const b = document.createElement('button');
+            b.type = 'button';
 
-    // 创建按钮并传入对应图标
-    const btnGallery = mkBtn('相册上传', ICON_IMAGE);
-    const btnCamera = mkBtn('拍照上传', ICON_CAMERA);
+            // 注意：这里用 innerHTML 插入 SVG，文字用 createTextNode 防止 XSS（虽然这里是静态文字）
+            b.innerHTML = iconSvg;
+            b.appendChild(document.createTextNode(text));
+            return b;
+        }
 
-    panel.appendChild(btnGallery); // 相册在上
-    panel.appendChild(btnCamera);  // 拍照在下
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
+        // 创建按钮并传入对应图标
+        const btnGallery = mkBtn('相册上传', ICON_IMAGE);
+        const btnCamera = mkBtn('拍照上传', ICON_CAMERA);
+
+        panel.appendChild(btnGallery); // 相册在上
+        panel.appendChild(btnCamera);  // 拍照在下
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
 
         registerEsc(overlay);
 

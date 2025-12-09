@@ -307,6 +307,7 @@
 
         // 状态
         let stream = null;
+        let imageCapture = null; // 新增：ImageCapture 实例
         let facingMode = 'environment';
         let lastBlob = null;
         let isPreview = false;
@@ -317,6 +318,7 @@
             } catch (_) {
             }
             stream = null;
+            imageCapture = null; // 清理
         }
 
         // 根据 video 实际像素尺寸调整 frame 宽度，保证预览高度等于视口高度
@@ -345,6 +347,7 @@
                 },
                 audio: false
             };
+            // 尝试请求更高的帧率以减少预览时的果冻效应，虽然拍照不依赖它
             if (CAPTURE_FRAME_RATE) constraints.frameRate = {ideal: CAPTURE_FRAME_RATE};
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -353,6 +356,17 @@
                     video: {facingMode: {ideal: facingMode}}, audio: false
                 });
             }
+
+            // --- 新增：初始化 ImageCapture ---
+            const track = stream.getVideoTracks()[0];
+            if (track && 'ImageCapture' in window) {
+                try {
+                    imageCapture = new ImageCapture(track);
+                } catch (e) {
+                    console.warn('ImageCapture init failed:', e);
+                }
+            }
+
             video.srcObject = stream;
             video.style.display = 'block';
             canvas.style.display = 'none';
@@ -387,11 +401,22 @@
             cleanup(overlay);
         };
 
-        // 捕获一帧真实像素并生成 Blob
+        // 捕获逻辑：优先使用 ImageCapture，降级使用 Canvas
         async function captureOnce() {
+            // 1. 尝试使用 ImageCapture (高质量，低噪点)
+            if (imageCapture) {
+                try {
+                    // takePhoto 会触发相机的自动对焦和后处理
+                    return await imageCapture.takePhoto();
+                } catch (err) {
+                    console.warn('ImageCapture.takePhoto failed, falling back to canvas:', err);
+                    // 失败则继续向下执行 Canvas 逻辑
+                }
+            }
+
+            // 2. 降级方案：Canvas 截图 (所见即所得，噪点较多)
             if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
             const vw = video.videoWidth, vh = video.videoHeight;
-            // 若仍然没有合理尺寸，则认为无法拍摄，返回 null
             if (!vw || !vh) return null;
             canvas.width = vw;
             canvas.height = vh;
