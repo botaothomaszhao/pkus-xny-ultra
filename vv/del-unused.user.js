@@ -1,23 +1,36 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.3
+// @version      vv.2.4
 // @license      GPL-3.0
 // @description  自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
-// @grant        none
+// @grant        GM_addStyle
 // @run-at       document-body
 // ==/UserScript==
 
 (function () {
     'use strict';
 
+    GM_addStyle(`
+        .content > .top, .content > div > .top {
+            max-height: 60px !important;
+        }
+    `);
+
     const simpleSelectors = ['.tag', '.time'];
-    const antBtnText = '扫一扫传答案';
     const imgBoxSelector = '.result2';
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
+
+    const textMap = [{
+        selector: 'button.ant-btn', text: '扫一扫传答案', replaceText: null
+    }, {
+        selector: 'button.ant-btn', text: '补交答题区', replaceText: '答题区'
+    }, {
+        selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
+    }]
 
     // 注入样式，用来可控隐藏但保留 DOM
     const hideClass = 'vu-preserve-hidden';
@@ -48,6 +61,28 @@
         }
     }
 
+    let debounceTimer = null;
+
+    function debounceTextMatch() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            for (const {selector, text, replaceText} of textMap) {
+                const nodes = Array.from(document.querySelectorAll(selector));
+                for (const n of nodes) {
+                    const span = n.querySelector('span');
+                    if (span?.textContent.trim() === text) {
+                        if (replaceText === null) {
+                            n.remove();
+                        } else {
+                            span.textContent = replaceText;
+                        }
+                        break;
+                    }
+                }
+            }
+        }, 150);
+    }
+
     function removeTargetElements(root = document) {
         if (root !== document && root.matches) {
             for (const sel of simpleSelectors) {
@@ -64,12 +99,8 @@
             const els = root.querySelectorAll(sel);
             els.forEach(e => e.remove());
         }
-        // 找到特定文字内容的按钮
-        const btn = Array.from(root.querySelectorAll('button.ant-btn'))
-            .find(b => b.querySelector('span')?.textContent.trim() === antBtnText);
-        if (btn) {
-            btn.remove();
-        }
+
+        debounceTextMatch();
 
         // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复
         const resultEls = root.querySelectorAll(imgBoxSelector);

@@ -274,7 +274,8 @@
             if (slide){
                 path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
             }*/
-        }
+        } else if (!document.querySelector('.emptyHeight'))
+            return null; // 非空页面但未选中任何节点，可能是文件夹被收起导致无法捕获，返回 null 以不保存
         return path.length > 0 ? path : null;
     }
 
