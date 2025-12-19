@@ -16,7 +16,7 @@
 
     GM_addStyle(`
         .content > .top, .content > div > .top {
-            max-height: 60px !important;
+            max-height: 70px !important;
         }
     `);
 
@@ -67,17 +67,16 @@
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             for (const {selector, text, replaceText} of textMap) {
-                const nodes = Array.from(document.querySelectorAll(selector));
+                const nodes = document.querySelectorAll(selector);
                 for (const n of nodes) {
-                    const span = n.querySelector('span');
-                    if (span?.textContent.trim() === text) {
-                        if (replaceText === null) {
-                            n.remove();
-                        } else {
-                            span.textContent = replaceText;
-                        }
-                        break;
+                    const span = Array.from(n.querySelectorAll('span')).find(s => s.textContent.trim() === text);
+                    if (!span) continue;
+                    if (replaceText === null) {
+                        n.remove();
+                    } else {
+                        span.textContent = replaceText;
                     }
+                    break;
                 }
             }
         }, 150);
