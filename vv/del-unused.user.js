@@ -27,8 +27,6 @@
     const textMap = [{
         selector: 'button.ant-btn', text: '扫一扫传答案', replaceText: null
     }, {
-        selector: 'button.ant-btn', text: '补交答题区', replaceText: '答题区'
-    }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
     }]
 
