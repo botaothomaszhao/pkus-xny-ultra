@@ -79,7 +79,7 @@
                     break;
                 }
             }
-        }, 150);
+        }, 200);
     }
 
     function removeTargetElements(root = document) {

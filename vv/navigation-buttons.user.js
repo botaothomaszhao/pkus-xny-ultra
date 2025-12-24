@@ -872,7 +872,11 @@
             this.longPressTriggered = false;
             this.activePointerId = null;
 
-            window.addEventListener('beforeunload', () => savePathForReplay());
+            window.addEventListener('beforeunload', () => {
+                savePathForReplay();
+                this.button.classList.remove('loading');
+                this.button.disabled = false;
+            });
 
             // 点击导航元素自动保存，包括自动回放触发，带防抖
             const debouncedSavePath = debounce(savePathForReplay, 400);
