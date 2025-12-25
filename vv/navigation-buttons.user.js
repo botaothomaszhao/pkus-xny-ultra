@@ -781,10 +781,7 @@
                     const currentSelector = "span.ant-tree-node-content-wrapper";
                     const currentStep = {selector: currentSelector, text: node.catalogName};
                     const replayablePath = [...parentPath, currentStep];
-                    const displayPath = replayablePath
-                        .slice(1, 2) // 只显示科目
-                        .concat(replayablePath.slice(3)) // 后续显示
-                        .map(p => p.text).join(' / ');
+                    const displayPath = replayablePath.slice(1).map(p => p.text).join(' / '); // 不显示最顶层菜单
                     flatList.push({
                         title: node.catalogName, displayPath: displayPath, replayablePath: replayablePath
                     });
