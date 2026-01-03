@@ -956,9 +956,7 @@
 
         onAppPage() {
             super.onAppPage();
-            setTimeout(this.replaySavedPathIfAny, 300);
-            this.button.classList.remove('loading');
-            this.button.disabled = false;
+            //setTimeout(this.replaySavedPathIfAny, 300);
         }
 
         onPageChange() {
@@ -966,13 +964,13 @@
             this.button.disabled = false;
         }
 
-        async replaySavedPathIfAny() {
+        /*async replaySavedPathIfAny() {
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
             // 刷新后回放不自动展开下一步
             await startReplay(path, false, false);
-        }
+        }*/
 
         async sendLogoutRequest() {
             const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
@@ -1043,7 +1041,7 @@
             if (this.button.classList.contains('loading')) return;
             this.button.classList.add('loading');
             this.button.disabled = true;
-            await savePathForReplay();
+            //await savePathForReplay();
             try {
                 window.location.reload();
             } catch (e) {
@@ -1103,7 +1101,7 @@
     }
 
     checkPageChange();
-    if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
+    //if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
