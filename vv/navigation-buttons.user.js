@@ -289,9 +289,8 @@
             for (let i = 0; i < 100; i++) { // 最多尝试10s
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
-                        if (!node.classList.contains('ant-tree-node-content-wrapper-open')) node.click();
-                        node.scrollIntoView({block: 'center', behavior: 'auto'});
-                        node.scrollLeft = 0;// 确保左侧始终顶到头
+                        if (!node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active'))
+                            node.click();
                         lastClickedEl = node;
                         return true;
                     }
@@ -314,6 +313,8 @@
             }
             await sleep(200);
         }
+        lastClickedEl.scrollIntoView({block: 'center', behavior: 'auto'});
+        lastClickedEl.closest("div[list]").scrollLeft = 0;// 确保左侧始终顶到头
         return lastClickedEl;
     }
 
@@ -509,10 +510,10 @@
 
     // startReplay：中断旧回放并立即开始新的
     async function startReplay(path, openNextStep, closeFolder = false) {
-        if (closeFolder) {
+        /*if (closeFolder) {
             const activeFolder = document.querySelector('div.folderName.active');
-            activeFolder?.click(); // 先点击一次当前科目以将其关闭
-        }
+            //activeFolder?.click(); // 先点击一次当前科目以将其关闭
+        }*/
         replayToken++;
         try {
             const last = await replayPath(path, replayToken);
@@ -960,8 +961,6 @@
         }
 
         onPageChange() {
-            this.button.classList.remove('loading');
-            this.button.disabled = false;
         }
 
         async replaySavedPathIfAny() {
@@ -1099,6 +1098,7 @@
     }
 
     checkPageChange();
+    if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
