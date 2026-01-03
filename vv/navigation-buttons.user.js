@@ -286,12 +286,12 @@
         let lastClickedEl = null;
 
         async function click(sel, text) {
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 100; i++) { // 最多尝试10s
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
-                        node.click();
-                        node.scrollIntoView({block: 'nearest', behavior: 'auto'});
-                        node.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'auto'}); // 确保左侧始终顶到头
+                        if (!node.classList.contains('ant-tree-node-content-wrapper-open')) node.click();
+                        node.scrollIntoView({block: 'center', behavior: 'auto'});
+                        node.scrollLeft = 0;// 确保左侧始终顶到头
                         lastClickedEl = node;
                         return true;
                     }
@@ -1099,7 +1099,6 @@
     }
 
     checkPageChange();
-    //if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
