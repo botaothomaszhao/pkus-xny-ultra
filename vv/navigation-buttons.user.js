@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.3
+// @version      vv.3.4
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -956,7 +956,7 @@
 
         onAppPage() {
             super.onAppPage();
-            //setTimeout(this.replaySavedPathIfAny, 300);
+            setTimeout(this.replaySavedPathIfAny, 300);
         }
 
         onPageChange() {
@@ -964,13 +964,13 @@
             this.button.disabled = false;
         }
 
-        /*async replaySavedPathIfAny() {
+        async replaySavedPathIfAny() {
             const pathJSON = await GM_getValue(REPLAY_STORAGE_KEY, null);
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
             // 刷新后回放不自动展开下一步
             await startReplay(path, false, false);
-        }*/
+        }
 
         async sendLogoutRequest() {
             const url = 'https://bdfz.xnykcxt.com:5002/exam/login/api/logout';
@@ -1041,7 +1041,6 @@
             if (this.button.classList.contains('loading')) return;
             this.button.classList.add('loading');
             this.button.disabled = true;
-            //await savePathForReplay();
             try {
                 window.location.reload();
             } catch (e) {
@@ -1056,7 +1055,6 @@
                 if (!this.button.classList.contains('loading')) {
                     this.button.classList.add('loading');
                     this.button.disabled = true;
-                    await savePathForReplay();
                     await sleep(50);
                     this.nukeAndReload().catch(() => {
                         this.button.classList.remove('loading');
