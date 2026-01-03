@@ -289,8 +289,13 @@
             for (let i = 0; i < 100; i++) { // 最多尝试10s
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
-                        if (!node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active'))
-                            node.click();
+                        if (!node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
+                            node.click(); // 如果已展开则不点击
+                            node.scrollIntoView({block: 'center', behavior: 'auto'});
+                            const container = node.closest('div[list]');
+                            if (container) container.scrollLeft = 0; // 确保左侧始终顶到头
+                            else node.scrollLeft = 0;
+                        }
                         lastClickedEl = node;
                         return true;
                     }
@@ -480,6 +485,7 @@
                         try {
                             childEl.click();
                             childEl.scrollIntoView({block: 'nearest', behavior: 'auto'});
+                            // todo: 优化？
                             childEl.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'auto'}); // 确保左侧始终顶到头
                         } catch (e) {
                             console.error(e);
@@ -509,11 +515,7 @@
     const nextStepManager = new NextStepManager();
 
     // startReplay：中断旧回放并立即开始新的
-    async function startReplay(path, openNextStep, closeFolder = false) {
-        /*if (closeFolder) {
-            const activeFolder = document.querySelector('div.folderName.active');
-            //activeFolder?.click(); // 先点击一次当前科目以将其关闭
-        }*/
+    async function startReplay(path, openNextStep) {
         replayToken++;
         try {
             const last = await replayPath(path, replayToken);
@@ -613,7 +615,7 @@
                 if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
                 this.closeDrawer();
                 try {
-                    await startReplay(fav.path, true, true);
+                    await startReplay(fav.path, true);
                 } catch (error) {
                     console.error("Replay or next step check failed:", error);
                 }
@@ -968,7 +970,7 @@
             if (!pathJSON || pathJSON === 'null') return;
             const path = JSON.parse(pathJSON);
             // 刷新后回放不自动展开下一步
-            await startReplay(path, false, false);
+            await startReplay(path, false);
         }
 
         async sendLogoutRequest() {
