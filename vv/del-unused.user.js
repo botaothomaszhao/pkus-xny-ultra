@@ -25,7 +25,7 @@
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
     const textMap = [{
-        selector: 'button.ant-btn', text: '扫一扫传答案', replaceText: null
+        selector: 'button.ant-btn', text: '扫描作答', replaceText: null
     }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
     }]
