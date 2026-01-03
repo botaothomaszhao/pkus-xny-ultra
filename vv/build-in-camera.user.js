@@ -53,7 +53,7 @@
         .iu-video, .iu-canvas {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             background: #000;
             display: block;
         }
@@ -321,19 +321,6 @@
             imageCapture = null; // 清理
         }
 
-        // 根据 video 实际像素尺寸调整 frame 宽度，保证预览高度等于视口高度
-        function adjustFrame() {
-            try {
-                const vw = video.videoWidth, vh = video.videoHeight;
-                if (!vw || !vh) return;
-                const scale = window.innerHeight / vh;
-                frame.style.width = Math.round(vw * scale) + 'px';
-                video.style.display = 'block';
-                canvas.style.display = 'none';
-            } catch (_) {
-            }
-        }
-
         // 启动摄像头流并在 metadata 后调整尺寸
         async function startStream() {
             stopStream();
@@ -357,7 +344,7 @@
                 });
             }
 
-            // --- 新增：初始化 ImageCapture ---
+            // 初始化 ImageCapture
             const track = stream.getVideoTracks()[0];
             if (track && 'ImageCapture' in window) {
                 try {
@@ -383,7 +370,6 @@
             });
             await video.play().catch(() => {
             });
-            adjustFrame();
             isPreview = false;
         }
 
@@ -411,8 +397,7 @@
                     const targetHeight = Math.min(CAPTURE_HEIGHT, caps.imageHeight.max);*/
 
                     return await imageCapture.takePhoto({
-                        imageWidth: CAPTURE_WIDTH,
-                        imageHeight: CAPTURE_HEIGHT,
+                        imageWidth: CAPTURE_WIDTH, imageHeight: CAPTURE_HEIGHT,
                     });
                 } catch (e) { // 失败则继续向下执行 Canvas 逻辑
                     console.warn('ImageCapture.takePhoto failed, falling back to canvas:', e);
@@ -426,7 +411,7 @@
             canvas.width = vw;
             canvas.height = vh;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, vw, vh);
+            ctx.drawImage(video, 0, 0);
             return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/jpeg', 0.95));
         }
 
@@ -488,7 +473,6 @@
             btnSwitch.style.display = 'flex';
             btnShutter.style.display = '';
             if (!stream) await startStream();
-            else adjustFrame();
         });
 
         // 确认事件：把文件注入原 input 并关闭覆盖层
@@ -520,14 +504,6 @@
             console.error('getUserMedia error', err);
             alert('无法访问摄像头');
             overlay._cleanup();
-        });
-
-        // 窗口尺寸变更时调整 frame
-        window.addEventListener('resize', () => {
-            try {
-                if (video?.videoWidth && video?.videoHeight && !isPreview) adjustFrame();
-            } catch (_) {
-            }
         });
     }
 
