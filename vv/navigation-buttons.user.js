@@ -100,6 +100,10 @@
             padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: background-color .12s ease;
             display: flex; flex-direction: column;
         }
+        .unified-list-item:focus, .unified-list-item:focus-visible {
+            outline: none !important;
+            box-shadow: none !important;
+        }
         .unified-list li:hover, .unified-list li.highlighted {
             background: #eef2ff;
         }
@@ -131,8 +135,8 @@
             padding: 8px; line-height: 1; border-radius: 50%; display: flex;
             align-items: center; justify-content: center;
         }
-        .action-btn:hover { background-color: #f3f4f6; color: #374151; }
-        .action-btn.delete:hover { color: #ef4444; }
+        .action-btn:hover, .action-btn:focus { background-color: #f3f4f6; color: #374151; }
+        .action-btn.delete:hover, .action-btn.delete:focus { color: #ef4444; }
         .action-btn svg { width: 20px; height: 20px; display: block; }
 
         .search-spotlight-card {
@@ -279,6 +283,13 @@
         return path.length > 0 ? path : null;
     }
 
+    function scrollTreeItem(node) {
+        node.scrollIntoView({block: 'center', behavior: 'auto'});
+        const container = node.closest('div[list]');
+        if (container) container.scrollLeft = 0; // 确保左侧始终顶到头
+        else node.scrollLeft = 0;
+    }
+
     // 全局递增 token：每次开始新回放都 ++，旧回放在检测到 token 变化后中止
     let replayToken = 0;
 
@@ -291,10 +302,7 @@
                     if (cleanInnerText(node) === text) {
                         if (!node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
                             node.click(); // 如果已展开则不点击
-                            node.scrollIntoView({block: 'center', behavior: 'auto'});
-                            const container = node.closest('div[list]');
-                            if (container) container.scrollLeft = 0; // 确保左侧始终顶到头
-                            else node.scrollLeft = 0;
+                            scrollTreeItem(node);
                         }
                         lastClickedEl = node;
                         return true;
@@ -318,8 +326,7 @@
             }
             await sleep(200);
         }
-        lastClickedEl.scrollIntoView({block: 'center', behavior: 'auto'});
-        lastClickedEl.closest("div[list]").scrollLeft = 0;// 确保左侧始终顶到头
+        scrollTreeItem(lastClickedEl);
         return lastClickedEl;
     }
 
@@ -394,6 +401,8 @@
                 onItem(li, item, index);
                 this.itemEl.appendChild(li);
                 this.itemElsList.push(li);
+                li.addEventListener('focus', () => this.highlightIndex(index));
+                 // 跟随焦点，如无法聚焦则无效果（li默认无法聚焦，需要tabIndex=0）
             });
             this.keyInputEl.focus();
         }
@@ -427,6 +436,7 @@
             this.itemElsList.forEach(it => it.classList.remove('highlighted'));
             this.itemElsList[this.currentIndex].classList.add('highlighted');
             this.itemElsList[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
+            this.itemElsList[this.currentIndex].focus({focusVisible: false});
         }
 
         escHandle(e) {
@@ -484,9 +494,7 @@
                     li.addEventListener('click', () => {
                         try {
                             childEl.click();
-                            childEl.scrollIntoView({block: 'nearest', behavior: 'auto'});
-                            // todo: 优化？
-                            childEl.closest("div[list]")?.scrollBy({left: -100, top: 0, behavior: 'auto'}); // 确保左侧始终顶到头
+                            scrollTreeItem(childEl);
                         } catch (e) {
                             console.error(e);
                         }
@@ -610,6 +618,7 @@
             actionsDiv.appendChild(deleteBtn);
             li.appendChild(textContentDiv);
             li.appendChild(actionsDiv);
+            li.tabIndex = 0; // 允许聚焦以便能够用tab选中编辑、删除按钮
 
             li.addEventListener('click', async (e) => {
                 if (editBtn.contains(e.target) || deleteBtn.contains(e.target)) return;
@@ -620,6 +629,19 @@
                     console.error("Replay or next step check failed:", error);
                 }
             });
+
+            function preventEnter(btn) {
+                btn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        btn.click();
+                    }
+                });
+            }
+
+            preventEnter(editBtn);
+            preventEnter(deleteBtn);
 
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -658,7 +680,6 @@
                     textContentDiv.replaceChild(titleSpan, input);
                     // 保存后把高光定位到该项
                     this.drawer.highlightIndex(index);
-                    this.drawer.keyInputEl.focus({preventScroll: true});
                 });
             });
         }
