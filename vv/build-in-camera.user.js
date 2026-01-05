@@ -162,6 +162,28 @@
         }
     `);
 
+    const ICONS = {
+        'cameraSwitch':
+            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M21.25 7.5a.75.75 0 0 1 .743.648L22 8.25v8.5a3.25 3.25 0 0 1-3.066 3.245L18.75 20H6.061l.72.72a.75.75 0 0 1 .072.976l-.073.084a.75.75 0 0 1-.976.073l-.084-.073l-2-2l-.064-.072l-.007-.01l.07.082a.75.75 0 0 1-.127-.89a.8.8 0 0 1 .128-.17l2-2a.75.75 0 0 1 1.133.976l-.073.084l-.72.72h12.69a1.75 1.75 0 0 0 1.744-1.607l.006-.143v-8.5a.75.75 0 0 1 .75-.75m-3.054-5.353l.084.073l2 2a1 1 0 0 1 .071.081l-.07-.081a.75.75 0 0 1 .004 1.056l-.005.004l-2 2a.75.75 0 0 1-1.133-.976l.073-.084l.718-.72H5.25a1.75 1.75 0 0 0-1.744 1.606L3.5 7.25v8.5a.75.75 0 0 1-1.493.102L2 15.75v-8.5a3.25 3.25 0 0 1 3.066-3.245L5.25 4h12.689l-.72-.72a.75.75 0 0 1-.072-.976l.073-.084a.75.75 0 0 1 .976-.073M12 8a4 4 0 1 1 0 8a4 4 0 0 1 0-8">
+                </path>
+            </svg>`,
+        'flashOff':
+            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
+                <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+            </svg>`,
+        'flashAuto':
+            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
+                <text x="14" y="22" fill="currentColor" font-size="10" font-weight="bold">A</text>
+            </svg>`,
+        'flashOn':
+            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
+            </svg>`
+    }
+
     // 修改全部 file input，添加 accept 和 capture 属性
     const inputSelector = 'input[type="file"][accept="image/*"]';
 
@@ -289,11 +311,7 @@
         btnSwitch.type = 'button';
         btnSwitch.title = '切换摄像头';
         btnSwitch.className = 'iu-switch';
-        btnSwitch.innerHTML =
-            `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M21.25 7.5a.75.75 0 0 1 .743.648L22 8.25v8.5a3.25 3.25 0 0 1-3.066 3.245L18.75 20H6.061l.72.72a.75.75 0 0 1 .072.976l-.073.084a.75.75 0 0 1-.976.073l-.084-.073l-2-2l-.064-.072l-.007-.01l.07.082a.75.75 0 0 1-.127-.89a.8.8 0 0 1 .128-.17l2-2a.75.75 0 0 1 1.133.976l-.073.084l-.72.72h12.69a1.75 1.75 0 0 0 1.744-1.607l.006-.143v-8.5a.75.75 0 0 1 .75-.75m-3.054-5.353l.084.073l2 2a1 1 0 0 1 .071.081l-.07-.081a.75.75 0 0 1 .004 1.056l-.005.004l-2 2a.75.75 0 0 1-1.133-.976l.073-.084l.718-.72H5.25a1.75 1.75 0 0 0-1.744 1.606L3.5 7.25v8.5a.75.75 0 0 1-1.493.102L2 15.75v-8.5a3.25 3.25 0 0 1 3.066-3.245L5.25 4h12.689l-.72-.72a.75.75 0 0 1-.072-.976l.073-.084a.75.75 0 0 1 .976-.073M12 8a4 4 0 1 1 0 8a4 4 0 0 1 0-8">
-                </path>
-            </svg>`;
+        btnSwitch.innerHTML = ICONS['cameraSwitch'];
         const btnShutter = document.createElement('button');
         btnShutter.type = 'button';
         btnShutter.className = 'iu-shutter';
@@ -326,10 +344,10 @@
 
         // 状态
         let stream = null;
-        let imageCapture = null; // 新增：ImageCapture 实例
+        let imageCapture = null; // ImageCapture 实例
         let facingMode = 'environment';
-        let fillLightMode = 'off'; // 新增：闪光灯模式 'off' | 'auto' | 'flash'
-        let flashCapabilities = null; // 新增：闪光灯能力
+        let fillLightMode = 'off'; // 闪光灯模式 'off' | 'auto' | 'flash'
+        let flashCapabilities = null; // 闪光灯能力
         let lastBlob = null;
         let isPreview = false;
 
@@ -341,28 +359,14 @@
                 'flash': '闪光灯: 开启'
             };
             btnFlash.title = modeNames[fillLightMode];
-            
+
             // 根据模式显示不同的图标
-            if (fillLightMode === 'off') {
-                // 关闭状态：闪电图标+斜线
-                btnFlash.innerHTML =
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z" opacity="0.3"></path>
-                        <path fill="currentColor" d="M22 2L2 22"></path>
-                    </svg>`;
+            if (fillLightMode === 'flash') {
+                btnFlash.innerHTML = ICONS['flashOn'];
             } else if (fillLightMode === 'auto') {
-                // 自动状态：闪电图标+A
-                btnFlash.innerHTML =
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
-                        <text x="14" y="22" fill="currentColor" font-size="10" font-weight="bold">A</text>
-                    </svg>`;
+                btnFlash.innerHTML = ICONS['flashAuto'];
             } else {
-                // 开启状态：纯闪电图标
-                btnFlash.innerHTML =
-                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
-                    </svg>`;
+                btnFlash.innerHTML = ICONS['flashOff'];
             }
         }
 
@@ -384,8 +388,8 @@
             } catch (_) {
             }
             stream = null;
-            imageCapture = null; // 清理
-            flashCapabilities = null; // 清理
+            imageCapture = null;
+            flashCapabilities = null;
         }
 
         // 启动摄像头流并在 metadata 后调整尺寸
@@ -394,6 +398,7 @@
             btnShutter.style.display = '';
             btnSwitch.style.display = 'flex';
             btnFlash.style.display = 'flex';
+            btnFlash.style.visibility = 'hidden'; // 用visibility而不是display隐藏避免影响其他按钮位置
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
@@ -419,10 +424,11 @@
                     imageCapture = new ImageCapture(track);
                     // 获取闪光灯能力
                     flashCapabilities = await getFlashCapabilities();
-                    
-                    // 如果设备不支持闪光灯，隐藏按钮
-                    if (flashCapabilities && flashCapabilities.length === 0) {
-                        btnFlash.style.display = 'none';
+
+                    // 仅当设备支持闪光灯，显示按钮
+                    if (flashCapabilities?.length > 0) {
+                        btnFlash.style.visibility = 'visible';
+                        updateFlashButton();
                     }
                 } catch (e) {
                     console.warn('ImageCapture init failed:', e);
@@ -583,7 +589,7 @@
             const modes = ['off', 'auto', 'flash'];
             const currentIndex = modes.indexOf(fillLightMode);
             const nextMode = modes[(currentIndex + 1) % modes.length];
-            
+
             // 检查设备是否支持该模式
             if (flashCapabilities && !flashCapabilities.includes(nextMode)) {
                 console.warn('设备不支持闪光灯模式:', nextMode);
@@ -595,17 +601,8 @@
             } else {
                 fillLightMode = nextMode;
             }
-            
+
             updateFlashButton();
-            
-            // 尝试设置闪光灯
-            if (imageCapture) {
-                try {
-                    await imageCapture.setOptions({ fillLightMode });
-                } catch (err) {
-                    console.warn('设置闪光灯失败:', err);
-                }
-            }
         });
 
         // 启动摄像头流
