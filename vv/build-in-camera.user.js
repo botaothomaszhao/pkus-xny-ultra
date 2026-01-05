@@ -587,21 +587,14 @@
         // 闪光灯按钮事件
         btnFlash.addEventListener('click', async () => {
             const modes = ['off', 'auto', 'flash'];
-            const currentIndex = modes.indexOf(fillLightMode);
-            const nextMode = modes[(currentIndex + 1) % modes.length];
+            const supported = modes.filter(m => flashCapabilities.includes(m));
 
-            // 检查设备是否支持该模式
-            if (flashCapabilities && !flashCapabilities.includes(nextMode)) {
-                console.warn('设备不支持闪光灯模式:', nextMode);
-                // 如果不支持，跳过该模式
-                const supportedIndex = modes.findIndex(m => flashCapabilities.includes(m));
-                if (supportedIndex !== -1) {
-                    fillLightMode = modes[supportedIndex];
-                }
-            } else {
-                fillLightMode = nextMode;
-            }
+            // 若仅有一个模式，则禁用切换
+            btnFlash.disabled = supported.length <= 1;
 
+            const currentIndex = supported.indexOf(fillLightMode);
+            const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % supported.length;
+            fillLightMode = supported[nextIndex];
             updateFlashButton();
         });
 
