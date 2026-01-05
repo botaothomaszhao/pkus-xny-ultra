@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         网页内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.2
+// @version      vv.3.3
 // @license      GPL-3.0
-// @description  在网页内实现相机拍照，解决浏览器无法唤起相机的问题。与图片选择框脚本配合会作为“拍照上传”选项，单独使用会对全部图片上传元素生效。
+// @description  在网页内实现相机拍照，解决浏览器无法唤起相机的问题。与图片选择框脚本配合会作为"拍照上传"选项，单独使用会对全部图片上传元素生效。
 // @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -114,6 +114,20 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
             cursor: pointer;
             padding: 0;
+        }
+        .iu-flash {
+            width: 52px;
+            height: 52px;
+            border-radius: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.9);
+            background: rgba(0,0,0,0.28);
+            color: #fff;
+            cursor: pointer;
+            padding: 6px;
+            box-sizing: border-box;
         }
         .iu-bottombar {
             position: fixed;
@@ -283,6 +297,10 @@
         const btnShutter = document.createElement('button');
         btnShutter.type = 'button';
         btnShutter.className = 'iu-shutter';
+        const btnFlash = document.createElement('button');
+        btnFlash.type = 'button';
+        btnFlash.title = '闪光灯';
+        btnFlash.className = 'iu-flash';
         const bottomBar = document.createElement('div');
         bottomBar.className = 'iu-bottombar';
         const btnRetake = document.createElement('button');
@@ -296,6 +314,7 @@
 
         rightBar.appendChild(btnSwitch);
         rightBar.appendChild(btnShutter);
+        rightBar.appendChild(btnFlash);
         bottomBar.appendChild(btnRetake);
         bottomBar.appendChild(btnConfirm);
         container.appendChild(frame);
@@ -309,8 +328,55 @@
         let stream = null;
         let imageCapture = null; // 新增：ImageCapture 实例
         let facingMode = 'environment';
+        let fillLightMode = 'off'; // 新增：闪光灯模式 'off' | 'auto' | 'flash'
+        let flashCapabilities = null; // 新增：闪光灯能力
         let lastBlob = null;
         let isPreview = false;
+
+        // 更新闪光灯按钮图标
+        function updateFlashButton() {
+            const modeNames = {
+                'off': '闪光灯: 关闭',
+                'auto': '闪光灯: 自动',
+                'flash': '闪光灯: 开启'
+            };
+            btnFlash.title = modeNames[fillLightMode];
+            
+            // 根据模式显示不同的图标
+            if (fillLightMode === 'off') {
+                // 关闭状态：闪电图标+斜线
+                btnFlash.innerHTML =
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z" opacity="0.3"></path>
+                        <path fill="currentColor" d="M22 2L2 22"></path>
+                    </svg>`;
+            } else if (fillLightMode === 'auto') {
+                // 自动状态：闪电图标+A
+                btnFlash.innerHTML =
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
+                        <text x="14" y="22" fill="currentColor" font-size="10" font-weight="bold">A</text>
+                    </svg>`;
+            } else {
+                // 开启状态：纯闪电图标
+                btnFlash.innerHTML =
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
+                    </svg>`;
+            }
+        }
+
+        // 获取闪光灯能力
+        async function getFlashCapabilities() {
+            if (!imageCapture) return null;
+            try {
+                const caps = await imageCapture.getPhotoCapabilities();
+                return caps.fillLightMode;
+            } catch (e) {
+                console.warn('获取闪光灯能力失败:', e);
+                return null;
+            }
+        }
 
         function stopStream() {
             try {
@@ -319,6 +385,7 @@
             }
             stream = null;
             imageCapture = null; // 清理
+            flashCapabilities = null; // 清理
         }
 
         // 启动摄像头流并在 metadata 后调整尺寸
@@ -326,6 +393,7 @@
             stopStream();
             btnShutter.style.display = '';
             btnSwitch.style.display = 'flex';
+            btnFlash.style.display = 'flex';
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
@@ -349,6 +417,13 @@
             if (track && 'ImageCapture' in window) {
                 try {
                     imageCapture = new ImageCapture(track);
+                    // 获取闪光灯能力
+                    flashCapabilities = await getFlashCapabilities();
+                    
+                    // 如果设备不支持闪光灯，隐藏按钮
+                    if (flashCapabilities && flashCapabilities.length === 0) {
+                        btnFlash.style.display = 'none';
+                    }
                 } catch (e) {
                     console.warn('ImageCapture init failed:', e);
                 }
@@ -397,7 +472,9 @@
                     const targetHeight = Math.min(CAPTURE_HEIGHT, caps.imageHeight.max);*/
 
                     return await imageCapture.takePhoto({
-                        imageWidth: CAPTURE_WIDTH, imageHeight: CAPTURE_HEIGHT,
+                        imageWidth: CAPTURE_WIDTH,
+                        imageHeight: CAPTURE_HEIGHT,
+                        fillLightMode: fillLightMode
                     });
                 } catch (e) { // 失败则继续向下执行 Canvas 逻辑
                     console.warn('ImageCapture.takePhoto failed, falling back to canvas:', e);
@@ -429,6 +506,7 @@
                 lastBlob = blob;
                 // 拍照后隐藏切换和快门，显示底部操作
                 btnSwitch.style.display = 'none';
+                btnFlash.style.display = 'none';
                 btnShutter.style.display = 'none';
                 btnRetake.style.display = 'inline-block';
                 btnConfirm.style.display = 'inline-block';
@@ -471,6 +549,7 @@
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             btnSwitch.style.display = 'flex';
+            btnFlash.style.display = 'flex';
             btnShutter.style.display = '';
             if (!stream) await startStream();
         });
@@ -496,6 +575,36 @@
             } catch (err) {
                 console.error('切换摄像头失败', err);
                 alert('无法切换摄像头');
+            }
+        });
+
+        // 闪光灯按钮事件
+        btnFlash.addEventListener('click', async () => {
+            const modes = ['off', 'auto', 'flash'];
+            const currentIndex = modes.indexOf(fillLightMode);
+            const nextMode = modes[(currentIndex + 1) % modes.length];
+            
+            // 检查设备是否支持该模式
+            if (flashCapabilities && !flashCapabilities.includes(nextMode)) {
+                console.warn('设备不支持闪光灯模式:', nextMode);
+                // 如果不支持，跳过该模式
+                const supportedIndex = modes.findIndex(m => flashCapabilities.includes(m));
+                if (supportedIndex !== -1) {
+                    fillLightMode = modes[supportedIndex];
+                }
+            } else {
+                fillLightMode = nextMode;
+            }
+            
+            updateFlashButton();
+            
+            // 尝试设置闪光灯
+            if (imageCapture) {
+                try {
+                    await imageCapture.setOptions({ fillLightMode });
+                } catch (err) {
+                    console.warn('设置闪光灯失败:', err);
+                }
             }
         });
 
