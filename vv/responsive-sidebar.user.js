@@ -16,7 +16,7 @@
 
     // 侧边栏固定宽度
     const SIDEBAR_WIDTH = 260; // px
-    const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px todo: 优化top后修改
+    const MIN_CONTENT_WIDTH = 600; // 收起后主内容区最小宽度要求 px
 
     // 防抖延迟（resize 后等待 ms）
     const DEBOUNCE_MS = 150;
@@ -71,16 +71,9 @@
         }, DEBOUNCE_MS);
     }
 
-    // 启动逻辑：仅在首次加载和尺寸变化时响应（不使用大量 DOM 变更监听）
-    if (document.readyState === 'loading') {
-        window.addEventListener('load', () => {
-            setTimeout(decideAndApply, 300);
-        });
-    } else {
-        setTimeout(decideAndApply, 600);
-    }
+    setTimeout(decideAndApply, 600);
 
-    // 监听 resize 与 ResizeObserver（两者兼备）
+    // 监听 resize 与 ResizeObserver
     window.addEventListener('resize', decideAndApply, {passive: true});
     try {
         const ro = new ResizeObserver(decideAndApply);

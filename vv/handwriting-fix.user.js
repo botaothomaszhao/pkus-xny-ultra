@@ -25,7 +25,6 @@
 
     // 对单个画板元素应用触摸/滚动修复
     function applyFix(element) {
-        // 如果已经处理过该元素则跳过
         if (element.hasAttribute(fixedAttribute)) return;
 
         console.log('Tampermonkey: 对新画板应用修复。', element);

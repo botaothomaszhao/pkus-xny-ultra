@@ -187,7 +187,7 @@
     // 修改全部 file input，添加 accept 和 capture 属性
     const inputSelector = 'input[type="file"][accept="image/*"]';
 
-    function relaxAccept(el) {
+    function setCapture(el) {
         if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return;
         if (el.getAttribute('script-temp-file-input')) return; // 忽略图片选择框创建的临时 input
         //el.setAttribute('accept', 'image/*');
@@ -195,16 +195,16 @@
     }
 
     // 处理已有元素
-    document.querySelectorAll(inputSelector).forEach(relaxAccept);
+    document.querySelectorAll(inputSelector).forEach(setCapture);
 
     // 监听动态插入的元素
     const mo = new MutationObserver(records => {
         for (const r of records) {
             for (const n of r.addedNodes) {
                 if (n.nodeType !== 1) continue;
-                if (n.matches(inputSelector)) relaxAccept(n);
+                if (n.matches(inputSelector)) setCapture(n);
                 const list = n.querySelectorAll(inputSelector);
-                if (list?.length) list.forEach(relaxAccept);
+                if (list?.length) list.forEach(setCapture);
             }
         }
     });
@@ -266,7 +266,7 @@
             overlay.remove();
         } catch (_) {
         }
-        // 仅当当前 history.state 是我们之前 push 的上传选择器状态时，才回退历史记录。
+        // 仅当当前 history.state 是之前 push 的上传选择器状态时，才回退历史记录。
         if (history.state?.cameraOverlay) {
             try {
                 history.back();
@@ -398,7 +398,7 @@
             btnShutter.style.display = '';
             btnSwitch.style.display = 'flex';
             btnFlash.style.display = 'flex';
-            btnFlash.style.visibility = 'hidden'; // 用visibility而不是display隐藏避免影响其他按钮位置
+            btnFlash.style.visibility = 'hidden'; // 用visibility而不是display隐藏，避免影响其他按钮位置
             btnRetake.style.display = 'none';
             btnConfirm.style.display = 'none';
             const constraints = {
@@ -422,7 +422,6 @@
             if (track && 'ImageCapture' in window) {
                 try {
                     imageCapture = new ImageCapture(track);
-                    // 获取闪光灯能力
                     flashCapabilities = await getFlashCapabilities();
 
                     // 仅当设备支持闪光灯，显示按钮
@@ -588,9 +587,6 @@
         btnFlash.addEventListener('click', async () => {
             const modes = ['off', 'auto', 'flash'];
             const supported = modes.filter(m => flashCapabilities.includes(m));
-
-            // 若仅有一个模式，则禁用切换
-            btnFlash.disabled = supported.length <= 1;
 
             const currentIndex = supported.indexOf(fillLightMode);
             const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % supported.length;

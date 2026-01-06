@@ -166,7 +166,7 @@
             overlay.remove();
         } catch (_) {
         }
-        // 仅当当前 history.state 是我们之前 push 的上传选择器状态时，才回退历史记录。
+        // 仅当当前 history.state 是之前 push 的上传选择器状态时，才回退历史记录。
         if (history.state?.uploadChooser) {
             try {
                 history.back(); // 注意：back()是异步的，等待完成需要监听 popstate 事件
@@ -188,12 +188,10 @@
         const panel = document.createElement('div');
         panel.className = 'iu-panel';
 
-        // 辅助函数：创建带图标的按钮
+        // 创建带图标的按钮
         function mkBtn(text, iconSvg) {
             const b = document.createElement('button');
             b.type = 'button';
-
-            // 注意：这里用 innerHTML 插入 SVG，文字用 createTextNode 防止 XSS（虽然这里是静态文字）
             b.innerHTML = iconSvg;
             b.appendChild(document.createTextNode(text));
             return b;

@@ -96,7 +96,6 @@
             const els = root.querySelectorAll(sel);
             els.forEach(e => e.remove());
         }
-
         debounceTextMatch();
 
         // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复
