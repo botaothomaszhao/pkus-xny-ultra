@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.4
+// @version      vv.3.5
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -251,7 +251,7 @@
         if (activeFolder) {
             path.push({selector: "div.folderName", text: cleanInnerText(activeFolder)});
         }
-        const searchContext = activeFolder?.closest('div.infinite-list-wrapper') || document;
+        const searchContext = activeFolder?.closest('div.folder') || document;
         const selected = searchContext.querySelector('.ant-tree-node-selected');
         const entries = [];
 
@@ -273,12 +273,13 @@
             }
             // 映射为存储结构并合并到 path
 
-            /*  顶部标签栏：能正确捕获但无法正确回放
+            /*
+            // 顶部标签栏：能正确捕获但无法正确回放
             const slide = document.querySelector("div.swiper-slide.sideActive");
             if (slide){
                 path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
             }*/
-        } else if (!document.querySelector('.emptyHeight'))
+        } else if (window.location.href.includes('catalogId='))
             return null; // 非空页面但未选中任何节点，可能是文件夹被收起导致无法捕获，返回 null 以不保存
         return path.length > 0 ? path : null;
     }
@@ -402,7 +403,7 @@
                 this.itemEl.appendChild(li);
                 this.itemElsList.push(li);
                 li.addEventListener('focus', () => this.highlightIndex(index));
-                 // 跟随焦点，如无法聚焦则无效果（li默认无法聚焦，需要tabIndex=0）
+                // 跟随焦点，如无法聚焦则无效果（li默认无法聚焦，需要tabIndex=0）
             });
             this.keyInputEl.focus();
         }
@@ -510,7 +511,12 @@
 
         // 检测是否有子节点可展开，若有则展开
         checkNextStep(lastElement) {
-            const childTree = lastElement?.closest('li[role="treeitem"]')?.querySelector('ul.ant-tree-child-tree');
+            let childTree;
+            if (lastElement?.matches('.folderName')) {
+                childTree = lastElement.closest('div.folder')?.querySelector('.ant-tree-directory');
+            } else {
+                childTree = lastElement?.closest('li[role="treeitem"]')?.querySelector('ul.ant-tree-child-tree');
+            }
             if (childTree?.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
@@ -705,7 +711,7 @@
 
         async addCurrentPathToFavorites() {
             const path = captureCurrentPath();
-            if (!path || path.length <= 2) {
+            if (!path || path.length < 2) {
                 console.warn('收藏失败: 无法捕获当前路径。');
                 return;
             }
