@@ -908,6 +908,10 @@
             // 点击导航元素自动保存，包括自动回放触发，带防抖
             const debouncedSavePath = debounce(savePathForReplay, 400);
             document.addEventListener('click', (e) => {
+                if (e.target.matches('.folderName')){
+                    // 移除 URL 中的 catalogId 以避免干扰回放
+                    window.location.replace(window.location.href.split('&catalogId')[0]);
+                }
                 const navContainer = e.target.closest('.menu, .folder');
                 if (navContainer) debouncedSavePath();
             }, true);
