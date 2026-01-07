@@ -41,6 +41,7 @@
         }
     }
 
+    // 修改页面数据以启用考试的答案显示
     function modifyEntityData(data) {
         try {
             if (data && Array.isArray(data.extra)) {
@@ -56,88 +57,59 @@
         }
     }
 
-    function setupXHRInterceptor() {
-        const originalOpen = XMLHttpRequest.prototype.open;
-        const originalSend = XMLHttpRequest.prototype.send;
+    function applyModifierToXhr(xhr, modifier) {
+        const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
+        const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
 
-        XMLHttpRequest.prototype.open = function (method, url) {
-            if (url && typeof url === 'string' && url.endsWith('/content')) {
-                this._isContentTarget = true;
-            } else if (url && typeof url === 'string' && url.includes('/paper/entity/catalog/')) {
-                this._isEntityNumTarget = true;
-            }
-            originalOpen.apply(this, arguments);
-        };
-
-        XMLHttpRequest.prototype.send = function () {
-            // 处理题目目录请求
-            if (this._isContentTarget) {
-                const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
-                const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
-
-                Object.defineProperty(this, 'responseText', {
-                    get: function () {
-                        const realResponseText = originalDescriptorText.get.call(this);
-                        try {
-                            const data = JSON.parse(realResponseText);
-                            const modifiedData = modifyContentData(data);
-                            return JSON.stringify(modifiedData);
-                        } catch (e) {
-                            return realResponseText;
-                        }
-                    },
-                    configurable: true
-                });
-
-                Object.defineProperty(this, 'response', {
-                    get: function () {
-                        const realResponse = originalDescriptorResponse.get.call(this);
-                        try {
-                            const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
-                            return modifyContentData(data);
-                        } catch (e) {
-                            return realResponse;
-                        }
-                    },
-                    configurable: true
-                });
-            }
-
-            if (this._isEntityNumTarget) {
-                const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
-                const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
-
-                Object.defineProperty(this, 'responseText', {
-                    get: function () {
-                        const realResponseText = originalDescriptorText.get.call(this);
-                        try {
-                            const data = JSON.parse(realResponseText);
-                            const modifiedData = modifyEntityData(data);
-                            return JSON.stringify(modifiedData);
-                        } catch (e) {
-                            return realResponseText;
-                        }
-                    },
-                    configurable: true
-                });
-
-                Object.defineProperty(this, 'response', {
-                    get: function () {
-                        const realResponse = originalDescriptorResponse.get.call(this);
-                        try {
-                            const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
-                            return modifyEntityData(data);
-                        } catch (e) {
-                            return realResponse;
-                        }
-                    }
-                });
-            }
-
-            // 最终总是调用原始的 send 方法
-            originalSend.apply(this, arguments);
-        };
+        Object.defineProperty(xhr, 'responseText', {
+            get: function () {
+                const realResponseText = originalDescriptorText.get.call(this);
+                try {
+                    const data = JSON.parse(realResponseText);
+                    const modified = modifier(data);
+                    return JSON.stringify(modified);
+                } catch (e) {
+                    return realResponseText;
+                }
+            },
+            configurable: true
+        });
+        Object.defineProperty(xhr, 'response', {
+            get: function () {
+                const realResponse = originalDescriptorResponse.get.call(this);
+                try {
+                    const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
+                    return modifier(data);
+                } catch (e) {
+                    return realResponse;
+                }
+            },
+            configurable: true
+        });
     }
 
-    setupXHRInterceptor();
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function (method, url) {
+        if (url && typeof url === 'string' && url.endsWith('/content')) {
+            this._isContentTarget = true;
+        } else if (url && typeof url === 'string' && url.includes('/paper/entity/catalog/')) {
+            this._isEntityNumTarget = true;
+        }
+        originalOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function () {
+        // 在 send 中使用复用函数
+        if (this._isContentTarget) {
+            applyModifierToXhr(this, modifyContentData);
+        } else if (this._isEntityNumTarget) {
+            applyModifierToXhr(this, modifyEntityData);
+        }
+
+        // 最终总是调用原始的 send 方法
+        originalSend.apply(this, arguments);
+    };
+
 })();
