@@ -21,7 +21,7 @@
                     if (item?.content) {
                         const content = item.content;
                         const keysToEnable = ["previewAnswer",
-                            "answerWayHandle", "answerWayPhoto", "answerWayKeyboard", "questionTalkingSwitch"];
+                            "answerWayHandle", "answerWayPhoto", "answerWayKeyboard"];
                         keysToEnable.forEach(key => {
                             if (typeof content[key] !== 'undefined') {
                                 content[key] = 1;
