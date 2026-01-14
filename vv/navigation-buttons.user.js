@@ -285,9 +285,6 @@
 
     function scrollTreeItem(node) {
         node.scrollIntoView({block: 'center', behavior: 'auto'});
-        const container = node.closest('div[list]');
-        if (container) container.scrollLeft = 0; // 确保左侧始终顶到头
-        else node.scrollLeft = 0;
     }
 
     // 全局递增 token：每次开始新回放都 ++，旧回放在检测到 token 变化后中止
@@ -326,7 +323,6 @@
             }
             await sleep(200);
         }
-        scrollTreeItem(lastClickedEl);
         return lastClickedEl;
     }
 
@@ -725,7 +721,7 @@
             let f = await this.getFavorites();
             f.splice(index, 1);
             await this.saveFavorites(f);
-            if (this.drawer) await this.drawer.renderList(f, this.renderItem, `您的收藏夹夹是空的<br>点击"+"按钮添加吧`);
+            this.drawer?.renderList(f, this.renderItem, `您的收藏夹夹是空的<br>点击"+"按钮添加吧`);
         }
     }
 
