@@ -61,8 +61,7 @@
             z-index: 9999;
             opacity: 0;
             transition: opacity .25s ease;
-            background-color: rgba(255,255,255,0.5);
-            backdrop-filter: blur(10px);
+            background-color: rgba(0, 0, 0, 0.55);
         }
         .drawer-overlay.visible { opacity: 1; visibility: visible; }
 
