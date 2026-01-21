@@ -24,7 +24,7 @@
     const imgBoxSelector = '.result2';
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
-    const textMap = [{
+    const textMap = [{ // todo: 重新测试答题区
         selector: 'button.ant-btn', text: '扫描作答', replaceText: null
     }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
@@ -61,7 +61,7 @@
 
     let debounceTimer = null;
 
-    function debounceTextMatch() {
+    function debounceTextMatch() { // todo: 如无用则删除
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             for (const {selector, text, replaceText} of textMap) {
@@ -103,12 +103,7 @@
         resultEls.forEach(el => processResult2(el));
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => removeTargetElements());
-    } else {
-        removeTargetElements();
-    }
-    window.addEventListener('load', () => removeTargetElements());
+    setTimeout(removeTargetElements, 100)
 
     const observer = new MutationObserver(mutations => {
         for (const m of mutations) {

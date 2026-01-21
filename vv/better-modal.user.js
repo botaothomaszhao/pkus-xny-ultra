@@ -14,7 +14,245 @@
 (function () {
     'use strict';
 
+    const UNIFIED_ATTR = 'modal-unified';
 
+    GM_addStyle(`
+        .um-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity .25s ease;
+            background-color: rgba(0, 0, 0, 0.55);
+        }
+        .um-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .um-overlay.fullscreen {
+            background-color: transparent;
+            padding: 0;
+        }
+        .um-modal {
+            width: min(900px, calc(100vw - 64px));
+            max-height: calc(100vh - 64px);
+            margin: 32px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(20px);
+            transition: transform 0.2s ease;
+        }
+        .um-overlay.visible .um-modal {
+            transform: translateY(0);
+        }
+        .um-modal.fullscreen {
+            width: 100vw;
+            height: 100vh;
+            max-height: none;
+            border-radius: 0;
+            box-shadow: none;
+            margin: 0;
+        }
+        .um-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+        }
+        .um-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
+        .um-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .um-icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .um-icon-btn:hover {
+            background: #e5e7eb;
+            color: #111827;
+        }
+        .um-content {
+            flex: 1;
+            padding: 24px;
+            overflow: auto;
+        }
+        .um-icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+    `);
+
+    const ICONS = {
+        fullscreen: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 9 3 3 9 3"></polyline>
+                <line x1="3" y1="3" x2="10" y2="10"></line>
+                <polyline points="21 15 21 21 15 21"></polyline>
+                <line x1="21" y1="21" x2="14" y2="14"></line>
+            </svg>`, minimize: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 3 9 9 3 9"></polyline>
+                <line x1="3" y1="3" x2="10" y2="10"></line>
+                <polyline points="15 21 15 15 21 15"></polyline>
+                <line x1="21" y1="21" x2="14" y2="14"></line>
+            </svg>`, close: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>`
+    };
+
+    class UnifiedModal {
+        constructor(title, content, onClose) {
+            this.onClose = onClose;
+            this.isFullscreen = false;
+
+            this.overlay = document.createElement('div');
+            this.overlay.className = 'um-overlay';
+            this.overlay.addEventListener('click', (e) => {
+                if (e.target === this.overlay) this.close();
+            });
+
+            this.modal = document.createElement('div');
+            this.modal.className = 'um-modal';
+
+            this.header = document.createElement('div');
+            this.header.className = 'um-header';
+
+            this.titleEl = document.createElement('h2');
+            this.titleEl.className = 'um-title';
+            this.titleEl.textContent = title;
+
+            this.actions = document.createElement('div');
+            this.actions.className = 'um-actions';
+
+            this.fullscreenBtn = this.createButton('fullscreen', () => this.toggleFullscreen());
+            this.closeBtn = this.createButton('close', () => this.close());
+            this.actions.append(this.fullscreenBtn, this.closeBtn);
+
+            this.header.append(this.titleEl, this.actions);
+
+            this.contentEl = document.createElement('div');
+            this.contentEl.className = 'um-content';
+
+            this.modal.append(this.header, this.contentEl);
+            this.overlay.appendChild(this.modal);
+            this.overlay.addEventListener('keydown', (e) => this.escHandle(e), true);
+            this.overlay.addEventListener('keydown', (e) => this.escHandle(e), true);
+
+            if (content) this.setContent(content);
+
+            document.body.appendChild(this.overlay);
+            requestAnimationFrame(() => this.overlay.classList.add('visible'));
+        }
+
+        escHandle(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                } catch (_) {
+                }
+                this.close();
+            }
+        }
+
+        createButton(type, handler) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'um-icon-btn';
+            btn.innerHTML = ICONS[type];
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handler();
+            });
+            return btn;
+        }
+
+        setContent(renderer) {
+            this.contentEl.innerHTML = '';
+            if (renderer instanceof Node) {
+                this.contentEl.appendChild(renderer);
+            } else if (typeof renderer === 'string') {
+                this.contentEl.innerHTML = renderer;
+            }
+        }
+
+        toggleFullscreen() {
+            this.isFullscreen = !this.isFullscreen;
+            this.overlay.classList.toggle('fullscreen', this.isFullscreen);
+            this.modal.classList.toggle('fullscreen', this.isFullscreen);
+            this.fullscreenBtn.innerHTML = this.isFullscreen ? ICONS.minimize : ICONS.fullscreen;
+        }
+
+        close() {
+            if (this.overlay){
+                this.overlay.classList.remove('visible');
+                this.overlay.addEventListener('transitionend', () => {
+                    this.overlay.remove();
+                    this.overlay = null;
+                }, {once: true});
+                this.isFullscreen = false;
+                this.onClose?.();
+            }
+        }
+    }
+
+    let unifiedModal = null;
+
+    function catchModalOverlay(overlay) {
+        if (!overlay || overlay.getAttribute(UNIFIED_ATTR) === '1') return;
+        const card = overlay.querySelector('.modal-content');
+        if (!card) return;
+        overlay.setAttribute(UNIFIED_ATTR, '1');
+        const bodyEl = card.querySelector('.modal-body');
+        const title = card.querySelector('.modal-title').textContent.trim();
+
+        if (unifiedModal) unifiedModal.close();
+        unifiedModal = new UnifiedModal(title, bodyEl.innerHTML, () => {
+            overlay.setAttribute(UNIFIED_ATTR, '0');
+            overlay.querySelector('.anticon-close-square').click();
+            unifiedModal = null;
+        });
+        overlay.style.display = 'none';
+    }
+
+    function scan() {
+        document.querySelectorAll('.modal-overlay').forEach(catchModalOverlay);
+        //document.querySelectorAll('.ant-modal-root').forEach(enhanceAntModal);
+    }
+
+    let scanScheduled = false;
+    const observer = new MutationObserver(() => {
+        if (scanScheduled) return;
+        scanScheduled = true;
+        requestAnimationFrame(() => {
+            scanScheduled = false;
+            scan();
+        });
+    });
+    observer.observe(document.documentElement, {childList: true, subtree: true});
 
 })();
 
