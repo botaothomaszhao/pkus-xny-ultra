@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.0
+// @version      vv.1.1
 // @license      GPL-3.0
 // @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
 // @author       botaothomaszhao
@@ -97,6 +97,13 @@
             padding: 24px;
             overflow: auto;
         }
+        /* todo: 让 iframe 100% 宽高
+        .um-content iframe {
+            width: 100%;
+            height: 100% !important;
+            border: none;
+        }*/
+        
         .um-icon-btn svg {
             width: 20px;
             height: 20px;
@@ -158,12 +165,14 @@
 
             this.modal.append(this.header, this.contentEl);
             this.overlay.appendChild(this.modal);
-            this.overlay.addEventListener('keydown', (e) => this.escHandle(e), true);
-            this.overlay.addEventListener('keydown', (e) => this.escHandle(e), true);
 
             if (content) this.setContent(content);
 
             document.body.appendChild(this.overlay);
+            this.modal.addEventListener('keydown', (e) => this.escHandle(e), true);
+            this.modal.addEventListener('keyup', (e) => this.escHandle(e), true);
+            this.modal.tabIndex = -1;
+            this.modal.focus();
             requestAnimationFrame(() => this.overlay.classList.add('visible'));
         }
 
@@ -190,12 +199,12 @@
             return btn;
         }
 
-        setContent(renderer) {
+        setContent(content) {
             this.contentEl.innerHTML = '';
-            if (renderer instanceof Node) {
-                this.contentEl.appendChild(renderer);
-            } else if (typeof renderer === 'string') {
-                this.contentEl.innerHTML = renderer;
+            if (typeof content === 'string') {
+                this.contentEl.innerHTML = content;
+            } else {
+                this.contentEl.append(...content);
             }
         }
 
@@ -207,12 +216,11 @@
         }
 
         close() {
-            if (this.overlay){
-                this.overlay.classList.remove('visible');
-                this.overlay.addEventListener('transitionend', () => {
-                    this.overlay.remove();
-                    this.overlay = null;
-                }, {once: true});
+            if (this.overlay) {
+                const oldOverlay = this.overlay;
+                oldOverlay.classList.remove('visible');
+                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
+                this.overlay = null;
                 this.isFullscreen = false;
                 this.onClose?.();
             }
@@ -230,17 +238,40 @@
         const title = card.querySelector('.modal-title').textContent.trim();
 
         if (unifiedModal) unifiedModal.close();
-        unifiedModal = new UnifiedModal(title, bodyEl.innerHTML, () => {
+        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => {
             overlay.setAttribute(UNIFIED_ATTR, '0');
-            overlay.querySelector('.anticon-close-square').click();
+            //overlay.querySelector('.anticon-close-square').click();
             unifiedModal = null;
         });
-        overlay.style.display = 'none';
+        overlay.querySelector('.anticon-close-square').click();
+        //overlay.style.display = 'none';
+    }
+
+    function catchAntModal(antModalRoot) {
+        if (!antModalRoot || antModalRoot.getAttribute(UNIFIED_ATTR) === '1'
+            || antModalRoot.querySelector('.ant-modal-mask').style.display === 'none') return;
+
+        const modal = antModalRoot.querySelector('.ant-modal');
+        if (!modal) return;
+        antModalRoot.setAttribute(UNIFIED_ATTR, '1');
+        const bodyEl = modal.querySelector('.ant-modal-body');
+        const title = modal.querySelector('.ant-modal-title').textContent.trim();
+
+        if (unifiedModal) unifiedModal.close();
+        unifiedModal = new UnifiedModal(title, bodyEl.innerHTML, () => { // innerHTML还是childNodes？
+            antModalRoot.setAttribute(UNIFIED_ATTR, '0');
+            antModalRoot.style.display = '';
+            antModalRoot.querySelector('.ant-modal-mask').style.display = 'none';
+            unifiedModal = null;
+        });
+        antModalRoot.style.display = 'none';
+        antModalRoot.querySelector('.ant-modal-close').click();
+        setTimeout(() => antModalRoot.style.display = '', 500); // 等待动画结束后恢复
     }
 
     function scan() {
         document.querySelectorAll('.modal-overlay').forEach(catchModalOverlay);
-        //document.querySelectorAll('.ant-modal-root').forEach(enhanceAntModal);
+        document.querySelectorAll('.ant-modal-root').forEach(catchAntModal);
     }
 
     let scanScheduled = false;
@@ -252,7 +283,7 @@
             scan();
         });
     });
-    observer.observe(document.documentElement, {childList: true, subtree: true});
+    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
 
 })();
 
