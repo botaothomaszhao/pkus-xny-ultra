@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.2
+// @version      vv.1.3
 // @license      GPL-3.0
 // @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
 // @author       botaothomaszhao
@@ -24,14 +24,12 @@
             opacity: 0;
             transition: opacity .25s ease;
             background-color: rgba(0, 0, 0, 0.55);
+            display: flex;
+            align-items: center;
         }
         .um-overlay.visible {
             opacity: 1;
             pointer-events: auto;
-        }
-        .um-overlay.fullscreen {
-            background-color: transparent;
-            padding: 0;
         }
         .um-modal {
             width: min(900px, calc(100vw - 64px));
@@ -113,6 +111,11 @@
         .um-modal.fullscreen .um-content iframe {
             box-sizing: border-box;
             height: 99% !important;
+        }
+        .um-modal.fullscreen .um-content .btn-box {
+            position: fixed;
+            bottom: 20px;
+            right: 24px;
         }
     `);
 
@@ -228,9 +231,9 @@
                 const oldOverlay = this.overlay;
                 oldOverlay.classList.remove('visible');
                 oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
+                this.onClose?.();
                 this.overlay = null;
                 this.isFullscreen = false;
-                this.onClose?.();
             }
         }
     }
@@ -263,16 +266,29 @@
         const bodyEl = modal.querySelector('.ant-modal-body');
         const title = modal.querySelector('.ant-modal-title').textContent.trim();
 
+        function closeOnBtn(e) {
+            if (e.target.tagName === 'BUTTON' && e.target.closest('.btn-box')) {
+                unifiedModal.close();
+            }
+        }
+
+        if (bodyEl.querySelector('.btn-box')) { // 目前是给收藏页面的筛选弹窗用的
+            document.addEventListener('click', closeOnBtn);
+        }
+
         if (unifiedModal) unifiedModal.close();
-        unifiedModal = new UnifiedModal(title, bodyEl.innerHTML, () => { // innerHTML还是childNodes？
+        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => { // innerHTML还是childNodes？
             antModalRoot.setAttribute(UNIFIED_ATTR, '0');
-            antModalRoot.style.display = '';
             antModalRoot.querySelector('.ant-modal-mask').style.display = 'none';
+            document.removeEventListener('click', closeOnBtn);
+
+            bodyEl.append(...unifiedModal.contentEl.childNodes);
+
+            antModalRoot.querySelector('.ant-modal-close').click();
+            setTimeout(() => antModalRoot.style.display = '', 500); // 等待动画结束后恢复
             unifiedModal = null;
         });
         antModalRoot.style.display = 'none';
-        antModalRoot.querySelector('.ant-modal-close').click();
-        setTimeout(() => antModalRoot.style.display = '', 500); // 等待动画结束后恢复
     }
 
     function scan() {
