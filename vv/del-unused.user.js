@@ -24,7 +24,7 @@
     const imgBoxSelector = '.result2';
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
-    const textMap = [{ // todo: 重新测试答题区
+    const textMap = [{
         selector: 'button.ant-btn', text: '扫描作答', replaceText: null
     }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
@@ -61,7 +61,7 @@
 
     let debounceTimer = null;
 
-    function debounceTextMatch() { // todo: 如无用则删除
+    function debounceTextMatch() {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             for (const {selector, text, replaceText} of textMap) {
@@ -96,7 +96,6 @@
             const els = root.querySelectorAll(sel);
             els.forEach(e => e.remove());
         }
-        debounceTextMatch();
 
         // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复
         const resultEls = root.querySelectorAll(imgBoxSelector);
@@ -129,7 +128,7 @@
                     }
                 });
             }
-
+            debounceTextMatch();
         }
     });
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.1
+// @version      vv.1.2
 // @license      GPL-3.0
 // @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
 // @author       botaothomaszhao
@@ -95,18 +95,24 @@
         .um-content {
             flex: 1;
             padding: 24px;
+            padding-top: 10px;
             overflow: auto;
         }
-        /* todo: 让 iframe 100% 宽高
-        .um-content iframe {
-            width: 100%;
-            height: 100% !important;
-            border: none;
-        }*/
-        
+        .um-modal.fullscreen .um-content {
+            padding-bottom: 10px;
+        }
         .um-icon-btn svg {
             width: 20px;
             height: 20px;
+        }
+        
+        .um-modal:not(.fullscreen) .um-content iframe {
+            box-sizing: border-box;
+            min-height: 500px;
+        }
+        .um-modal.fullscreen .um-content iframe {
+            box-sizing: border-box;
+            height: 99% !important;
         }
     `);
 
@@ -117,13 +123,15 @@
                 <line x1="3" y1="3" x2="10" y2="10"></line>
                 <polyline points="21 15 21 21 15 21"></polyline>
                 <line x1="21" y1="21" x2="14" y2="14"></line>
-            </svg>`, minimize: `
+            </svg>`,
+        minimize: `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 3 9 9 3 9"></polyline>
                 <line x1="3" y1="3" x2="10" y2="10"></line>
                 <polyline points="15 21 15 15 21 15"></polyline>
                 <line x1="21" y1="21" x2="14" y2="14"></line>
-            </svg>`, close: `
+            </svg>`,
+        close: `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -240,11 +248,9 @@
         if (unifiedModal) unifiedModal.close();
         unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => {
             overlay.setAttribute(UNIFIED_ATTR, '0');
-            //overlay.querySelector('.anticon-close-square').click();
             unifiedModal = null;
         });
         overlay.querySelector('.anticon-close-square').click();
-        //overlay.style.display = 'none';
     }
 
     function catchAntModal(antModalRoot) {
