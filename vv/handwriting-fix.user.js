@@ -14,10 +14,10 @@
     'use strict';
 
     GM_addStyle(`
-        .content > .top, .content > div > .top:not(.mt-10.box) {
+        .content > .top:not(.mt-10.box), .content > div > .top:not(.mt-10.box) {
             position: absolute !important;
         }
-    `);
+    `); // mt-10.box 是AI页的，不修改
 
     const containerSelector = 'body'; // 观察的稳定父容器选择器
     const canvasSelector = '.board.answerCanvas'; // 目标画板元素的选择器

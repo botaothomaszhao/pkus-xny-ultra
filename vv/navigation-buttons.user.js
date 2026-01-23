@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.5
+// @version      vv.3.6
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -899,17 +899,6 @@
                 this.button.disabled = false;
             });
 
-            // 点击导航元素自动保存，包括自动回放触发，带防抖
-            const debouncedSavePath = debounce(savePathForReplay, 400);
-            document.addEventListener('click', (e) => {
-                if (e.target.matches('.folderName')){
-                    // 移除 URL 中的 catalogId 以避免干扰回放
-                    window.location.replace(window.location.href.split('&catalogId')[0]);
-                }
-                const navContainer = e.target.closest('.menu, .folder');
-                if (navContainer) debouncedSavePath();
-            }, true);
-
             // pointer 事件（长按/短按逻辑）
             const downEvent = (e) => {
                 if (this.button.classList.contains('loading')) return;
@@ -987,7 +976,10 @@
             setTimeout(this.replaySavedPathIfAny, 300);
         }
 
-        onPageChange() { // todo: 用url优化路径保存
+        onPageChange(oldUrl, newUrl) {
+            if (oldUrl !== newUrl) {
+                savePathForReplay();
+            }
         }
 
         async replaySavedPathIfAny() {
@@ -1117,7 +1109,7 @@
         } else {
             favBtn.onPageChange();
             searchBtn.onPageChange(oldHref, window.location.href);
-            hardRefreshBtn.onPageChange();
+            hardRefreshBtn.onPageChange(oldHref, window.location.href);
             nextStepManager.onPageChange();
             console.log("检测到页面变化，执行页面变更处理。");
         }
@@ -1128,6 +1120,12 @@
     if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.folderName')){ // 点击科目时移除 URL 中的 catalogId 以避免干扰回放
+            window.location.replace(window.location.href.split('&catalogId')[0]);
+        }
+    }, true);
 
     // 劫持 pushState/replaceState，触发回放检查
     const originalPushState = history.pushState;
