@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.3
+// @version      vv.1.4
 // @license      GPL-3.0
 // @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
 // @author       botaothomaszhao
@@ -104,6 +104,7 @@
             height: 20px;
         }
         
+        /* pdf预览 */
         .um-modal:not(.fullscreen) .um-content iframe {
             box-sizing: border-box;
             min-height: 500px;
@@ -112,10 +113,16 @@
             box-sizing: border-box;
             height: 99% !important;
         }
+        /* 确认按钮置底 */
         .um-modal.fullscreen .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {
             position: fixed;
             bottom: 20px;
             right: 24px;
+        }
+        /* 收藏区移除重复margin */
+        .um-content .content-box :is(.add, .label-box) {
+            margin-left: 0 !important;
+            width: 100% !important;
         }
     `);
 
@@ -179,7 +186,7 @@
             this.header.append(this.titleEl, this.actions);
 
             this.contentEl = document.createElement('div');
-            this.contentEl.className = 'um-content';
+            this.contentEl.className = 'um-content con'; // 保留 con 类以兼容收藏弹窗样式
 
             this.modal.append(this.header, this.contentEl);
             this.overlay.appendChild(this.modal);
@@ -248,7 +255,7 @@
     let unifiedModal = null;
     function closeOnBtn(e, btnSelector) {
         const txt = cleanInnerText(e.target);
-        if (e.target.tagName === 'BUTTON' && e.target.closest(btnSelector) && (txt === '确定' || txt === '取消')) {
+        if (e.target.tagName === 'BUTTON' && e.target.closest(btnSelector) && txt !== '清空') { //(txt === '确定' || txt === '取消' || txt === '确认')
             if (unifiedModal) unifiedModal.close();
         }
     }
@@ -307,7 +314,6 @@
         const bodyNodes = Array.from(contentBox.childNodes).filter(node => !node.matches('.title'));
         const title = cleanInnerText(contentBox.querySelector('.title .left'));
 
-        // todo: 收藏区样式缺失
         const btnCloseHandler = e => closeOnBtn(e, '.footer-box, .option-box.txt-r');
         if (contentBox.querySelector('.footer-box, .option-box.txt-r')) {
             document.addEventListener('click', btnCloseHandler);
