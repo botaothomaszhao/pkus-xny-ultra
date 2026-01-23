@@ -112,7 +112,7 @@
             box-sizing: border-box;
             height: 99% !important;
         }
-        .um-modal.fullscreen .um-content .btn-box {
+        .um-modal.fullscreen .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {
             position: fixed;
             bottom: 20px;
             right: 24px;
@@ -140,6 +140,13 @@
                 <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>`
     };
+
+    function cleanInnerText(el) {
+        if (!el) return "";
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll("i, svg, path").forEach(n => n.remove());
+        return clone.textContent.trim().replace(/\s+/g, '');
+    }
 
     class UnifiedModal {
         constructor(title, content, onClose) {
@@ -239,6 +246,12 @@
     }
 
     let unifiedModal = null;
+    function closeOnBtn(e, btnSelector) {
+        const txt = cleanInnerText(e.target);
+        if (e.target.tagName === 'BUTTON' && e.target.closest(btnSelector) && (txt === '确定' || txt === '取消')) {
+            if (unifiedModal) unifiedModal.close();
+        }
+    }
 
     function catchModalOverlay(overlay) {
         if (!overlay || overlay.getAttribute(UNIFIED_ATTR) === '1') return;
@@ -246,7 +259,7 @@
         if (!card) return;
         overlay.setAttribute(UNIFIED_ATTR, '1');
         const bodyEl = card.querySelector('.modal-body');
-        const title = card.querySelector('.modal-title').textContent.trim();
+        const title = cleanInnerText(card.querySelector('.modal-title'));
 
         if (unifiedModal) unifiedModal.close();
         unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => {
@@ -258,29 +271,24 @@
 
     function catchAntModal(antModalRoot) {
         if (!antModalRoot || antModalRoot.getAttribute(UNIFIED_ATTR) === '1'
+            || antModalRoot.matches('.ant-modal-confirm') // 确认弹窗不处理
             || antModalRoot.querySelector('.ant-modal-mask').style.display === 'none') return;
-
         const modal = antModalRoot.querySelector('.ant-modal');
         if (!modal) return;
         antModalRoot.setAttribute(UNIFIED_ATTR, '1');
         const bodyEl = modal.querySelector('.ant-modal-body');
-        const title = modal.querySelector('.ant-modal-title').textContent.trim();
+        const title = cleanInnerText(modal.querySelector('.ant-modal-title'));
 
-        function closeOnBtn(e) {
-            if (e.target.tagName === 'BUTTON' && e.target.closest('.btn-box')) {
-                unifiedModal.close();
-            }
-        }
-
+        const btnBoxCloseHandler = e => closeOnBtn(e, '.btn-box');
         if (bodyEl.querySelector('.btn-box')) { // 目前是给收藏页面的筛选弹窗用的
-            document.addEventListener('click', closeOnBtn);
+            document.addEventListener('click', btnBoxCloseHandler);
         }
 
         if (unifiedModal) unifiedModal.close();
         unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => { // innerHTML还是childNodes？
             antModalRoot.setAttribute(UNIFIED_ATTR, '0');
-            antModalRoot.querySelector('.ant-modal-mask').style.display = 'none';
-            document.removeEventListener('click', closeOnBtn);
+            antModalRoot.querySelector('.ant-modal-mask').style.display = 'none'; // 避免重复唤起
+            document.removeEventListener('click', btnBoxCloseHandler);
 
             bodyEl.append(...unifiedModal.contentEl.childNodes);
 
@@ -291,9 +299,37 @@
         antModalRoot.style.display = 'none';
     }
 
+    function catchBgBox(box) {
+        if (!box || box.getAttribute(UNIFIED_ATTR) === '1' || box.style.display === 'none') return;
+        const contentBox = box.querySelector('.con');
+        if (!contentBox) return;
+        box.setAttribute(UNIFIED_ATTR, '1');
+        const bodyNodes = Array.from(contentBox.childNodes).filter(node => !node.matches('.title'));
+        const title = cleanInnerText(contentBox.querySelector('.title .left'));
+
+        // todo: 收藏区样式缺失
+        const btnCloseHandler = e => closeOnBtn(e, '.footer-box, .option-box.txt-r');
+        if (contentBox.querySelector('.footer-box, .option-box.txt-r')) {
+            document.addEventListener('click', btnCloseHandler);
+        }
+
+        if (unifiedModal) unifiedModal.close();
+        unifiedModal = new UnifiedModal(title, bodyNodes, () => {
+            box.setAttribute(UNIFIED_ATTR, '0');
+            document.removeEventListener('click', btnCloseHandler);
+            contentBox.append(...unifiedModal.contentEl.childNodes);
+
+            box.querySelector('.anticon-close-circle').click();
+            box.style.visibility = 'visible';
+            unifiedModal = null;
+        });
+        box.style.visibility = 'hidden';
+    }
+
     function scan() {
         document.querySelectorAll('.modal-overlay').forEach(catchModalOverlay);
         document.querySelectorAll('.ant-modal-root').forEach(catchAntModal);
+        document.querySelectorAll('.box:has(> .bg-box)').forEach(catchBgBox);
     }
 
     let scanScheduled = false;
@@ -312,34 +348,30 @@
 /*
 modal-overlay：答案
 
-<div data-v-14d7a1be="" data-v-3a756815="" class="modal-overlay">
-<div data-v-14d7a1be="" class="modal-content">
-<div data-v-14d7a1be="" class="modal-header">
-<div data-v-14d7a1be="" class="modal-title">
-<span data-v-14d7a1be=""> **标题** </span></div>
-<div data-v-14d7a1be="" class="modal-close"><i data-v-14d7a1be="" aria-label="图标: fullscreen" tabindex="-1" class="imgicom mr-10 anticon anticon-fullscreen">
-<svg viewBox="64 64 896 896" data-icon="fullscreen" ></svg></i>
-<i data-v-14d7a1be="" aria-label="图标: close-square" tabindex="-1" class="anticon anticon-close-square" style="font-size: 26px;">
-<svg viewBox="64 64 896 896" data-icon="close-square" class=""></svg></i></div></div>
-<div data-v-14d7a1be="" class="modal-body">
-**具体内容**
-</div></div></div>
-
 ant-modal-mask : pdf 解析
 
-<div data-v-3a756815="" class="ant-modal-root">
-<div class="ant-modal-mask"></div>
-<div tabindex="-1" role="dialog" aria-labelledby="rcDialogTitle4" class="ant-modal-wrap ">
-<div role="document" class="ant-modal" style="width: 870px; transform-origin: 406px 8px;">
-<div tabindex="0" aria-hidden="true" style="width: 0px; height: 0px; overflow: hidden;"></div>
-<div class="ant-modal-content">
-<button type="button" aria-label="Close" class="ant-modal-close">
-<span class="ant-modal-close-x"><i aria-label="图标: close" class="anticon anticon-close ant-modal-close-icon">
-<svg viewBox="64 64 896 896" data-icon="close" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false" class="">
-</svg></i></span></button>
-<div class="ant-modal-header"><div id="rcDialogTitle4" class="ant-modal-title">**标题**</div></div>
-<div class="ant-modal-body"> **具体内容** </div></div>
-<div tabindex="0" aria-hidden="true" style="width: 0px; height: 0px; overflow: hidden;"></div></div></div></div>
+bg-box box : 筛选、收藏
+<div data-v-556bbcbd="" data-v-09bceadd="" class="box" style="">
+  <div data-v-556bbcbd="" class="bg-box box"></div>
+  <div data-v-556bbcbd="" class="con">
+    <div data-v-556bbcbd="" class="title w100">
+      <div data-v-556bbcbd="" class="left f-l">课程筛选</div>
+      <div data-v-556bbcbd="" class="right f-r">
+        <i data-v-556bbcbd="" aria-label="图标: close-circle" tabindex="-1" class="anticon anticon-close-circle">
+          <svg viewBox="64 64 896 896" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false" class="">
+          </svg>
+        </i>
+      </div>
+    </div>
 
-bg-box box : 筛选
+    <div data-v-556cbcbd="" class="content-box">
+    </div>
+
+    <div data-v-556cbcbd="" class="footer-box">
+      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn"><span>清 空</span></button>
+      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn"><span>取 消</span></button>
+      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn ant-btn-primary"><span>确 定</span></button>
+    </div>
+  </div>
+</div>
  */
