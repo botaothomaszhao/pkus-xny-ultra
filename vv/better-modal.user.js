@@ -42,7 +42,7 @@
             flex-direction: column;
             overflow: hidden;
             transform: translateY(20px);
-            transition: transform 0.2s ease;
+            transition: transform .25s ease;
         }
         .um-overlay.visible .um-modal {
             transform: translateY(0);
@@ -240,48 +240,61 @@
             this.fullscreenBtn.innerHTML = this.isFullscreen ? ICONS.minimize : ICONS.fullscreen;
         }
 
-        close() {
+        async close() {
             if (this.overlay) {
                 const oldOverlay = this.overlay;
-                oldOverlay.classList.remove('visible');
-                oldOverlay.addEventListener('transitionend', oldOverlay.remove, {once: true});
-                this.onClose?.();
                 this.overlay = null;
                 this.isFullscreen = false;
+                oldOverlay.classList.remove('visible');
+                await new Promise(resolve => {
+                    oldOverlay.addEventListener('transitionend', resolve, {once: true});
+                    setTimeout(resolve, 300); // 回退超时
+                });
+                await this.onClose?.();
+                oldOverlay.remove();
             }
         }
     }
 
     let unifiedModal = null;
+
     function closeOnBtn(e, btnSelector) {
         const txt = cleanInnerText(e.target);
         if (e.target.tagName === 'BUTTON' && e.target.closest(btnSelector) && txt !== '清空') { //(txt === '确定' || txt === '取消' || txt === '确认')
-            if (unifiedModal) unifiedModal.close();
+            unifiedModal?.close();
         }
     }
 
-    function catchModalOverlay(overlay) {
+    // 答案
+    async function catchModalOverlay(overlay) { // todo: 复用
         if (!overlay || overlay.getAttribute(UNIFIED_ATTR) === '1') return;
         const card = overlay.querySelector('.modal-content');
         if (!card) return;
+        await unifiedModal?.close();
+
         overlay.setAttribute(UNIFIED_ATTR, '1');
         const bodyEl = card.querySelector('.modal-body');
         const title = cleanInnerText(card.querySelector('.modal-title'));
 
-        if (unifiedModal) unifiedModal.close();
         unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => {
             overlay.setAttribute(UNIFIED_ATTR, '0');
+            overlay.style.display = '';
+            bodyEl.append(...unifiedModal.contentEl.childNodes);
+            overlay.querySelector('.anticon-close-square').click();
             unifiedModal = null;
         });
-        overlay.querySelector('.anticon-close-square').click();
+        overlay.style.display = 'none';
     }
 
-    function catchAntModal(antModalRoot) {
+    // PDF预览 解析 收藏页筛选
+    async function catchAntModal(antModalRoot) {
         if (!antModalRoot || antModalRoot.getAttribute(UNIFIED_ATTR) === '1'
             || antModalRoot.matches('.ant-modal-confirm') // 确认弹窗不处理
             || antModalRoot.querySelector('.ant-modal-mask').style.display === 'none') return;
         const modal = antModalRoot.querySelector('.ant-modal');
         if (!modal) return;
+        await unifiedModal?.close();
+
         antModalRoot.setAttribute(UNIFIED_ATTR, '1');
         const bodyEl = modal.querySelector('.ant-modal-body');
         const title = cleanInnerText(modal.querySelector('.ant-modal-title'));
@@ -291,25 +304,27 @@
             document.addEventListener('click', btnBoxCloseHandler);
         }
 
-        if (unifiedModal) unifiedModal.close();
-        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => { // innerHTML还是childNodes？
+        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, async () => {
             antModalRoot.setAttribute(UNIFIED_ATTR, '0');
             antModalRoot.querySelector('.ant-modal-mask').style.display = 'none'; // 避免重复唤起
             document.removeEventListener('click', btnBoxCloseHandler);
 
             bodyEl.append(...unifiedModal.contentEl.childNodes);
-
             antModalRoot.querySelector('.ant-modal-close').click();
-            setTimeout(() => antModalRoot.style.display = '', 500); // 等待动画结束后恢复
+            await new Promise(resolve => setTimeout(resolve, 500)); // 等待关闭动画
+            antModalRoot.style.display = '';
             unifiedModal = null;
         });
         antModalRoot.style.display = 'none';
     }
 
-    function catchBgBox(box) {
+    // 筛选 收藏 收藏标签
+    async function catchBgBox(box) {
         if (!box || box.getAttribute(UNIFIED_ATTR) === '1' || box.style.display === 'none') return;
         const contentBox = box.querySelector('.con');
         if (!contentBox) return;
+        await unifiedModal?.close();
+
         box.setAttribute(UNIFIED_ATTR, '1');
         const bodyNodes = Array.from(contentBox.childNodes).filter(node => !node.matches('.title'));
         const title = cleanInnerText(contentBox.querySelector('.title .left'));
@@ -319,12 +334,11 @@
             document.addEventListener('click', btnCloseHandler);
         }
 
-        if (unifiedModal) unifiedModal.close();
         unifiedModal = new UnifiedModal(title, bodyNodes, () => {
             box.setAttribute(UNIFIED_ATTR, '0');
             document.removeEventListener('click', btnCloseHandler);
-            contentBox.append(...unifiedModal.contentEl.childNodes);
 
+            contentBox.append(...unifiedModal.contentEl.childNodes);
             box.querySelector('.anticon-close-circle').click();
             box.style.visibility = 'visible';
             unifiedModal = null;
