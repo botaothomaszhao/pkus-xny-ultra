@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.4
+// @version      vv.1.5
 // @license      GPL-3.0
 // @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
 // @author       botaothomaszhao
@@ -168,14 +168,11 @@
 
             this.modal = document.createElement('div');
             this.modal.className = 'um-modal';
-
             this.header = document.createElement('div');
             this.header.className = 'um-header';
-
             this.titleEl = document.createElement('h2');
             this.titleEl.className = 'um-title';
             this.titleEl.textContent = title;
-
             this.actions = document.createElement('div');
             this.actions.className = 'um-actions';
 
@@ -265,91 +262,105 @@
         }
     }
 
-    // 答案
-    async function catchModalOverlay(overlay) { // todo: 复用
-        if (!overlay || overlay.getAttribute(UNIFIED_ATTR) === '1') return;
-        const card = overlay.querySelector('.modal-content');
-        if (!card) return;
+    /*
+     * - shouldSkip(root): [可选] 某些弹窗需要跳过时用
+     * - containerSelector: 整个弹窗的主容器
+     * - titleSelector: 标题元素选择器
+     * - bodySelector: 内容容器选择器
+     * - getBodyNodes(bodyEl): [可选] 自定义 body 内要搬运的节点（bg-box 用来排除 .title）
+     * - hideOriginal(root): 打开统一弹窗时如何隐藏原弹窗
+     * - extraBtn: [可选] 额外的确认、取消按钮选择器
+     * - closeBtn: 关闭按钮选择器
+     * - closeOriginal(root): 关闭统一弹窗时，如何触发原始关闭逻辑/恢复样式
+     */
+    async function catchGenericModal(rootEl, config) {
+        if (!rootEl || rootEl.getAttribute(UNIFIED_ATTR) === '1' || config.shouldSkip?.(rootEl)) return;
+        const container = rootEl.querySelector(config.containerSelector);
+        if (!container) return;
         await unifiedModal?.close();
 
-        overlay.setAttribute(UNIFIED_ATTR, '1');
-        const bodyEl = card.querySelector('.modal-body');
-        const title = cleanInnerText(card.querySelector('.modal-title'));
+        const bodyEl = rootEl.querySelector(config.bodySelector);
+        const title = cleanInnerText(container.querySelector(config.titleSelector));
+        if (!bodyEl) return;
+        const bodyNodes = config.getBodyNodes ? config.getBodyNodes(bodyEl) : bodyEl.childNodes;
+        rootEl.setAttribute(UNIFIED_ATTR, '1');
 
-        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, () => {
-            overlay.setAttribute(UNIFIED_ATTR, '0');
-            overlay.style.display = '';
-            bodyEl.append(...unifiedModal.contentEl.childNodes);
-            overlay.querySelector('.anticon-close-square').click();
-            unifiedModal = null;
-        });
-        overlay.style.display = 'none';
-    }
-
-    // PDF预览 解析 收藏页筛选
-    async function catchAntModal(antModalRoot) {
-        if (!antModalRoot || antModalRoot.getAttribute(UNIFIED_ATTR) === '1'
-            || antModalRoot.matches('.ant-modal-confirm') // 确认弹窗不处理
-            || antModalRoot.querySelector('.ant-modal-mask').style.display === 'none') return;
-        const modal = antModalRoot.querySelector('.ant-modal');
-        if (!modal) return;
-        await unifiedModal?.close();
-
-        antModalRoot.setAttribute(UNIFIED_ATTR, '1');
-        const bodyEl = modal.querySelector('.ant-modal-body');
-        const title = cleanInnerText(modal.querySelector('.ant-modal-title'));
-
-        const btnBoxCloseHandler = e => closeOnBtn(e, '.btn-box');
-        if (bodyEl.querySelector('.btn-box')) { // 目前是给收藏页面的筛选弹窗用的
-            document.addEventListener('click', btnBoxCloseHandler);
+        const handler = config.extraCloseBtn && container.querySelector(config.extraCloseBtn)
+            ? e => closeOnBtn(e, config.extraCloseBtn) : null;
+        if (handler) {
+            document.addEventListener('click', handler);
         }
 
-        unifiedModal = new UnifiedModal(title, bodyEl.childNodes, async () => {
-            antModalRoot.setAttribute(UNIFIED_ATTR, '0');
-            antModalRoot.querySelector('.ant-modal-mask').style.display = 'none'; // 避免重复唤起
-            document.removeEventListener('click', btnBoxCloseHandler);
-
+        unifiedModal = new UnifiedModal(title, bodyNodes, async () => {
+            rootEl.setAttribute(UNIFIED_ATTR, '0');
             bodyEl.append(...unifiedModal.contentEl.childNodes);
-            antModalRoot.querySelector('.ant-modal-close').click();
-            await new Promise(resolve => setTimeout(resolve, 500)); // 等待关闭动画
-            antModalRoot.style.display = '';
+            if (handler) {
+                document.removeEventListener('click', handler);
+            }
+
+            container.querySelector(config.closeBtn).click();
+            await config.closeOriginal(rootEl);
             unifiedModal = null;
         });
-        antModalRoot.style.display = 'none';
-    }
-
-    // 筛选 收藏 收藏标签
-    async function catchBgBox(box) {
-        if (!box || box.getAttribute(UNIFIED_ATTR) === '1' || box.style.display === 'none') return;
-        const contentBox = box.querySelector('.con');
-        if (!contentBox) return;
-        await unifiedModal?.close();
-
-        box.setAttribute(UNIFIED_ATTR, '1');
-        const bodyNodes = Array.from(contentBox.childNodes).filter(node => !node.matches('.title'));
-        const title = cleanInnerText(contentBox.querySelector('.title .left'));
-
-        const btnCloseHandler = e => closeOnBtn(e, '.footer-box, .option-box.txt-r');
-        if (contentBox.querySelector('.footer-box, .option-box.txt-r')) {
-            document.addEventListener('click', btnCloseHandler);
-        }
-
-        unifiedModal = new UnifiedModal(title, bodyNodes, () => {
-            box.setAttribute(UNIFIED_ATTR, '0');
-            document.removeEventListener('click', btnCloseHandler);
-
-            contentBox.append(...unifiedModal.contentEl.childNodes);
-            box.querySelector('.anticon-close-circle').click();
-            box.style.visibility = 'visible';
-            unifiedModal = null;
-        });
-        box.style.visibility = 'hidden';
+        config.hideOriginal(rootEl);
     }
 
     function scan() {
-        document.querySelectorAll('.modal-overlay').forEach(catchModalOverlay);
-        document.querySelectorAll('.ant-modal-root').forEach(catchAntModal);
-        document.querySelectorAll('.box:has(> .bg-box)').forEach(catchBgBox);
+        // 答案
+        document.querySelectorAll('.modal-overlay').forEach(overlay =>
+            catchGenericModal(overlay, {
+                containerSelector: '.modal-content',
+                titleSelector: '.modal-title',
+                bodySelector: '.modal-body',
+                hideOriginal(root) {
+                    root.style.display = 'none';
+                },
+                closeBtn: '.anticon-close-square',
+                async closeOriginal(root) {
+                    root.style.display = '';
+                }
+            }));
+        // PDF 预览 / 解析 / 收藏页筛选
+        document.querySelectorAll('.ant-modal-root').forEach(antModalRoot =>
+            catchGenericModal(antModalRoot, {
+                shouldSkip(root) {
+                    return root.matches('.ant-modal-confirm') || root.querySelector('.ant-modal-mask').style.display === 'none';
+                },
+                containerSelector: '.ant-modal',
+                titleSelector: '.ant-modal-title',
+                bodySelector: '.ant-modal-body',
+                hideOriginal(root) {
+                    root.style.display = 'none';
+                },
+                extraCloseBtn: '.btn-box',
+                closeBtn: '.ant-modal-close',
+                async closeOriginal(root) {
+                    root.querySelector('.ant-modal-mask').style.display = 'none';
+                    await new Promise(r => setTimeout(r, 500));
+                    root.style.display = '';
+                }
+            }));
+        // 筛选 / 收藏 / 收藏标签
+        document.querySelectorAll('.box:has(> .bg-box)').forEach(box =>
+            catchGenericModal(box, {
+                shouldSkip(root) {
+                    return root.style.display === 'none';
+                },
+                containerSelector: '.con',
+                titleSelector: '.title .left',
+                bodySelector: '.con',
+                getBodyNodes(bodyEl) {
+                    return Array.from(bodyEl.childNodes).filter(node => !(node.matches && node.matches('.title')));
+                },
+                hideOriginal(root) {
+                    root.style.visibility = 'hidden';
+                },
+                extraCloseBtn: '.footer-box, .option-box.txt-r',
+                closeBtn: '.anticon-close-circle',
+                async closeOriginal(root) {
+                    root.style.visibility = 'visible';
+                }
+            }));
     }
 
     let scanScheduled = false;
@@ -364,34 +375,3 @@
     observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
 
 })();
-
-/*
-modal-overlay：答案
-
-ant-modal-mask : pdf 解析
-
-bg-box box : 筛选、收藏
-<div data-v-556bbcbd="" data-v-09bceadd="" class="box" style="">
-  <div data-v-556bbcbd="" class="bg-box box"></div>
-  <div data-v-556bbcbd="" class="con">
-    <div data-v-556bbcbd="" class="title w100">
-      <div data-v-556bbcbd="" class="left f-l">课程筛选</div>
-      <div data-v-556bbcbd="" class="right f-r">
-        <i data-v-556bbcbd="" aria-label="图标: close-circle" tabindex="-1" class="anticon anticon-close-circle">
-          <svg viewBox="64 64 896 896" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false" class="">
-          </svg>
-        </i>
-      </div>
-    </div>
-
-    <div data-v-556cbcbd="" class="content-box">
-    </div>
-
-    <div data-v-556cbcbd="" class="footer-box">
-      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn"><span>清 空</span></button>
-      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn"><span>取 消</span></button>
-      <button data-v-556cbcbd="" type="button" class="mr-10 ant-btn ant-btn-primary"><span>确 定</span></button>
-    </div>
-  </div>
-</div>
- */
