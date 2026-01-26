@@ -20,7 +20,7 @@
         .um-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999;
+            z-index: 999;
             opacity: 0;
             transition: opacity .25s ease;
             background-color: rgba(0, 0, 0, 0.55);
@@ -98,6 +98,8 @@
         }
         .um-modal.fullscreen .um-content {
             padding-bottom: 10px;
+            display: flex;
+            flex-direction: column;
         }
         .um-icon-btn svg {
             width: 20px;
@@ -123,6 +125,15 @@
         .um-content .content-box :is(.add, .label-box) {
             margin-left: 0 !important;
             width: 100% !important;
+        }
+        /* AI页错题来源/知识模块选择框高度 */
+        .um-modal.fullscreen .um-content .box.h-380.mt-10 {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+        .um-modal.fullscreen .um-content .s-box.pos-r {
+            height: 100% !important;
         }
     `);
 
@@ -332,7 +343,7 @@
                 hideOriginal(root) {
                     root.style.display = 'none';
                 },
-                extraCloseBtn: '.btn-box',
+                extraCloseBtn: '.btn-box, .flex.txt-r',
                 closeBtn: '.ant-modal-close',
                 async closeOriginal(root) {
                     root.querySelector('.ant-modal-mask').style.display = 'none';

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         删除无用元素
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.4
+// @version      vv.2.5
 // @license      GPL-3.0
 // @description  自动删除无用页面元素，包括头部“学科素养”、“考试用时”和未提交时的空图片框。
 // @author       c-jeremy botaothomaszhao
@@ -20,7 +20,6 @@
         }
     `);
 
-    const simpleSelectors = ['.tag', '.time'];
     const imgBoxSelector = '.result2';
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
@@ -28,6 +27,10 @@
         selector: 'button.ant-btn', text: '扫描作答', replaceText: null
     }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
+    }, {
+        selector: '.tag', text: null, replaceText: null // 两个null表示删除该元素
+    }, {
+        selector: '.time', text: null, replaceText: null
     }]
 
     // 注入样式，用来可控隐藏但保留 DOM
@@ -61,48 +64,35 @@
 
     let debounceTimer = null;
 
-    function debounceTextMatch() {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            for (const {selector, text, replaceText} of textMap) {
-                const nodes = document.querySelectorAll(selector);
-                for (const n of nodes) {
-                    const span = Array.from(n.querySelectorAll('span')).find(s => s.textContent.trim() === text);
-                    if (!span) continue;
-                    if (replaceText === null) {
-                        n.remove();
-                    } else {
-                        span.textContent = replaceText;
-                    }
-                    break;
-                }
+    function elementMatch() {
+        for (const {selector, text, replaceText} of textMap) {
+            const nodes = document.querySelectorAll(selector);
+            if (text === null && replaceText === null) {
+                nodes.forEach(n => n.remove());
+                continue;
             }
-        }, 200);
+            for (const n of nodes) {
+                const span = Array.from(n.querySelectorAll('span')).find(s => s.textContent.trim() === text);
+                if (!span) continue;
+                if (replaceText === null) {
+                    n.remove();
+                } else {
+                    span.textContent = replaceText;
+                }
+                break;
+            }
+        }
     }
 
-    function removeTargetElements(root = document) {
-        if (root !== document && root.matches) {
-            for (const sel of simpleSelectors) {
-                if (root.matches(sel)) {
-                    root.remove();
-                    return;
-                }
-            }
-            if (root.matches(imgBoxSelector)) processResult2(root);
+    function debounceMatch() {
+        if (!debounceTimer) {
+            elementMatch();
+            debounceTimer = setTimeout(() => debounceTimer = null, 200);
+        } else {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(elementMatch, 200);
         }
-
-        // 删除简单选择器
-        for (const sel of simpleSelectors) {
-            const els = root.querySelectorAll(sel);
-            els.forEach(e => e.remove());
-        }
-
-        // 只查找需要处理的 .result2，processResult2 内会再判断是否隐藏/恢复
-        const resultEls = root.querySelectorAll(imgBoxSelector);
-        resultEls.forEach(el => processResult2(el));
-    }
-
-    setTimeout(removeTargetElements, 100)
+    } // todo: 优化
 
     const observer = new MutationObserver(mutations => {
         for (const m of mutations) {
@@ -114,7 +104,8 @@
                     if (r) {
                         processResult2(r);
                     } else {
-                        removeTargetElements(node);
+                        const resultEls = node.querySelectorAll(imgBoxSelector);
+                        resultEls.forEach(el => processResult2(el));
                     }
                 });
             }
@@ -128,9 +119,11 @@
                     }
                 });
             }
-            debounceTextMatch();
+            debounceMatch();
         }
     });
 
     observer.observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
+
+    debounceMatch();
 })();
