@@ -663,7 +663,13 @@
                         input.blur(); // 触发保存
                     }
                 });
-                //todo: 拦截点击
+                
+                function preventClick(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if(e.target !== input) input.blur();
+                }
+                li.addEventListener('click', preventClick, true);
 
                 textContentDiv.replaceChild(input, titleSpan);
                 input.focus();
@@ -681,6 +687,10 @@
                     textContentDiv.replaceChild(titleSpan, input);
                     // 保存后把高光定位到该项
                     this.drawer.highlightIndex(index);
+                    setTimeout(() => {
+                        li.removeEventListener('click', preventClick, true);
+                    }, 0); // 避免同一次点击直接触发关闭
+    
                 });
             });
         }
