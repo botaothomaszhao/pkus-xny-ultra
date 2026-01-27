@@ -269,8 +269,9 @@
     let unifiedModal = null;
 
     function closeOnBtn(e, btnSelector) {
-        const txt = cleanInnerText(e.target);
-        if (e.target.tagName === 'BUTTON' && e.target.closest(btnSelector) && txt !== '清空') { //(txt === '确定' || txt === '取消' || txt === '确认')
+        const btn = e.target.closest('button');
+        const txt = cleanInnerText(btn);
+        if (btn?.closest(btnSelector) && txt !== '清空') { // (txt === '确定' || txt === '取消' || txt === '确认')
             unifiedModal?.close();
         }
     }

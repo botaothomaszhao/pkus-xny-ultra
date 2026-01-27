@@ -182,7 +182,7 @@
             `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"></path>
             </svg>`
-    }
+    };
 
     // 修改全部 file input，添加 accept 和 capture 属性
     const inputSelector = 'input[type="file"][accept="image/*"]';
@@ -408,7 +408,7 @@
                 audio: false
             };
             // 尝试请求更高的帧率以减少预览时的果冻效应，虽然拍照不依赖它
-            if (CAPTURE_FRAME_RATE) constraints.frameRate = {ideal: CAPTURE_FRAME_RATE};
+            if (CAPTURE_FRAME_RATE) constraints.video.frameRate = {ideal: CAPTURE_FRAME_RATE};
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
             } catch (err) {

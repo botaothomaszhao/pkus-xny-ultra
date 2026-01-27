@@ -31,7 +31,7 @@
         selector: '.tag', text: null, replaceText: null // 两个null表示删除该元素
     }, {
         selector: '.time', text: null, replaceText: null
-    }]
+    }];
 
     // 注入样式，用来可控隐藏但保留 DOM
     const hideClass = 'vu-preserve-hidden';
