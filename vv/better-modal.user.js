@@ -32,7 +32,7 @@
             pointer-events: auto;
         }
         .um-modal {
-            width: min(900px, calc(100vw - 64px));
+            max-width: min(900px, calc(100vw - 64px));
             max-height: calc(100vh - 64px);
             margin: 32px auto;
             background: #fff;
@@ -50,6 +50,7 @@
         .um-modal.fullscreen {
             width: 100vw;
             height: 100vh;
+            max-width: none;
             max-height: none;
             border-radius: 0;
             box-shadow: none;
@@ -110,6 +111,7 @@
         .um-modal:not(.fullscreen) .um-content iframe {
             box-sizing: border-box;
             min-height: 500px;
+            min-width: min(852px, calc(100vw - 102px));
         }
         .um-modal.fullscreen .um-content iframe {
             box-sizing: border-box;
@@ -331,7 +333,7 @@
                     root.style.display = '';
                 }
             }));
-        // PDF 预览 / 解析 / 收藏页筛选
+        // PDF 预览 / 解析 / 收藏页筛选 / AI页筛选
         document.querySelectorAll('.ant-modal-root').forEach(antModalRoot =>
             catchGenericModal(antModalRoot, {
                 shouldSkip(root) {
@@ -351,7 +353,7 @@
                     root.style.display = '';
                 }
             }));
-        // 筛选 / 收藏 / 收藏标签
+        // 课程筛选 / 收藏 / 收藏标签
         document.querySelectorAll('.box:has(> .bg-box)').forEach(box =>
             catchGenericModal(box, {
                 shouldSkip(root) {
