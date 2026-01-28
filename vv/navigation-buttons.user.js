@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.6
+// @version      vv.3.7
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -58,7 +58,7 @@
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999;
+            z-index: 1000;
             opacity: 0;
             transition: opacity .25s ease;
             background-color: rgba(0, 0, 0, 0.55);
@@ -72,7 +72,7 @@
             box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
             transform: translateY(100%);
             transition: transform .25s ease-out;
-            z-index: 10000;
+            z-index: 1001;
             display: flex; flex-direction: column; overflow: hidden;
             outline: none;
         }
@@ -141,7 +141,7 @@
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
             background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-            z-index: 10000;
+            z-index: 1001;
             overflow: hidden;
         }
         .search-input-wrapper {
@@ -162,6 +162,24 @@
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        
+        .ant-message-notice.move-up-enter.move-up-enter-active {
+            overflow: hidden;
+            animation-name: MessageMoveIn;
+            animation-duration: .3s;
+        }    
+        @keyframes MessageMoveIn {
+            0% {
+                max-height: 0;
+                padding: 0;
+                opacity: 0;
+            }
+            to {
+                max-height: 150px;
+                padding: 8px;
+                opacity: 1;
+            }
         }
     `);
 
@@ -208,7 +226,27 @@
             `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="7"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>`
+            </svg>`,
+
+        // 消息图标
+        'message-success': `
+            <i aria-label="icon: check-circle" class="anticon anticon-check-circle">
+                <svg viewBox="64 64 896 896" data-icon="check-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false">
+                    <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm193.5 301.7l-210.6 292a31.8 31.8 0 0 1-51.7 0L318.5 484.9c-3.8-5.3 0-12.7 6.5-12.7h46.9c10.2 0 19.9 4.9 25.9 13.3l71.2 98.8 157.2-218c6-8.3 15.6-13.3 25.9-13.3H699c6.5 0 10.3 7.4 6.5 12.7z"></path>
+                </svg>
+            </i>`,
+        'message-error': `
+            <i aria-label="icon: close-circle" class="anticon anticon-close-circle">
+                <svg viewBox="64 64 896 896" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false">
+                    <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm165.4 618.2l-66-.3L512 563.4l-99.3 118.4-66.1.3c-4.4 0-8-3.5-8-8 0-1.9.7-3.7 1.9-5.2l130.1-155L340.5 359a8.32 8.32 0 0 1-1.9-5.2c0-4.4 3.6-8 8-8l66.1.3L512 464.6l99.3-118.4 66-.3c4.4 0 8 3.5 8 8 0 1.9-.7 3.7-1.9 5.2L553.5 514l130 155c1.2 1.5 1.9 3.3 1.9 5.2 0 4.4-3.6 8-8 8z"></path>
+                </svg>
+            </i>`,
+        'message-warning': `
+            <i aria-label="icon: exclamation-circle" class="anticon anticon-exclamation-circle">
+                <svg viewBox="64 64 896 896" data-icon="exclamation-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false">
+                    <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 0 1 0-96 48.01 48.01 0 0 1 0 96z"></path>
+                </svg>
+            </i>`
     };
 
     // 通用函数
@@ -220,42 +258,34 @@
         return new Promise(r => setTimeout(r, ms));
     }
 
-    // type: 'success' | 'error' | 'info' | 'warning'
+    // type: 'success' | 'error' | 'warning' (info 未实现)
     function showNoticeBox(text, type = 'success') {
         const wrapper = document.createElement('div');
-        wrapper.innerHTML = `
-            <div class="ant-message">
-              <span>
-                <div class="ant-message-notice">
-                  <div class="ant-message-notice-content">
+        wrapper.className = 'ant-message';
+        const notice = document.createElement('div');
+        notice.className = 'ant-message-notice move-up-enter move-up-enter-active';
+        notice.innerHTML = `
+            <div class="ant-message-notice">
+                <div class="ant-message-notice-content">
                     <div class="ant-message-custom-content ant-message-${type}">
-                      <i aria-label="icon: check-circle" class="anticon anticon-check-circle">
-                        <svg viewBox="64 64 896 896" data-icon="check-circle" width="1em" height="1em"
-                             fill="currentColor" aria-hidden="true" focusable="false">
-                          <path d="M512 64C264.6 64 64 264.6 64 512s200.6
-                                   448 448 448 448-200.6 448-448S759.4 64
-                                   512 64zm193.5 301.7l-210.6 292a31.8 31.8 0 0 1-51.7 0L318.5
-                                   484.9c-3.8-5.3 0-12.7 6.5-12.7h46.9c10.2 0 19.9 4.9
-                                   25.9 13.3l71.2 98.8 157.2-218c6-8.3 15.6-13.3
-                                   25.9-13.3H699c6.5 0 10.3 7.4 6.5 12.7z"></path>
-                        </svg>
-                      </i>
-                      <span>${text}</span>
+                        ${ICONS[`message-${type}`]}
+                        <span>${text}</span>
                     </div>
-                  </div>
                 </div>
-              </span>
             </div>`;
 
-        const notice = wrapper.querySelector('.ant-message-notice');
-
+        wrapper.appendChild(notice);
         document.body.appendChild(wrapper);
+
+        notice.addEventListener('animationend', () => {
+            notice.classList.remove('move-up-enter', 'move-up-enter-active');
+        }, {once: true});
 
         const DURATION = 2000; // 停留时间\+离场动画前的等待
 
         setTimeout(() => {
             notice.classList.add('move-up-leave', 'move-up-leave-active');
-            notice.addEventListener('animationend', wrapper.remove, { once: true });
+            notice.addEventListener('animationend', () => wrapper.remove(), {once: true});
         }, DURATION);
     }
 
@@ -706,8 +736,9 @@
                 function preventClick(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    if(e.target !== input) input.blur();
+                    if (e.target !== input) input.blur();
                 }
+
                 li.addEventListener('click', preventClick, true);
 
                 textContentDiv.replaceChild(input, titleSpan);
@@ -756,21 +787,24 @@
         async addCurrentPathToFavorites() {
             const path = captureCurrentPath();
             if (!path || path.length < 2) {
-                console.warn('收藏失败: 无法捕获当前路径。');
+                showNoticeBox("收藏失败", 'error');
                 return;
             }
             const favorites = await this.getFavorites();
-            if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) return;
+            if (favorites.some(fav => JSON.stringify(fav.path) === JSON.stringify(path))) {
+                showNoticeBox("该路径已在收藏夹中", 'warning');
+                return;
+            }
             favorites.push({title: path[path.length - 1].text, path: path});
             await this.saveFavorites(favorites);
             showNoticeBox("收藏成功", 'success');
-            console.info(`收藏成功：已将“${path[path.length - 1].text}”加入收藏夹。`);
         }
 
         async deleteFavorite(index) {
             let f = await this.getFavorites();
             f.splice(index, 1);
             await this.saveFavorites(f);
+            showNoticeBox("删除成功", 'success');
             this.drawer?.renderList(f, this.renderItem, `您的收藏夹夹是空的<br>点击"+"按钮添加吧`);
         }
     }
@@ -1173,7 +1207,7 @@
     window.addEventListener('popstate', checkPageChange);
 
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.folderName')){ // 点击科目时移除 URL 中的 catalogId 以避免干扰回放
+        if (e.target.closest('.folderName')) { // 点击科目时移除 URL 中的 catalogId 以避免干扰回放
             window.location.replace(window.location.href.split('&catalogId')[0]);
         }
     }, true);
@@ -1192,31 +1226,3 @@
     };
 
 })();
-/*
-<div class="ant-message"><span><div class="ant-message-notice">
-<div class="ant-message-notice-content">
-<div class="ant-message-custom-content ant-message-error">
-<i aria-label="icon: close-circle" class="anticon anticon-close-circle">
-<svg viewBox="64 64 896 896" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false" class=""><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm165.4 618.2l-66-.3L512 563.4l-99.3 118.4-66.1.3c-4.4 0-8-3.5-8-8 0-1.9.7-3.7 1.9-5.2l130.1-155L340.5 359a8.32 8.32 0 0 1-1.9-5.2c0-4.4 3.6-8 8-8l66.1.3L512 464.6l99.3-118.4 66-.3c4.4 0 8 3.5 8 8 0 1.9-.7 3.7-1.9 5.2L553.5 514l130 155c1.2 1.5 1.9 3.3 1.9 5.2 0 4.4-3.6 8-8 8z"></path>
-</svg></i><span>请求参数错误！</span></div></div></div></span></div>
-
-.ant-message-notice.move-up-leave.move-up-leave-active {
-    overflow: hidden;
-    animation-name: MessageMoveOut;
-    animation-duration: .3s
-}
-
-@keyframes MessageMoveOut {
-    0% {
-        max-height: 150px;
-        padding: 8px;
-        opacity: 1
-    }
-
-    to {
-        max-height: 0;
-        padding: 0;
-        opacity: 0
-    }
-}
- */
