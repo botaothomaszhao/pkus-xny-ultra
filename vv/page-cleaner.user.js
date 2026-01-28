@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         统一弹窗
+// @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.5
+// @version      vv.3.0
 // @license      GPL-3.0
-// @description  将不同类型的弹窗样式统一，提供全屏、点击旁边关闭功能。可能合并到删除无用元素脚本中。
-// @author       botaothomaszhao
+// @description  自动删除页面中的无用元素，并统一不同类型的弹窗样式。
+// @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_addStyle
@@ -16,7 +16,29 @@
 
     const UNIFIED_ATTR = 'modal-unified';
 
+    const imgBoxSelector = '.result2';
+    const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
+
+    const textMap = [{
+        selector: 'button.ant-btn', text: '扫描作答', replaceText: null
+    }, {
+        selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
+    }, {
+        selector: '.tag', text: null, replaceText: null // 两个null表示删除该元素
+    }, {
+        selector: '.time', text: null, replaceText: null
+    }];
+
+    // 注入样式，用来可控隐藏但保留 DOM
+    const hideClass = 'vu-preserve-hidden';
+
     GM_addStyle(`
+        .${hideClass} { display: none !important; }
+        /* 课程页顶部按钮栏高度限制 */
+        .content > .top, .content > div > .top {
+            max-height: 70px !important;
+        }
+        
         .um-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -377,15 +399,81 @@
             }));
     }
 
+    function hidePreserve(el) {
+        if (!el || el.classList.contains(hideClass)) return;
+        el.classList.add(hideClass);
+    }
+
+    function restore(el) {
+        if (!el) return;
+        el.classList.remove(hideClass);
+    }
+
+    // 只对匹配到的 .result2 进行判断：若没有 img[src] 则隐藏，否则恢复
+    function processResult2(el) {
+        if (!el || el.nodeType !== 1) return;
+        if (el.matches(emptyImgSelector)) {
+            hidePreserve(el);
+        } else {
+            restore(el);
+        }
+    }
+
+    function elementMatch() {
+        for (const {selector, text, replaceText} of textMap) {
+            const nodes = document.querySelectorAll(selector);
+            if (text === null && replaceText === null) {
+                nodes.forEach(n => n.remove());
+                continue;
+            }
+            for (const n of nodes) {
+                const span = Array.from(n.querySelectorAll('span')).find(s => s.textContent.trim() === text);
+                if (!span) continue;
+                if (replaceText === null) {
+                    n.remove();
+                } else {
+                    span.textContent = replaceText;
+                }
+                break;
+            }
+        }
+    }
+
     let scanScheduled = false;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(mutations => {
+        for (const m of mutations) {
+            // 处理新增节点
+            if (m.addedNodes?.length) {
+                m.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    const r = node.closest(imgBoxSelector);
+                    if (r) {
+                        processResult2(r);
+                    } else {
+                        const resultEls = node.querySelectorAll(imgBoxSelector);
+                        resultEls.forEach(el => processResult2(el));
+                    }
+                });
+            }
+
+            if (m.removedNodes?.length) {
+                m.removedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    const r = node.closest(imgBoxSelector);
+                    if (r) {
+                        processResult2(r);
+                    }
+                });
+            }
+        }
         if (scanScheduled) return;
         scanScheduled = true;
         requestAnimationFrame(() => {
             scanScheduled = false;
             scan();
+            elementMatch();
         });
     });
-    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
 
+    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
 })();
