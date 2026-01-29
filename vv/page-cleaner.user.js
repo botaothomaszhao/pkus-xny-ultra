@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.0
+// @version      vv.3.1
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素，并统一不同类型的弹窗样式。
 // @author       c-jeremy botaothomaszhao
@@ -475,5 +475,5 @@
         });
     });
 
-    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
+    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
 })();
