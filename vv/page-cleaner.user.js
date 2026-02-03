@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.1
+// @version      vv.3.2
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素，并统一不同类型的弹窗样式。
 // @author       c-jeremy botaothomaszhao
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const UNIFIED_ATTR = 'modal-unified';
+    const UNIFIED_ATTR = 'xny-modal-unified';
 
     const imgBoxSelector = '.result2';
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
@@ -447,10 +447,10 @@
     }
 
     function setTabBtn(node) {
-        if (node.getAttribute('tab-set') === '1') return;
+        if (node.getAttribute(UNIFIED_ATTR) === '1') return;
         const container = node.parentElement.querySelector('.swiper-container');
         if (!container) return;
-        node.setAttribute('tab-set', '1');
+        node.setAttribute(UNIFIED_ATTR, '1');
 
         function getStep() {
             const slide = container.querySelector('.swiper-slide');
@@ -468,10 +468,10 @@
             // 简单锁定，等待动画完成后允许下一次滚动
             setTimeout(() => {
                 scrolling = false;
-            }, 100);
+            }, 200);
         }
 
-        const rightOrLeft = node.matches('.right-icon.anticon.anticon-right');
+        const rightOrLeft = node.matches('.anticon-right');
         node.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -492,7 +492,7 @@
                     } else {
                         const resultEls = node.querySelectorAll(imgBoxSelector);
                         resultEls.forEach(el => processResult2(el));
-                        if (node.matches('.swiper_box .left-icon.anticon.anticon-left, .swiper_box .right-icon.anticon.anticon-right')) {
+                        if (node.matches('.swiper_box .anticon-left, .swiper_box .anticon-right')) { // swiper_box就是下划线，别问为什么
                             setTabBtn(node);
                         }
                     }
