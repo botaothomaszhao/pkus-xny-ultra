@@ -38,6 +38,13 @@
         .content > .top, .content > div > .top {
             max-height: 70px !important;
         }
+        /* 课程标签栏改为可滑动 */
+        .swiper-container {
+            overflow-x: auto !important;
+        }
+        .router-view {
+            overflow-y: hidden !important;
+        }
         
         .um-overlay {
             position: fixed;
@@ -439,6 +446,39 @@
         }
     }
 
+    function setTabBtn(node) {
+        if (node.getAttribute('tab-set') === '1') return;
+        const container = node.parentElement.querySelector('.swiper-container');
+        if (!container) return;
+        node.setAttribute('tab-set', '1');
+
+        function getStep() {
+            const slide = container.querySelector('.swiper-slide');
+            const style = getComputedStyle(slide);
+            const marginRight = parseFloat(style.marginRight) || 0;
+            return Math.round(slide.getBoundingClientRect().width + marginRight);
+        }
+
+        let scrolling = false;
+
+        function doScroll(delta) {
+            if (scrolling) return;
+            scrolling = true;
+            container.scrollBy({left: delta, behavior: 'smooth'});
+            // 简单锁定，等待动画完成后允许下一次滚动
+            setTimeout(() => {
+                scrolling = false;
+            }, 100);
+        }
+
+        const rightOrLeft = node.matches('.right-icon.anticon.anticon-right');
+        node.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            doScroll(rightOrLeft ? getStep() : -getStep());
+        }, true);
+    }
+
     let scanScheduled = false;
     const observer = new MutationObserver(mutations => {
         for (const m of mutations) {
@@ -452,6 +492,9 @@
                     } else {
                         const resultEls = node.querySelectorAll(imgBoxSelector);
                         resultEls.forEach(el => processResult2(el));
+                        if (node.matches('.swiper_box .left-icon.anticon.anticon-left, .swiper_box .right-icon.anticon.anticon-right')) {
+                            setTabBtn(node);
+                        }
                     }
                 });
             }

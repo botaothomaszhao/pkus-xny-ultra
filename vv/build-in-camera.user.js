@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         网页内置相机
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.3
+// @version      vv.3.4
 // @license      GPL-3.0
 // @description  在网页内实现相机拍照，解决浏览器无法唤起相机的问题。与图片选择框脚本配合会作为"拍照上传"选项，单独使用会对全部图片上传元素生效。
 // @author       botaothomaszhao
