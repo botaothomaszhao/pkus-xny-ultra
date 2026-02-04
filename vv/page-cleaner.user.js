@@ -47,6 +47,9 @@
         .swiper-container .swiper-slide {
             scroll-snap-align: start;
         }
+        .swiper_box .anticon-left:hover, .swiper_box .anticon-right:hover {
+            background-color: #cfd6e8 !important;
+        }
         .router-view {
             overflow-y: hidden !important;
         }
@@ -457,25 +460,22 @@
         if (!container) return;
         node.setAttribute(UNIFIED_ATTR, '1');
 
-        // 获取单个标签页宽度（snap会自动对齐）
-        const getStep = () => container.querySelector('.swiper-slide').offsetWidth;
-
         let scrolling = false;
 
         function doScroll(direction) {
-    if (scrolling) return;
-    scrolling = true;
-    
-    container.scrollBy({
-        left: direction * getStep(),
-        behavior: 'smooth'
-    });
-    
-    setTimeout(() => {
-        scrolling = false;
-    }, 250);
-}        
-      
+            if (scrolling) return;
+            scrolling = true;
+
+            // 获取单个标签页宽度（snap会自动对齐）
+            container.scrollBy({
+                left: direction * container.querySelector('.swiper-slide').offsetWidth,
+                behavior: 'smooth'
+            });
+            setTimeout(() => {
+                scrolling = false;
+            }, 250);
+        }
+
         const rightOrLeft = node.matches('.anticon-right');
         node.addEventListener('click', (e) => {
             e.preventDefault();

@@ -33,11 +33,9 @@
                     }
                 });
             }
-            return data;
-        } catch (e) {
-            console.error('[Content Modifier] Error:', e);
-            return data;
+        } catch (_) {
         }
+        return data;
     }
 
     // 修改页面数据以启用考试的答案显示
@@ -50,49 +48,47 @@
                     }
                 });
             }
-            return data;
-        } catch (e) {
-            return data;
+        } catch (_) {
         }
+        return data;
     }
 
     const OriginalXHR = window.XMLHttpRequest;
     const originalDescriptorText = Object.getOwnPropertyDescriptor(OriginalXHR.prototype, 'responseText');
     const originalDescriptorResponse = Object.getOwnPropertyDescriptor(OriginalXHR.prototype, 'response');
-    
+
     function definePropertyForXHR(xhr, propertyName, realGetter, modifier) {
         Object.defineProperty(xhr, propertyName, {
             get: function () {
                 const realValue = realGetter.get.call(this); // 获取原始值
                 if (this.readyState !== 4) return realValue;
-    
+
                 try {
                     const data = (typeof realValue === 'string') ? JSON.parse(realValue) : realValue;
                     const modified = modifier(data);
                     return (propertyName === 'responseText') ? JSON.stringify(modified) : modified;
                 } catch (e) {
-                    return realValue; // 出错时返回原始值
+                    return realValue;
                 }
             },
             configurable: true
         });
     }
-    
-    window.XMLHttpRequest = function() {
+
+    window.XMLHttpRequest = function () {
         const xhr = new OriginalXHR();
         let targetModifier = null;
 
         const originalOpen = xhr.open;
-        xhr.open = function(method, url) {
-            // 判断目标 URL
-            if (url && typeof url === 'string') {
+        xhr.open = function (method, url) {
+            if (url && typeof url === 'string') { // 判断目标 URL
                 if (url.endsWith('/content')) {
                     targetModifier = modifyContentData;
                 } else if (url.includes('/paper/entity/catalog/')) {
                     targetModifier = modifyEntityData;
                 }
 
-                if (targetModifier) {                   
+                if (targetModifier) {
                     definePropertyForXHR(xhr, 'responseText', originalDescriptorText, targetModifier);
                     definePropertyForXHR(xhr, 'response', originalDescriptorResponse, targetModifier);
                 }
