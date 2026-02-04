@@ -41,6 +41,11 @@
         /* 课程标签栏改为可滑动 */
         .swiper-container {
             overflow-x: auto !important;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+        }
+        .swiper-container .swiper-slide {
+            scroll-snap-align: start;
         }
         .router-view {
             overflow-y: hidden !important;
@@ -452,30 +457,30 @@
         if (!container) return;
         node.setAttribute(UNIFIED_ATTR, '1');
 
-        function getStep() {
-            const slide = container.querySelector('.swiper-slide');
-            const style = getComputedStyle(slide);
-            const marginRight = parseFloat(style.marginRight) || 0;
-            return Math.round(slide.getBoundingClientRect().width + marginRight);
-        }
+        // 获取单个标签页宽度（snap会自动对齐）
+        const getStep = () => container.querySelector('.swiper-slide').offsetWidth;
 
         let scrolling = false;
 
-        function doScroll(delta) {
-            if (scrolling) return;
-            scrolling = true;
-            container.scrollBy({left: delta, behavior: 'smooth'});
-            // 简单锁定，等待动画完成后允许下一次滚动
-            setTimeout(() => {
-                scrolling = false;
-            }, 200);
-        }
-
+        function doScroll(direction) {
+    if (scrolling) return;
+    scrolling = true;
+    
+    container.scrollBy({
+        left: direction * getStep(),
+        behavior: 'smooth'
+    });
+    
+    setTimeout(() => {
+        scrolling = false;
+    }, 250);
+}        
+      
         const rightOrLeft = node.matches('.anticon-right');
         node.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            doScroll(rightOrLeft ? getStep() : -getStep());
+            doScroll(rightOrLeft ? 1 : -1);
         }, true);
     }
 
