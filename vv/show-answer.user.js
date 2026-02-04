@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         强制显示答案
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.1
+// @version      vv.1.2
 // @license      GPL-3.0
-// @description  强制显示题目上被隐藏的“答案”等按钮。
+// @description  强制显示题目上被隐藏的"答案"等按钮。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/stu/*
 // @run-at       document-start
@@ -35,8 +35,7 @@
             }
             return data;
         } catch (e) {
-            // 在 sandbox 中 console.error 不可见，但保留无害
-            console.error('[Content Modifier] Error modifying data:', e);
+            console.error('[Content Modifier] Error:', e);
             return data;
         }
     }
@@ -57,59 +56,52 @@
         }
     }
 
-    function applyModifierToXhr(xhr, modifier) {
-        const originalDescriptorText = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
-        const originalDescriptorResponse = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
-
-        Object.defineProperty(xhr, 'responseText', {
+    const OriginalXHR = window.XMLHttpRequest;
+    const originalDescriptorText = Object.getOwnPropertyDescriptor(OriginalXHR.prototype, 'responseText');
+    const originalDescriptorResponse = Object.getOwnPropertyDescriptor(OriginalXHR.prototype, 'response');
+    
+    function definePropertyForXHR(xhr, propertyName, realGetter, modifier) {
+        Object.defineProperty(xhr, propertyName, {
             get: function () {
-                const realResponseText = originalDescriptorText.get.call(this);
+                const realValue = realGetter.get.call(this); // 获取原始值
+                if (this.readyState !== 4) return realValue;
+    
                 try {
-                    const data = JSON.parse(realResponseText);
+                    const data = (typeof realValue === 'string') ? JSON.parse(realValue) : realValue;
                     const modified = modifier(data);
-                    return JSON.stringify(modified);
+                    return (propertyName === 'responseText') ? JSON.stringify(modified) : modified;
                 } catch (e) {
-                    return realResponseText;
-                }
-            },
-            configurable: true
-        });
-        Object.defineProperty(xhr, 'response', {
-            get: function () {
-                const realResponse = originalDescriptorResponse.get.call(this);
-                try {
-                    const data = (typeof realResponse === 'string') ? JSON.parse(realResponse) : realResponse;
-                    return modifier(data);
-                } catch (e) {
-                    return realResponse;
+                    return realValue; // 出错时返回原始值
                 }
             },
             configurable: true
         });
     }
+    
+    window.XMLHttpRequest = function() {
+        const xhr = new OriginalXHR();
+        let targetModifier = null;
 
-    const originalOpen = XMLHttpRequest.prototype.open;
-    const originalSend = XMLHttpRequest.prototype.send;
+        const originalOpen = xhr.open;
+        xhr.open = function(method, url) {
+            // 判断目标 URL
+            if (url && typeof url === 'string') {
+                if (url.endsWith('/content')) {
+                    targetModifier = modifyContentData;
+                } else if (url.includes('/paper/entity/catalog/')) {
+                    targetModifier = modifyEntityData;
+                }
 
-    XMLHttpRequest.prototype.open = function (method, url) {
-        if (url && typeof url === 'string' && url.endsWith('/content')) {
-            this._isContentTarget = true;
-        } else if (url && typeof url === 'string' && url.includes('/paper/entity/catalog/')) {
-            this._isEntityNumTarget = true;
-        }
-        originalOpen.apply(this, arguments);
+                if (targetModifier) {                   
+                    definePropertyForXHR(xhr, 'responseText', originalDescriptorText, targetModifier);
+                    definePropertyForXHR(xhr, 'response', originalDescriptorResponse, targetModifier);
+                }
+            }
+            return originalOpen.apply(this, arguments);
+        };
+
+        return xhr;
     };
 
-    XMLHttpRequest.prototype.send = function () {
-        // 在 send 中使用复用函数
-        if (this._isContentTarget) {
-            applyModifierToXhr(this, modifyContentData);
-        } else if (this._isEntityNumTarget) {
-            applyModifierToXhr(this, modifyEntityData);
-        }
-
-        // 最终总是调用原始的 send 方法
-        originalSend.apply(this, arguments);
-    };
-
+    window.XMLHttpRequest.prototype = OriginalXHR.prototype;
 })();
