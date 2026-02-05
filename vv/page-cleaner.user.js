@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.2
+// @version      vv.3.3
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素，并统一不同类型的弹窗样式。
 // @author       c-jeremy botaothomaszhao
@@ -174,6 +174,13 @@
         .um-modal.fullscreen .um-content .s-box.pos-r {
             height: 100% !important;
         }
+        /* 笔记输入框 */
+        .um-modal:not(.fullscreen) .um-content .note-body {
+            height: 340px;
+        }
+        .um-modal.fullscreen .um-content .note-body {
+            height: calc(100% - 93px);
+        }
     `);
 
     const ICONS = {
@@ -308,7 +315,7 @@
     function closeOnBtn(e, btnSelector) {
         const btn = e.target.closest('button');
         const txt = cleanInnerText(btn);
-        if (btn?.closest(btnSelector) && txt !== '清空') { // (txt === '确定' || txt === '取消' || txt === '确认')
+        if (btn?.closest(btnSelector) && (txt !== '清空' && txt !== '删除笔记')) { // (txt === '确定' || txt === '取消' || txt === '确认')
             unifiedModal?.close();
         }
     }
@@ -410,6 +417,35 @@
                 closeBtn: '.anticon-close-circle',
                 async closeOriginal(root) {
                     root.style.visibility = 'visible';
+                }
+            }));
+        // 笔记
+        const deleteHandler = (e) => { // 响应删除笔记的确认框
+            const btn = e.target.closest('button');
+            const txt = cleanInnerText(btn);
+            if (txt !== '确定') return;
+            const messageBox = btn.closest('.ant-modal-root.ant-modal-confirm')?.querySelector('.ant-modal-body .ant-modal-confirm-content');
+            if (cleanInnerText(messageBox) === '确认要删除笔记内容吗?') {
+                unifiedModal?.close();
+            }
+        }
+        document.querySelectorAll('.note').forEach(box =>
+            catchGenericModal(box, {
+                containerSelector: '.note-content',
+                titleSelector: '.modal-title',
+                bodySelector: '.note-content',
+                getBodyNodes(bodyEl) {
+                    return Array.from(bodyEl.childNodes).filter(node => !(node.matches && node.matches('.modal-header')));
+                },
+                hideOriginal(root) {
+                    root.style.display = 'none';
+                    document.addEventListener('click', deleteHandler);
+                },
+                extraCloseBtn: '.btn-box',
+                closeBtn: '.anticon-close-square',
+                async closeOriginal(root) {
+                    root.style.display = '';
+                    document.removeEventListener('click', deleteHandler);
                 }
             }));
     }
