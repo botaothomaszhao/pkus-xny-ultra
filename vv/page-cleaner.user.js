@@ -155,6 +155,10 @@
             height: 99% !important;
         }
         /* 确认按钮置底 */
+        .um-modal:not(.fullscreen) .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {
+            position: sticky;
+            bottom: 0;
+        }
         .um-modal.fullscreen .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {
             position: fixed;
             bottom: 20px;
@@ -213,15 +217,17 @@
     }
 
     class UnifiedModal {
-        constructor(title, content, onClose) {
+        constructor(title, content, onClose, closeOnOverlay = true) {
             this.onClose = onClose;
             this.isFullscreen = false;
 
             this.overlay = document.createElement('div');
             this.overlay.className = 'um-overlay';
-            this.overlay.addEventListener('click', (e) => {
-                if (e.target === this.overlay) this.close();
-            });
+            if (closeOnOverlay) {
+                this.overlay.addEventListener('click', (e) => {
+                    if (e.target === this.overlay) this.close();
+                });
+            }
 
             this.modal = document.createElement('div');
             this.modal.className = 'um-modal';
@@ -330,6 +336,7 @@
      * - extraBtn: [可选] 额外的确认、取消按钮选择器
      * - closeBtn: 关闭按钮选择器
      * - closeOriginal(root): 关闭统一弹窗时，如何触发原始关闭逻辑/恢复样式
+     * - disableOverlayClose: [可选] 是否禁用点击弹窗以外直接关闭
      */
     async function catchGenericModal(rootEl, config) {
         if (!rootEl || rootEl.getAttribute(UNIFIED_ATTR) === '1' || config.shouldSkip?.(rootEl)) return;
@@ -359,7 +366,7 @@
             container.querySelector(config.closeBtn).click();
             await config.closeOriginal(rootEl);
             unifiedModal = null;
-        });
+        }, config.disableOverlayClose ? !config.disableOverlayClose : true);
         config.hideOriginal(rootEl);
     }
 
@@ -446,7 +453,8 @@
                 async closeOriginal(root) {
                     root.style.display = '';
                     document.removeEventListener('click', deleteHandler);
-                }
+                },
+                disableOverlayClose: true
             }));
     }
 
