@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v4.2
+// @version      v4.3
 // @license      GPL-3.0
 // @description  禁用动态加载的多个手写画板的滚动行为，避免影响绘制。
 // @author       c-jeremy botaothomaszhao
