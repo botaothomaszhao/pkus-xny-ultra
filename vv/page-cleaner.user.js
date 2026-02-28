@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.3
+// @version      vv.3.4
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素，并统一不同类型的弹窗样式。
 // @author       c-jeremy botaothomaszhao
@@ -568,4 +568,30 @@
     });
 
     observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+
+    // 监听提交按钮点击，自动恢复答题区按钮
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const btnText = cleanInnerText(btn);
+        if (btnText !== '手动提交' && btnText !== '手动补交') return;
+
+        // 查找答题区按钮
+        const answerAreaBtn = Array.from(document.querySelectorAll('button.ant-btn')).find(
+            btn => btn.innerText.trim().endsWith('答题区')
+        );
+
+        // 如果答题区按钮处于展开状态，监听其变化并恢复
+        if (answerAreaBtn?.classList.contains('ant-btn-primary')) {
+            const observer = new MutationObserver(() => {
+                if (!answerAreaBtn.classList.contains('ant-btn-primary')) {
+                    answerAreaBtn.click();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(answerAreaBtn, { attributes: true, attributeFilter: ['class'] });
+        }
+    }, true);
+    
 })();
