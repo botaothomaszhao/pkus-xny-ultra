@@ -97,7 +97,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 15px 20px;
+            padding: 8px 16px; /* 上下 左右 */
             border-bottom: 1px solid #e5e7eb;
             background: #f8fafc;
         }
@@ -130,8 +130,7 @@
         }
         .um-content {
             flex: 1;
-            padding: 24px;
-            padding-top: 10px;
+            padding: 10px 16px;
             overflow: auto;
         }
         .um-modal.fullscreen .um-content {
@@ -147,8 +146,8 @@
         /* pdf预览 */
         .um-modal:not(.fullscreen) .um-content iframe {
             box-sizing: border-box;
-            min-height: 500px;
-            min-width: min(852px, calc(100vw - 102px));
+            max-height: min(500px, calc(100vh - 137px));
+            min-width: min(852px, calc(100vw - 96px));
         }
         .um-modal.fullscreen .um-content iframe {
             box-sizing: border-box;
@@ -161,7 +160,7 @@
         }
         .um-modal.fullscreen .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {
             position: fixed;
-            bottom: 20px;
+            bottom: 18px;
             right: 24px;
         }
         /* 收藏区移除重复margin */
@@ -573,11 +572,9 @@
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
-
         const btnText = cleanInnerText(btn);
         if (btnText !== '手动提交' && btnText !== '手动补交') return;
 
-        // 查找答题区按钮
         const answerAreaBtn = Array.from(document.querySelectorAll('button.ant-btn')).find(
             btn => btn.innerText.trim().endsWith('答题区')
         );
@@ -593,5 +590,5 @@
             observer.observe(answerAreaBtn, { attributes: true, attributeFilter: ['class'] });
         }
     }, true);
-    
+
 })();
