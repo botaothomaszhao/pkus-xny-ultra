@@ -251,7 +251,7 @@
 
     // 通用函数
     function notLogin(url = window.location.href) {
-        return !url.includes("/stu/#/login")
+        return !url.includes("/stu/#/login") && !url.includes("/uploadFile");
     }
 
     function sleep(ms) {
