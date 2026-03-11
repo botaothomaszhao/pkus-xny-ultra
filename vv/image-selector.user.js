@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         图片选择框
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v2.4
+// @version      v2.3
 // @license      GPL-3.0
 // @description  上传图片时可以从“相册上传”或“拍照上传”中选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -35,6 +35,7 @@
             max-width: 720px;
             border-radius: 12px;
             background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
             overflow: hidden;
             display: flex;
             flex-direction: row;
@@ -69,11 +70,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 14px 16px;
+            padding: 14px 10px;
             border-left: 1px solid rgba(0, 0, 0, 0.06);
             gap: 6px;
             user-select: none;
-            min-width: 72px;
+            position: relative;
         }
         .iu-toggle-track {
             width: 44px;
@@ -107,6 +108,25 @@
             color: #888;
             text-align: center;
             line-height: 1.4;
+            cursor: default;
+        }
+        .iu-toggle-tip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            right: 0;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1;
+        }
+        .iu-toggle-tip.visible {
+            opacity: 1;
         }
     `);
 
@@ -151,7 +171,7 @@
                 fired = true;
                 restore();
                 console.log('XHR Interceptor (one-time): Mocking enchance request');
-                const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
+                const mockResponse = { code: 1, message: "加速上传中…", time: Date.now(), extra: "" };
                 const mockResponseJSON = JSON.stringify(mockResponse);
                 Object.defineProperties(this, {
                     status: { value: 200, writable: false },
@@ -331,8 +351,31 @@
         const toggleText = document.createElement('div');
         toggleText.className = 'iu-toggle-text';
         toggleText.textContent = '禁用增强 ⓘ';
-        toggleText.title = '禁用图片增强以加快上传速度';
 
+        // 悬停/点击提示（兼容移动端触控笔/触屏）
+        const toggleTip = document.createElement('div');
+        toggleTip.className = 'iu-toggle-tip';
+        toggleTip.textContent = '禁用图片增强以加快上传速度';
+
+        let tipTimer = null;
+        function showTip() {
+            clearTimeout(tipTimer);
+            toggleTip.classList.add('visible');
+        }
+        function hideTipAfter(ms) {
+            clearTimeout(tipTimer);
+            tipTimer = setTimeout(() => toggleTip.classList.remove('visible'), ms);
+        }
+
+        toggleText.addEventListener('pointerenter', () => showTip());
+        toggleText.addEventListener('pointerleave', () => hideTipAfter(200));
+        toggleText.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showTip();
+            hideTipAfter(2500);
+        });
+
+        toggleCol.appendChild(toggleTip);
         toggleCol.appendChild(toggleTrack);
         toggleCol.appendChild(toggleText);
 
