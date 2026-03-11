@@ -35,7 +35,8 @@
             max-width: 720px;
             border-radius: 12px;
             background: #fff;
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            border-right: 1px solid rgba(0, 0, 0, 0.06);
             overflow: hidden;
             display: flex;
             flex-direction: row;
@@ -75,7 +76,6 @@
             padding: 14px 10px;
             border-left: 1px solid rgba(0, 0, 0, 0.06);
             gap: 6px;
-            user-select: none;
             position: relative;
         }
         .iu-toggle-track {
@@ -87,6 +87,7 @@
             transition: background 0.2s;
             flex-shrink: 0;
             cursor: pointer;
+            user-select: none;
         }
         .iu-toggle-track.on {
             background: #007aff;
