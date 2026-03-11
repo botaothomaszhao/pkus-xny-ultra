@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         图片选择框
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v2.3
+// @version      v2.4
 // @license      GPL-3.0
 // @description  上传图片时可以从“相册上传”或“拍照上传”中选择。拍照选项通过带 capture 属性的 input 唤起系统相机。
 // @author       botaothomaszhao
@@ -47,6 +47,7 @@
         }
         .iu-panel button {
             width: 100%;
+            flex: 1;
             padding: 14px;
             border: none;
             border-top: 1px solid rgba(0, 0, 0, 0.06);
@@ -71,7 +72,6 @@
             padding: 14px 16px;
             border-left: 1px solid rgba(0, 0, 0, 0.06);
             gap: 6px;
-            cursor: pointer;
             user-select: none;
             min-width: 72px;
         }
@@ -83,6 +83,7 @@
             position: relative;
             transition: background 0.2s;
             flex-shrink: 0;
+            cursor: pointer;
         }
         .iu-toggle-track.on {
             background: #007aff;
@@ -149,7 +150,7 @@
             if (this._mockOnce && !fired) {
                 fired = true;
                 restore();
-                console.log('⚡️ XHR Interceptor (one-time): Mocking enchance request');
+                console.log('XHR Interceptor (one-time): Mocking enchance request');
                 const mockResponse = { code: 1, message: "新能源ULTRA加速上传中…", time: Date.now(), extra: "" };
                 const mockResponseJSON = JSON.stringify(mockResponse);
                 Object.defineProperties(this, {
@@ -184,8 +185,8 @@
     }
 
     // 通用：创建临时 file input，并在选择后回填到 origInput
-    // beforeCopy：文件选择成功、回填之前调用（可用于安装拦截器等）
-    function openTempFilePickerAndCopyTo(origInput, capture, beforeCopy) {
+    // disableEnhance：若为 true，回填前安装一次性 XHR 拦截器跳过增强请求
+    function openTempFilePickerAndCopyTo(origInput, capture, disableEnhance) {
         if (!origInput) return;
         const accept = ACCEPT_VALUE || origInput.getAttribute('accept');
         const multiple = origInput.hasAttribute('multiple');
@@ -208,7 +209,7 @@
         temp.addEventListener('change', () => {
             try {
                 if (temp.files?.length) {
-                    if (typeof beforeCopy === 'function') beforeCopy();
+                    if (disableEnhance) installOneTimeMockInterceptor();
                     copyFilesToInput(temp.files, origInput);
                 }
             } finally {
@@ -320,7 +321,6 @@
 
         const toggleCol = document.createElement('div');
         toggleCol.className = 'iu-toggle-col';
-        toggleCol.title = '禁用图片增强以加快上传速度';
 
         const toggleTrack = document.createElement('div');
         toggleTrack.className = 'iu-toggle-track';
@@ -331,11 +331,12 @@
         const toggleText = document.createElement('div');
         toggleText.className = 'iu-toggle-text';
         toggleText.textContent = '禁用增强 ⓘ';
+        toggleText.title = '禁用图片增强以加快上传速度';
 
         toggleCol.appendChild(toggleTrack);
         toggleCol.appendChild(toggleText);
 
-        toggleCol.addEventListener('click', (e) => {
+        toggleTrack.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleEnabled = !toggleEnabled;
             toggleTrack.classList.toggle('on', toggleEnabled);
@@ -370,7 +371,7 @@
             overlay._cleanup();
             try {
                 // 不传 capture，即打开系统文件选择器（相册）
-                openTempFilePickerAndCopyTo(origInput, null, toggleEnabled ? installOneTimeMockInterceptor : null);
+                openTempFilePickerAndCopyTo(origInput, null, toggleEnabled);
             } catch (err) {
                 console.warn('打开系统相册失败', err);
             }
@@ -383,7 +384,7 @@
             // 确保历史记录回退完成
             await new Promise((resolve) => window.addEventListener('popstate', resolve, {once: true}));
             try {
-                openTempFilePickerAndCopyTo(origInput, CAPTURE_VALUE, toggleEnabled ? installOneTimeMockInterceptor : null);
+                openTempFilePickerAndCopyTo(origInput, CAPTURE_VALUE, toggleEnabled);
             } catch (err) {
                 console.warn('打开相机失败', err);
             }
