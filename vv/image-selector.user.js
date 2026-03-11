@@ -37,7 +37,7 @@
             background: #fff;
             border-top: 1px solid rgba(0, 0, 0, 0.06);
             border-right: 1px solid rgba(0, 0, 0, 0.06);
-            overflow: hidden;
+            overflow: visible;
             display: flex;
             flex-direction: row;
             align-items: stretch;
@@ -113,11 +113,16 @@
             line-height: 1.4;
             cursor: default;
             touch-action: manipulation;
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            width: 100%; */
         }
         .iu-toggle-tip {
             position: absolute;
-            bottom: calc(100% + 8px);
-            right: 0;
+            top: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.75);
             color: #fff;
             font-size: 12px;
@@ -385,8 +390,8 @@
             }
         });
 
-        toggleCol.appendChild(toggleTip);
         toggleCol.appendChild(toggleTrack);
+        toggleText.appendChild(toggleTip);
         toggleCol.appendChild(toggleText);
 
         toggleTrack.addEventListener('click', (e) => {

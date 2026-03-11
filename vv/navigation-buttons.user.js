@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.7
+// @version      vv.3.8
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -250,7 +250,7 @@
     };
 
     // 通用函数
-    function notLogin(url = window.location.href) {
+    function onContentPage(url = window.location.href) {
         return !url.includes("/stu/#/login") && !url.includes("/uploadFile");
     }
 
@@ -397,7 +397,7 @@
     async function savePathForReplay(path = null) {
         try {
             if (!path) { // 防止在登录页面触发保存空路径
-                if (!notLogin()) return;
+                if (!onContentPage()) return;
                 path = captureCurrentPath();
             }
             if (path?.length > 1) await GM_setValue(REPLAY_STORAGE_KEY, JSON.stringify(path));
@@ -1180,12 +1180,12 @@
     let oldHref = ""; // 确保首次加载时正确显示
 
     function checkPageChange() {
-        if (!notLogin(oldHref) && notLogin()) {
+        if (!onContentPage(oldHref) && onContentPage()) {
             favBtn.onAppPage();
             searchBtn.onAppPage();
             hardRefreshBtn.onAppPage();
             console.log("检测到应用页面，显示导航按钮。");
-        } else if (notLogin(oldHref) && !notLogin()) {
+        } else if (onContentPage(oldHref) && !onContentPage()) {
             favBtn.onLoginPage();
             searchBtn.onLoginPage();
             hardRefreshBtn.onLoginPage();
@@ -1202,7 +1202,7 @@
     }
 
     checkPageChange();
-    if (notLogin()) hardRefreshBtn.replaySavedPathIfAny();
+    if (onContentPage()) hardRefreshBtn.replaySavedPathIfAny();
 
     window.addEventListener('popstate', checkPageChange);
 
