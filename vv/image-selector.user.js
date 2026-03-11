@@ -51,7 +51,6 @@
             flex: 1;
             padding: 14px;
             border: none;
-            border-top: 1px solid rgba(0, 0, 0, 0.06);
             background: #fff;
             font-size: 16px;
             cursor: pointer;
@@ -60,6 +59,9 @@
             justify-content: center;
             gap: 10px; /* 图标和文字间距 */
             line-height: normal; 
+        }
+        .iu-buttons-col button + button {
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
         }
         .iu-panel button svg {
             display: block;
@@ -109,6 +111,7 @@
             text-align: center;
             line-height: 1.4;
             cursor: default;
+            touch-action: manipulation;
         }
         .iu-toggle-tip {
             position: absolute;
@@ -367,12 +370,18 @@
             tipTimer = setTimeout(() => toggleTip.classList.remove('visible'), ms);
         }
 
-        toggleText.addEventListener('pointerenter', () => showTip());
-        toggleText.addEventListener('pointerleave', () => hideTipAfter(200));
-        toggleText.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showTip();
-            hideTipAfter(2500);
+        toggleText.addEventListener('pointerenter', (e) => {
+            if (e.pointerType === 'mouse') showTip();
+        });
+        toggleText.addEventListener('pointerleave', (e) => {
+            if (e.pointerType === 'mouse') hideTipAfter(200);
+        });
+        toggleText.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                e.stopPropagation();
+                showTip();
+                hideTipAfter(2500);
+            }
         });
 
         toggleCol.appendChild(toggleTip);
