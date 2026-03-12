@@ -31,17 +31,27 @@
             background: rgba(0, 0, 0, 0.12);
         }
         .iu-panel {
+            position: relative;
             width: 100%;
             max-width: 720px;
             border-radius: 12px;
             background: #fff;
             border-top: 1px solid rgba(0, 0, 0, 0.06);
             border-right: 1px solid rgba(0, 0, 0, 0.06);
-            overflow: visible;
             display: flex;
-            flex-direction: row;
             align-items: stretch;
+            overflow: visible;
         }
+        /* 用一个伪元素承接圆角裁剪，避免改动 overflow:visible */
+        .iu-panel::before {
+            content: "";
+        }
+        .iu-buttons-col,
+        .iu-toggle-col {
+            position: relative;
+            z-index: 1; /* 保证内容显示在伪元素之上 */
+        }
+
         .iu-buttons-col {
             flex: 1;
             display: flex;
@@ -52,22 +62,19 @@
             flex: 1;
             padding: 14px;
             border: none;
-            background: #fff;
+            background: transparent;
             font-size: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px; /* 图标和文字间距 */
-            line-height: normal; 
+            gap: 10px;
+            line-height: normal;
         }
         .iu-buttons-col button + button {
             border-top: 1px solid rgba(0, 0, 0, 0.06);
         }
-        .iu-panel button svg {
-            display: block;
-            transform: translateY(-1px); /* 图标高度微调 */
-        }
+
         .iu-toggle-col {
             display: flex;
             flex-direction: column;
@@ -76,7 +83,6 @@
             padding: 14px 10px;
             border-left: 1px solid rgba(0, 0, 0, 0.06);
             gap: 6px;
-            position: relative;
         }
         .iu-toggle-track {
             width: 44px;
@@ -113,10 +119,10 @@
             line-height: 1.4;
             cursor: default;
             touch-action: manipulation;
-            position: relative;
             display: inline-flex;
             justify-content: center;
-            width: 100%; */
+            width: 100%;
+            position: relative;
         }
         .iu-toggle-tip {
             position: absolute;
@@ -132,7 +138,7 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s;
-            z-index: 1;
+            z-index: 2;
         }
         .iu-toggle-tip.visible {
             opacity: 1;
