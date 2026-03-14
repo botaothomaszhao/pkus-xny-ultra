@@ -361,13 +361,14 @@
     async function replayPath(path, myToken) {
         let lastClickedEl = null;
 
-        async function click(sel, text) {
+        async function click(sel, text, isLast) {
             for (let i = 0; i < 100; i++) { // 最多尝试10s
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
-                        if (!node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
+                        if (isLast || !node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
                             node.click(); // 如果已展开则不点击
                             scrollTreeItem(node);
+                            await sleep(200);
                         }
                         lastClickedEl = node;
                         return true;
@@ -386,10 +387,9 @@
             if (replayToken !== myToken) {
                 throw new Error('Replay cancelled');
             }
-            if (!(await click(step.selector, step.text))) {
+            if (!(await click(step.selector, step.text, step === path[path.length - 1]))) {
                 throw new Error('Replay failed');
             }
-            await sleep(200);
         }
         return lastClickedEl;
     }
@@ -828,7 +828,7 @@
 
         onPageChange(oldUrl, newUrl) {
             this.closeDrawer();
-            // 不检测url ?后参数
+            // 不检测url ?后参数，仅在页面变化时清空搜索
             if (oldUrl.split('?')[0] !== newUrl.split('?')[0]) {
                 this.searchableItems = [];
             }
@@ -1062,9 +1062,7 @@
         }
 
         onPageChange(oldUrl, newUrl) {
-            if (oldUrl !== newUrl) {
-                savePathForReplay();
-            }
+            if (oldUrl !== newUrl) savePathForReplay();
         }
 
         async replaySavedPathIfAny() {
@@ -1202,9 +1200,14 @@
     }
 
     checkPageChange();
-    if (onContentPage()) hardRefreshBtn.replaySavedPathIfAny();
+    if (onContentPage() && !window.location.href.includes("catalogId=")) hardRefreshBtn.replaySavedPathIfAny();
 
-    window.addEventListener('popstate', checkPageChange);
+    window.addEventListener('popstate', (e) => {
+        if (e.state?.path) {
+            console.log("popstate 事件触发，state:", e.state);
+            startReplay(e.state.path, false);
+        } else checkPageChange();
+    });
 
     document.addEventListener('click', (e) => {
         if (e.target.closest('.folderName')) { // 点击科目时移除 URL 中的 catalogId 以避免干扰回放
@@ -1212,17 +1215,35 @@
         }
     }, true);
 
-    // 劫持 pushState/replaceState，触发回放检查
+    // 仅用在登录成功后
     const originalPushState = history.pushState;
     history.pushState = (...args) => {
         originalPushState.apply(history, args);
         checkPageChange();
     };
 
+    // 劫持 replaceState，保存当前路径到 state 中，供 popstate 事件回放使用
     const originalReplaceState = history.replaceState;
     history.replaceState = (...args) => {
-        originalReplaceState.apply(history, args);
-        checkPageChange();
+
+        if (!document.querySelector('.ant-empty')){ // 仅保存有内容的页面
+            console.log("replaceState 被调用，触发页面变更检查。", captureCurrentPath());
+            originalReplaceState.call(history, {path: captureCurrentPath()}, '', window.location.href);
+            history.pushState(...args);
+        } else {
+            originalReplaceState.apply(history, args);
+            checkPageChange();
+        }
+
+
+        /*
+        console.log("replaceState 被调用，触发页面变更检查。", args);
+        originalReplaceState.call(history,{path: captureCurrentPath()}, '', window.location.href);
+        if (!document.querySelector('.ant-empty')) {
+            originalPushState.call(history,{path: captureCurrentPath()}, '', args[2]);
+        }
+
+        checkPageChange();*/
     };
 
 })();

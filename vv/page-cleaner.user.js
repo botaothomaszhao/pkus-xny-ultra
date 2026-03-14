@@ -20,11 +20,11 @@
     const emptyImgSelector = '.result2:not(:has(.errorBorder)):not(:has(img[src]))';
 
     const textMap = [{
-        selector: 'button.ant-btn', text: '扫描作答', replaceText: null
+        selector: 'button.ant-btn', text: '扫描作答', replaceText: null // 替换为null表示隐藏该元素
     }, {
         selector: '.right', text: '系统自动提交倒计时：', replaceText: '自动提交倒计时：' // 考试页中倒计时和文字平级
     }, {
-        selector: '.tag', text: null, replaceText: null // 两个null表示删除该元素
+        selector: '.tag', text: null, replaceText: null
     }, {
         selector: '.time', text: null, replaceText: null
     }];
@@ -488,7 +488,7 @@
                 const span = Array.from(n.querySelectorAll('span')).find(s => s.textContent.trim() === text);
                 if (!span) continue;
                 if (replaceText === null) {
-                    n.remove();
+                    n.style.display = 'none';
                 } else {
                     span.textContent = replaceText;
                 }
@@ -587,7 +587,7 @@
                     observer.disconnect();
                 }
             });
-            observer.observe(answerAreaBtn, { attributes: true, attributeFilter: ['class'] });
+            observer.observe(answerAreaBtn, {attributes: true, attributeFilter: ['class']});
         }
     }, true);
 
