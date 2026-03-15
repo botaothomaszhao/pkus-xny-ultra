@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v4.3
+// @version      v4.4
 // @license      GPL-3.0
-// @description  禁用动态加载的多个手写画板的滚动行为，避免影响绘制。
+// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
@@ -14,9 +14,20 @@
     'use strict';
 
     GM_addStyle(`
-        .content > .top:not(.mt-10.box), .content > div > .top:not(.mt-10.box) {
+        .content > .top:not(.mt-10.box), .content > div > .top:not(.mt-10.box) { /* 修复课程顶部操作栏乱动 */
             position: absolute !important;
         }
+
+        /* 让题干显示在画布之下 */
+        .write .canvasAnswer .bg-layer-fff {
+            z-index: 0 !important;
+            pointer-events: none !important; /* 避免盖住触摸/鼠标事件 */
+        }
+        .write .canvasAnswer .canvasBox-roll .canvasBox canvas {
+            z-index: 1 !important;
+            background: transparent !important;
+        }
+        
     `); // mt-10.box 是AI页的，不修改
 
     const containerSelector = 'body'; // 观察的稳定父容器选择器

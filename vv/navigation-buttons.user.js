@@ -368,7 +368,7 @@
                         if (isLast || !node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
                             node.click(); // 如果已展开则不点击
                             scrollTreeItem(node);
-                            await sleep(200);
+                            if (!isLast) await sleep(200);
                         }
                         lastClickedEl = node;
                         return true;
@@ -1200,7 +1200,9 @@
     }
 
     checkPageChange();
-    if (onContentPage() && !window.location.href.includes("catalogId=")) hardRefreshBtn.replaySavedPathIfAny();
+    if (onContentPage()) hardRefreshBtn.replaySavedPathIfAny();
+
+    let popping = false;
 
     window.addEventListener('popstate', (e) => {
         if (e.state?.path) {
@@ -1234,16 +1236,6 @@
             originalReplaceState.apply(history, args);
             checkPageChange();
         }
-
-
-        /*
-        console.log("replaceState 被调用，触发页面变更检查。", args);
-        originalReplaceState.call(history,{path: captureCurrentPath()}, '', window.location.href);
-        if (!document.querySelector('.ant-empty')) {
-            originalPushState.call(history,{path: captureCurrentPath()}, '', args[2]);
-        }
-
-        checkPageChange();*/
     };
 
 })();
