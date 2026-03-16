@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      v4.4
+// @version      vv.5.0
 // @license      GPL-3.0
-// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答。
+// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答；并在检测到手写笔后实现“笔松开后屏蔽触摸、再次按下放行”的触摸屏蔽逻辑。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
@@ -14,7 +14,7 @@
     'use strict';
 
     GM_addStyle(`
-        .content > .top:not(.mt-10.box), .content > div > .top:not(.mt-10.box) { /* 修复课程顶部操作栏乱动 */
+        .content > .top:not(.mt-10.box), .content > div > .top:not(.mt-10.box) { /* 修复课程顶部操作栏乱动，mt-10.box 是AI页的，不修改 */
             position: absolute !important;
         }
 
@@ -27,50 +27,90 @@
             z-index: 1 !important;
             background: transparent !important;
         }
-        
-    `); // mt-10.box 是AI页的，不修改
+    `);
 
-    const containerSelector = 'body'; // 观察的稳定父容器选择器
-    const canvasSelector = '.board.answerCanvas'; // 目标画板元素的选择器
-    const fixedAttribute = 'data-tampermonkey-fixed'; // 用于标记已处理元素的属性
+    const containerSelector = 'body';
+    const canvasSelector = '.write .canvasAnswer .canvasBox-roll .canvasBox canvas';
+    const fixedAttribute = 'data-tampermonkey-fixed';
 
-    // 对单个画板元素应用触摸/滚动修复
-    function applyFix(element) {
-        if (element.hasAttribute(fixedAttribute)) return;
-
-        console.log('Tampermonkey: 对新画板应用修复。', element);
-
-        // 1. 阻止绘制操作被识别为滚动手势
-        element.addEventListener('touchmove', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }, {passive: false});
-
-        // 2. 禁止在该元素上触发下拉刷新
-        element.style.overscrollBehaviorY = 'contain';
-
-        // 3. 标记为已处理，避免重复处理
-        element.setAttribute(fixedAttribute, 'true');
+    // 每个 canvas 自己的笔/触摸状态
+    // 逻辑：
+    // - 初始（未见过笔）：不改变任何触摸行为
+    // - 一旦见过 pen(pointerType==='pen')：
+    //   - pen 按下到松开期间：放行 touch（避免拦掉笔自身可能触发的 TouchEvent）
+    //   - pen 松开后：屏蔽 touch，直到下一次 pen 再次按下
+    function createState() {
+        return {
+            penEverUsed: false,
+            penIsDown: false
+        };
     }
 
-    // 查找页面上的容器并开始观察其子元素变化
+    // 对单个 canvas 应用修复
+    function applyFix(canvas) {
+        if (canvas.hasAttribute(fixedAttribute)) return;
+
+        // 1) 原功能：阻止绘制操作被识别为滚动手势
+        canvas.addEventListener('touchmove', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }, { passive: false });
+
+        // 2) 原功能：禁止在该元素上触发下拉刷新
+        canvas.style.overscrollBehaviorY = 'contain';
+
+        // 3) 新功能：为该 canvas 维护独立状态，并安装笔/触摸控制
+        const state = createState();
+
+        // Pointer 事件用来识别“笔是否按下/松开”
+        // 监听在 canvas 上，确保与该 canvas 生命周期一致；canvas 被移除后状态自然丢失，从而“重置”。
+        canvas.addEventListener('pointerdown', function (e) {
+            if (e.pointerType !== 'pen') return;
+            state.penEverUsed = true;
+            state.penIsDown = true;
+        }, { capture: true, passive: true });
+
+        const onPenUpLike = function (e) {
+            if (e.pointerType !== 'pen') return;
+            state.penIsDown = false;
+        };
+
+        canvas.addEventListener('pointerup', onPenUpLike, { capture: true, passive: true });
+        canvas.addEventListener('pointercancel', onPenUpLike, { capture: true, passive: true });
+
+        // 触摸屏蔽 gate：
+        // - 未见过笔：放行
+        // - 见过笔：
+        //   - 笔按下：放行 touch（按你的新逻辑）
+        //   - 笔松开：屏蔽 touch，直到下一次笔按下
+        function touchGate(event) {
+            if (!state.penEverUsed) return;
+            if (state.penIsDown) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+
+        canvas.addEventListener('touchstart', touchGate, { capture: true, passive: false });
+        canvas.addEventListener('touchmove', touchGate, { capture: true, passive: false });
+        canvas.addEventListener('touchend', touchGate, { capture: true, passive: false });
+        canvas.addEventListener('touchcancel', touchGate, { capture: true, passive: false });
+
+        // 4) 标记为已处理，避免重复处理
+        canvas.setAttribute(fixedAttribute, 'true');
+    }
+
     function initializeObserver() {
         const container = document.querySelector(containerSelector);
 
         if (!container) {
-            // 容器尚未加载时稍后重试（用于加载较慢的页面）
             setTimeout(initializeObserver, 500);
             return;
         }
 
-        console.log('Tampermonkey: 找到容器，开始观察新画板。', container);
-
-        // 创建 MutationObserver 以监听容器内部新增元素
         const observer = new MutationObserver(function (mutations) {
             for (const mutation of mutations) {
-                // 仅关心被添加到页面的节点
                 if (mutation.addedNodes.length > 0) {
-                    // 在新增节点中查找未处理的画板并应用修复
                     mutation.addedNodes.forEach((node) => {
                         if (node.nodeType === 1) {
                             if (node.matches(canvasSelector)) applyFix(node);
@@ -81,9 +121,9 @@
             }
         });
 
-        observer.observe(container, {childList: true, subtree: true});
+        observer.observe(container, { childList: true, subtree: true });
 
-        // 页面加载时再跑一次以处理在观察器附加前已存在的画板
+        // 处理观察器附加前已存在的 canvas
         document.querySelectorAll(canvasSelector).forEach(applyFix);
     }
 
