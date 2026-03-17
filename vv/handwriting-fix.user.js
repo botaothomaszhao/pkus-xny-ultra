@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.6.0
+// @version      vv.5.1
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -32,35 +32,6 @@
     const canvasSelector = '.board.answerCanvas';
     const fixedAttribute = 'data-tampermonkey-fixed';
 
-    /**
-     * =========================
-     * 可配置项（按需修改）
-     * =========================
-     *
-     * 说明：这里的设置只影响“单击/轻触补点”的绘制。
-     * 拖动书写的线条样式仍由网站原本逻辑控制。
-     */
-    const SETTINGS = {
-        // 补点时画笔颜色：
-        // - null 表示尽量沿用当前 canvas ctx 的 strokeStyle/fillStyle
-        // - 或填 '#000000' / 'rgb(0,0,0)' 等
-        brushColor: null,
-
-        // 补点时画笔宽度（像素）：
-        // - null 表示尽量沿用 ctx.lineWidth
-        brushWidth: null,
-
-        // 补点半径：
-        // - 默认使用 brushWidth/2（若可用），否则 2
-        dotRadius: null,
-
-        // 判定“单击/轻触”的移动阈值（像素）
-        moveThresholdPx: 3,
-
-        // 是否在补点时阻止事件继续传播（一般不需要；若出现双重落点可改 true）
-        stopEventPropagation: false
-    };
-
     // 每个 canvas 自己的笔/触摸状态
     function createState() {
         return {
@@ -74,13 +45,6 @@
             pointerMoved: false,
             pointerId: null
         };
-    }
-
-    function clampNumber(v, min, max) {
-        if (typeof v !== 'number' || Number.isNaN(v)) return null;
-        if (v < min) return min;
-        if (v > max) return max;
-        return v;
     }
 
     function getCanvasPos(canvas, evt) {
@@ -114,44 +78,13 @@
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    function drawDot(ctx, x, y) {
+    function drawDot(ctx, x, y, color, r) {
         ctx.save();
-
-        // 颜色：优先 SETTINGS，否者沿用已有
-        if (SETTINGS.brushColor) {
-            ctx.fillStyle = SETTINGS.brushColor;
-            ctx.strokeStyle = SETTINGS.brushColor;
-        } else {
-            // 尽量用 strokeStyle；有些站点只设置 strokeStyle
-            try {
-                if (!ctx.fillStyle || ctx.fillStyle === 'rgba(0, 0, 0, 0)') {
-                    ctx.fillStyle = ctx.strokeStyle;
-                }
-            } catch (_) {
-                // ignore
-            }
-        }
-
-        // 宽度：优先 SETTINGS，否则沿用
-        if (typeof SETTINGS.brushWidth === 'number') {
-            const w = clampNumber(SETTINGS.brushWidth, 0.5, 200);
-            if (w) ctx.lineWidth = w;
-        }
-
-        // 半径：优先 SETTINGS.dotRadius，否则用 lineWidth/2，否则 2
-        let r = null;
-        if (typeof SETTINGS.dotRadius === 'number') {
-            r = clampNumber(SETTINGS.dotRadius, 0.5, 200);
-        }
-        if (!r) {
-            const lw = (typeof ctx.lineWidth === 'number' && ctx.lineWidth > 0) ? ctx.lineWidth : 0;
-            r = lw ? Math.max(1, lw / 2) : 2;
-        }
-
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.restore();
     }
 
@@ -183,7 +116,6 @@
         const state = createState();
 
         // Pointer 事件用来识别“笔是否按下/松开”
-        // 监听在 canvas 上，确保与该 canvas 生命周期一致；canvas 被移除后状态自然丢失，从而“重置”。
         canvas.addEventListener('pointerdown', function (e) {
             if (e.pointerType !== 'pen') return;
             state.penEverUsed = true;
@@ -198,7 +130,7 @@
         canvas.addEventListener('pointerup', onPenUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPenUpLike, {capture: true, passive: true});
 
-        // 触摸屏蔽 gate：
+        // 触摸屏蔽：
         // - 未见过笔：放行
         // - 见过笔：
         //   - 笔按下：放行 touch（按你的新逻辑）
@@ -217,13 +149,7 @@
         canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
 
         /**
-         * 4) 单击/轻触补点：
-         * 原站通常只在 pointermove/touchmove 时 stroke，所以“点击不移动”不会画。
-         * 我们在抬起时，如果几乎没移动，就手动补一个点。
-         *
-         * 说明：
-         * - 使用 capture:true 以便尽量不受站点内部 stopPropagation 影响。
-         * - 不主动 preventDefault，避免影响站点原本拖动书写流程。
+         * 4) 单击补点
          */
         canvas.addEventListener('pointerdown', function (e) {
             // 仅跟踪主键/主指针，避免多指干扰
@@ -243,7 +169,7 @@
             if (state.pointerId !== null && e.pointerId !== state.pointerId) return;
 
             const pos = getCanvasPos(canvas, e);
-            if (distance(state.pointerDownX, state.pointerDownY, pos.x, pos.y) > SETTINGS.moveThresholdPx) {
+            if (distance(state.pointerDownX, state.pointerDownY, pos.x, pos.y) > 3) { // 超过阈值，认为是移动了
                 state.pointerMoved = true;
             }
         }, {capture: true, passive: true});
@@ -252,18 +178,19 @@
             if (!state.pointerIsDown) return;
             if (state.pointerId !== null && e.pointerId !== state.pointerId) return;
 
-            state.pointerIsDown = false;
-
-            if (!state.pointerMoved) {
+            if (!state.pointerMoved && !canvas.classList.contains('xiangpica')) { // 为画笔而不是橡皮擦
                 const pos = getCanvasPos(canvas, e);
-                drawDot(ctx, pos.x, pos.y);
+                const colorBox = container.querySelector('.color-box');
+                const slider = container.querySelector('.ant-slider-handle');
+                const leftPercentStr = slider.style.left; // 获取画笔宽度百分比，2-10像素直径
+                const leftPercent = leftPercentStr.endsWith('%') ? parseFloat(leftPercentStr) : 33;
 
-                if (SETTINGS.stopEventPropagation) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
+                drawDot(ctx, pos.x, pos.y, colorBox.style.backgroundColor, leftPercent * 0.04 + 1);
+                //e.preventDefault();
+                //e.stopPropagation();
             }
 
+            state.pointerIsDown = false;
             state.pointerId = null;
             state.pointerMoved = false;
         }, {capture: true, passive: false});
