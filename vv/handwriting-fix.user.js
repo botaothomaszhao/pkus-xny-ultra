@@ -55,10 +55,10 @@
         if (typeof evt.clientX === 'number') {
             clientX = evt.clientX;
             clientY = evt.clientY;
-        } else if (evt.touches && evt.touches.length > 0) {
+        } else if (evt.touches?.length > 0) {
             clientX = evt.touches[0].clientX;
             clientY = evt.touches[0].clientY;
-        } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+        } else if (evt.changedTouches?.length > 0) {
             clientX = evt.changedTouches[0].clientX;
             clientY = evt.changedTouches[0].clientY;
         } else {
@@ -102,49 +102,28 @@
         container.style.overscrollBehaviorY = 'contain';
 
         const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
-        if (btn && btn.classList.contains('ant-btn-primary')) {
+        if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
 
         const canvas = container.querySelector('canvas');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas?.getContext('2d');
         if (!ctx) return;
 
         // 3) 为该 canvas 维护独立状态，并安装笔/触摸控制
         const state = createState();
 
-        // 触摸屏蔽：
-        // - 未见过笔：放行
-        // - 见过笔：
-        //   - 笔按下：放行 touch（按你的新逻辑）
-        //   - 笔松开：屏蔽 touch，直到下一次笔按下
-        function touchGate(event) {
-            if (state.penEverUsed && !state.penIsDown) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-            }
-        }
-
-        canvas.addEventListener('touchstart', touchGate, {capture: true, passive: false});
-        canvas.addEventListener('touchmove', touchGate, {capture: true, passive: false});
-        canvas.addEventListener('touchend', touchGate, {capture: true, passive: false});
-        canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
-
-        /**
-         * 4) 合并后的 pointer 事件：
-         * - 维护 penEverUsed / penIsDown（给 touchGate 用）
-         * - 同时维护单击补点状态
-         */
+        // 4) 合并后的 pointer 事件：
+        //    - 维护 penEverUsed / penIsDown（给 touchGate 用）
+        //    - 同时维护单击补点状态
         canvas.addEventListener('pointerdown', function (e) {
-            // 先更新“笔状态”（触摸屏蔽依赖）
+            // 更新“笔状态”（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penEverUsed = true;
                 state.penIsDown = true;
             } else if (state.penEverUsed) return;
 
-            // 再更新“单击补点跟踪状态”
+            // 更新“单击补点跟踪状态”
             // 仅跟踪主键/主指针，避免多指干扰
             if (e.pointerType === 'mouse' && e.button !== 0) return;
 
@@ -167,12 +146,12 @@
         }, {capture: true, passive: true});
 
         const onPointerUpLike = function (e) {
-            // 先更新“笔状态”（触摸屏蔽依赖）
+            // 更新“笔状态”（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penIsDown = false;
             } else if(state.penEverUsed) return; // 对补点也屏蔽触摸
 
-            // 再处理“单击补点”的收尾
+            // 单击补点
             if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
 
             if (!state.pointerMoved && !canvas.classList.contains('xiangpica')) { // 为画笔而不是橡皮擦
@@ -181,10 +160,7 @@
                 const slider = container.querySelector('.ant-slider-handle');
                 const leftPercentStr = slider.style.left; // 获取画笔宽度百分比，2-10像素直径
                 const leftPercent = leftPercentStr.endsWith('%') ? parseFloat(leftPercentStr) : 33;
-
                 drawDot(ctx, pos.x, pos.y, colorBox.style.backgroundColor, leftPercent * 0.04 + 1);
-                //e.preventDefault();
-                //e.stopPropagation();
             }
 
             state.pointerIsDown = false;
@@ -192,8 +168,26 @@
             state.pointerMoved = false;
         };
 
-        canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: false});
+        canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
+
+        // 触摸屏蔽：
+        // - 未见过笔：放行
+        // - 见过笔：
+        //   - 笔按下：放行 touch（按你的新逻辑）
+        //   - 笔松开：屏蔽 touch，直到下一次笔按下
+        function touchGate(event) {
+            if (state.penEverUsed && !state.penIsDown) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }
+
+        canvas.addEventListener('touchstart', touchGate, {capture: true, passive: false});
+        canvas.addEventListener('touchmove', touchGate, {capture: true, passive: false});
+        // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画
+        //canvas.addEventListener('touchend', touchGate, {capture: true, passive: false});
+        //canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
 
         // 5) 标记为已处理，避免重复处理
         canvas.setAttribute(fixedAttribute, 'true');
