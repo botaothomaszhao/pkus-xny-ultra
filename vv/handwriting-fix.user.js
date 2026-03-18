@@ -115,32 +115,16 @@
         // 3) 为该 canvas 维护独立状态，并安装笔/触摸控制
         const state = createState();
 
-        // Pointer 事件用来识别“笔是否按下/松开”
-        canvas.addEventListener('pointerdown', function (e) {
-            if (e.pointerType !== 'pen') return;
-            state.penEverUsed = true;
-            state.penIsDown = true;
-        }, {capture: true, passive: true});
-
-        const onPenUpLike = function (e) {
-            if (e.pointerType !== 'pen') return;
-            state.penIsDown = false;
-        };
-
-        canvas.addEventListener('pointerup', onPenUpLike, {capture: true, passive: true});
-        canvas.addEventListener('pointercancel', onPenUpLike, {capture: true, passive: true});
-
         // 触摸屏蔽：
         // - 未见过笔：放行
         // - 见过笔：
         //   - 笔按下：放行 touch（按你的新逻辑）
         //   - 笔松开：屏蔽 touch，直到下一次笔按下
         function touchGate(event) {
-            if (!state.penEverUsed) return;
-            if (state.penIsDown) return;
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
+            if (state.penEverUsed && !state.penIsDown) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
         }
 
         canvas.addEventListener('touchstart', touchGate, {capture: true, passive: false});
@@ -149,11 +133,19 @@
         canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
 
         /**
-         * 4) 单击补点
+         * 4) 合并后的 pointer 事件：
+         * - 维护 penEverUsed / penIsDown（给 touchGate 用）
+         * - 同时维护单击补点状态
          */
         canvas.addEventListener('pointerdown', function (e) {
+            // 先更新“笔状态”（触摸屏蔽依赖）
+            if (e.pointerType === 'pen') {
+                state.penEverUsed = true;
+                state.penIsDown = true;
+            } else if (state.penEverUsed) return;
+
+            // 再更新“单击补点跟踪状态”
             // 仅跟踪主键/主指针，避免多指干扰
-            // mouse: buttons=1 才算按下；touch/pen 由浏览器保证
             if (e.pointerType === 'mouse' && e.button !== 0) return;
 
             state.pointerIsDown = true;
@@ -165,18 +157,23 @@
         }, {capture: true, passive: true});
 
         canvas.addEventListener('pointermove', function (e) {
-            if (!state.pointerIsDown) return;
-            if (state.pointerId !== null && e.pointerId !== state.pointerId) return;
+            if (state.penEverUsed && !state.penIsDown) return;
+            if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
 
             const pos = getCanvasPos(canvas, e);
-            if (distance(state.pointerDownX, state.pointerDownY, pos.x, pos.y) > 3) { // 超过阈值，认为是移动了
+            if (distance(state.pointerDownX, state.pointerDownY, pos.x, pos.y) > 5) { // 超过阈值，认为是移动了
                 state.pointerMoved = true;
             }
         }, {capture: true, passive: true});
 
-        canvas.addEventListener('pointerup', function (e) {
-            if (!state.pointerIsDown) return;
-            if (state.pointerId !== null && e.pointerId !== state.pointerId) return;
+        const onPointerUpLike = function (e) {
+            // 先更新“笔状态”（触摸屏蔽依赖）
+            if (e.pointerType === 'pen') {
+                state.penIsDown = false;
+            } else if(state.penEverUsed) return; // 对补点也屏蔽触摸
+
+            // 再处理“单击补点”的收尾
+            if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
 
             if (!state.pointerMoved && !canvas.classList.contains('xiangpica')) { // 为画笔而不是橡皮擦
                 const pos = getCanvasPos(canvas, e);
@@ -193,13 +190,10 @@
             state.pointerIsDown = false;
             state.pointerId = null;
             state.pointerMoved = false;
-        }, {capture: true, passive: false});
+        };
 
-        canvas.addEventListener('pointercancel', function () {
-            state.pointerIsDown = false;
-            state.pointerId = null;
-            state.pointerMoved = false;
-        }, {capture: true, passive: true});
+        canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: false});
+        canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
 
         // 5) 标记为已处理，避免重复处理
         canvas.setAttribute(fixedAttribute, 'true');
