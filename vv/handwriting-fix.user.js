@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.1
+// @version      vv.5.2
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -22,6 +22,7 @@
         .write .canvasAnswer .bg-layer-fff {
             z-index: 0 !important;
             pointer-events: none !important; /* 避免盖住触摸/鼠标事件 */
+            scrollbar-width: none;
         }
         .board.answerCanvas .canvasBox-roll .canvasBox canvas {
             z-index: 1 !important;
@@ -149,7 +150,7 @@
             // 更新“笔状态”（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penIsDown = false;
-            } else if(state.penEverUsed) return; // 对补点也屏蔽触摸
+            } else if (state.penEverUsed) return; // 对补点也屏蔽触摸
 
             // 单击补点
             if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
@@ -189,7 +190,57 @@
         //canvas.addEventListener('touchend', touchGate, {capture: true, passive: false});
         //canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
 
-        // 5) 标记为已处理，避免重复处理
+        // 5) 滚轮/键盘滚动题干
+        function scrollTargetBy(target, top) {
+            if (!target || !top) return false;
+            const before = target.scrollTop;
+            target.scrollBy({top: top, left: 0, behavior: 'smooth'});
+            return target.scrollTop !== before;
+        }
+
+        const ac = new AbortController();
+        const {signal} = ac;
+        // 监控 container 是否被移除
+        const mo = new MutationObserver(() => {
+            if (!container.isConnected) {
+                ac.abort();   // 自动移除所有带 signal 的监听
+                mo.disconnect();
+            }
+        });
+        mo.observe(document.body, {childList: true, subtree: true});
+
+        document.addEventListener('wheel', function (e) {
+            if (e.ctrlKey) return; // 触控板缩放/浏览器缩放
+            if (e.target.role === 'slider') return; // 画笔粗细调整
+            const bgLayer = container.querySelector('.bg-layer-fff');
+
+            // deltaMode: 0=像素,1=行,2=页
+            let delta = e.deltaY;
+            if (e.deltaMode === 1) delta *= 16;
+            else if (e.deltaMode === 2) delta *= bgLayer.clientHeight;
+
+            if (scrollTargetBy(bgLayer, delta)) {
+                e.stopPropagation();
+            }
+        }, {capture: true, signal});
+
+        document.addEventListener('keydown', function (e) {
+            if (e.ctrlKey) return;
+            if (e.target.role === 'slider') return;
+            const bgLayer = container.querySelector('.bg-layer-fff');
+
+            let delta = 0;
+            if (e.key === 'ArrowDown') delta = 60;
+            else if (e.key === 'ArrowUp') delta = -60;
+            else return;
+
+            if (scrollTargetBy(bgLayer, delta)) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, {capture: true, signal});
+
+        // 6) 标记为已处理，避免重复处理
         canvas.setAttribute(fixedAttribute, 'true');
     }
 
