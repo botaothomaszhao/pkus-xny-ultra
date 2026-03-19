@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.2
+// @version      vv.5.3
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -102,11 +102,6 @@
         // 2) 禁止在该元素上触发下拉刷新
         container.style.overscrollBehaviorY = 'contain';
 
-        const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
-        if (btn?.classList.contains('ant-btn-primary')) {
-            btn.click(); // 关闭此前打开的“查看题干”
-        }
-
         const canvas = container.querySelector('canvas');
         const ctx = canvas?.getContext('2d');
         if (!ctx) return;
@@ -190,13 +185,93 @@
         //canvas.addEventListener('touchend', touchGate, {capture: true, passive: false});
         //canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
 
-        // 5) 滚轮/键盘滚动题干
-        function scrollTargetBy(target, top) {
+        // 5) 滚动题干
+        function scrollTargetBy(top) {
+            const target = container.querySelector('.bg-layer-fff');
             if (!target || !top) return false;
             const before = target.scrollTop;
             target.scrollBy({top: top, left: 0, behavior: 'smooth'});
             return target.scrollTop !== before;
         }
+
+        const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
+        if (btn?.classList.contains('ant-btn-primary')) {
+            btn.click(); // 关闭此前打开的“查看题干”
+        }
+
+        const wrap = document.createElement('span');
+        wrap.style.display = 'inline-flex';
+        wrap.style.gap = '6px';
+        wrap.style.marginLeft = '6px';
+        wrap.style.verticalAlign = 'middle';
+        wrap.style.display = 'none';
+
+        const mkArrowBtn = (text, title) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'ant-btn ant-btn-default';
+            b.title = title;
+            b.textContent = text;
+            b.style.padding = '0 6px';
+            b.style.minWidth = '32px';
+            b.style.touchAction = 'none'; // 避免触摸下的默认滚动/双击缩放/选中文本
+            b.style.userSelect = 'none';
+            return b;
+        };
+
+        const upBtn = mkArrowBtn('▲', '题干向上滚动');
+        const downBtn = mkArrowBtn('▼', '题干向下滚动');
+
+        const startHoldScroll = (buttonEl, deltaPerTick) => {
+            let timer = null;
+
+            const stop = () => {
+                if (timer) {
+                    clearInterval(timer);
+                    timer = null;
+                }
+            };
+
+            const start = (e) => {
+                if (timer) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                // 立刻滚一次，提升手感
+                scrollTargetBy(deltaPerTick);
+                timer = setInterval(() => {
+                    scrollTargetBy(deltaPerTick);
+                }, 100);
+            };
+
+            // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
+            buttonEl.addEventListener('pointerdown', start, {capture: true, passive: false});
+            buttonEl.addEventListener('pointerup', stop, {capture: true});
+            buttonEl.addEventListener('pointercancel', stop, {capture: true});
+            buttonEl.addEventListener('pointerleave', stop, {capture: true});
+
+            // 切换窗口、隐藏时停止
+            window.addEventListener('blur', stop);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) stop();
+            });
+        };
+
+        startHoldScroll(upBtn, -60);
+        startHoldScroll(downBtn, 60);
+
+        wrap.appendChild(upBtn);
+        wrap.appendChild(downBtn);
+        // 插到“查看题干”后面
+        btn.insertAdjacentElement('afterend', wrap);
+
+        const syncArrowVisibility = () => {
+            const active = btn?.classList.contains('ant-btn-primary');
+            wrap.style.display = active ? 'inline-flex' : 'none';
+        };
+        syncArrowVisibility();
+        const btnMo = new MutationObserver(() => syncArrowVisibility());
+        btnMo.observe(btn, {attributes: true, attributeFilter: ['class']});
 
         const ac = new AbortController();
         const {signal} = ac;
@@ -205,6 +280,7 @@
             if (!container.isConnected) {
                 ac.abort();   // 自动移除所有带 signal 的监听
                 mo.disconnect();
+                btnMo.disconnect();
             }
         });
         mo.observe(document.body, {childList: true, subtree: true});
@@ -212,14 +288,13 @@
         document.addEventListener('wheel', function (e) {
             if (e.ctrlKey) return; // 触控板缩放/浏览器缩放
             if (e.target.role === 'slider') return; // 画笔粗细调整
-            const bgLayer = container.querySelector('.bg-layer-fff');
 
             // deltaMode: 0=像素,1=行,2=页
             let delta = e.deltaY;
             if (e.deltaMode === 1) delta *= 16;
-            else if (e.deltaMode === 2) delta *= bgLayer.clientHeight;
+            else if (e.deltaMode === 2) delta *= container.clientHeight - 90;
 
-            if (scrollTargetBy(bgLayer, delta)) {
+            if (scrollTargetBy(delta)) {
                 e.stopPropagation();
             }
         }, {capture: true, signal});
@@ -227,21 +302,20 @@
         document.addEventListener('keydown', function (e) {
             if (e.ctrlKey) return;
             if (e.target.role === 'slider') return;
-            const bgLayer = container.querySelector('.bg-layer-fff');
 
             let delta = 0;
             if (e.key === 'ArrowDown') delta = 60;
             else if (e.key === 'ArrowUp') delta = -60;
             else return;
 
-            if (scrollTargetBy(bgLayer, delta)) {
+            if (scrollTargetBy(delta)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
         }, {capture: true, signal});
 
         // 6) 标记为已处理，避免重复处理
-        canvas.setAttribute(fixedAttribute, 'true');
+        container.setAttribute(fixedAttribute, 'true');
     }
 
     const observer = new MutationObserver(function (mutations) {
