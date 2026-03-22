@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.3
+// @version      vv.5.4
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -62,9 +62,6 @@
         } else if (evt.changedTouches?.length > 0) {
             clientX = evt.changedTouches[0].clientX;
             clientY = evt.changedTouches[0].clientY;
-        } else {
-            clientX = 0;
-            clientY = 0;
         }
 
         return {
@@ -87,6 +84,83 @@
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+    }
+
+    function createArrowBtn(originBtn, scrollElBy) {
+        const wrap = document.createElement('span');
+        wrap.style.display = 'inline-flex';
+        wrap.style.gap = '6px';
+        wrap.style.marginLeft = '6px';
+        wrap.style.verticalAlign = 'middle';
+        wrap.style.display = 'none';
+
+        const mkArrowBtn = (text, title) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'ant-btn ant-btn-default';
+            b.title = title;
+            b.textContent = text;
+            b.style.padding = '0 6px';
+            b.style.minWidth = '32px';
+            b.style.touchAction = 'none'; // 避免触摸下的默认滚动/双击缩放/选中文本
+            b.style.userSelect = 'none';
+            return b;
+        };
+
+        const upBtn = mkArrowBtn('▲', '题干向上滚动');
+        const downBtn = mkArrowBtn('▼', '题干向下滚动');
+
+        const startHoldScroll = (buttonEl, deltaPerTick) => {
+            let timer = null;
+
+            const stop = () => {
+                if (timer) {
+                    clearInterval(timer);
+                    timer = null;
+                }
+            };
+
+            const start = (e) => {
+                if (timer) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                // 立刻滚一次，提升手感
+                scrollElBy(deltaPerTick);
+                timer = setInterval(() => {
+                    scrollElBy(deltaPerTick);
+                }, 100);
+            };
+
+            // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
+            buttonEl.addEventListener('pointerdown', start, {capture: true, passive: false});
+            buttonEl.addEventListener('pointerup', stop, {capture: true});
+            buttonEl.addEventListener('pointercancel', stop, {capture: true});
+            buttonEl.addEventListener('pointerleave', stop, {capture: true});
+
+            // 切换窗口、隐藏时停止
+            window.addEventListener('blur', stop);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) stop();
+            });
+        };
+
+        startHoldScroll(upBtn, -60);
+        startHoldScroll(downBtn, 60);
+
+        wrap.appendChild(upBtn);
+        wrap.appendChild(downBtn);
+        // 插到“查看题干”后面
+        originBtn.insertAdjacentElement('afterend', wrap);
+
+        const syncArrowVisibility = () => {
+            const active = originBtn?.classList.contains('ant-btn-primary');
+            wrap.style.display = active ? 'inline-flex' : 'none';
+        };
+        syncArrowVisibility();
+        const btnMo = new MutationObserver(() => syncArrowVisibility());
+        btnMo.observe(originBtn, {attributes: true, attributeFilter: ['class']});
+        return btnMo;
     }
 
     // 对单个 canvas 应用修复
@@ -198,80 +272,9 @@
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
+        const btnMo = createArrowBtn(btn, scrollTargetBy);
 
-        const wrap = document.createElement('span');
-        wrap.style.display = 'inline-flex';
-        wrap.style.gap = '6px';
-        wrap.style.marginLeft = '6px';
-        wrap.style.verticalAlign = 'middle';
-        wrap.style.display = 'none';
-
-        const mkArrowBtn = (text, title) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'ant-btn ant-btn-default';
-            b.title = title;
-            b.textContent = text;
-            b.style.padding = '0 6px';
-            b.style.minWidth = '32px';
-            b.style.touchAction = 'none'; // 避免触摸下的默认滚动/双击缩放/选中文本
-            b.style.userSelect = 'none';
-            return b;
-        };
-
-        const upBtn = mkArrowBtn('▲', '题干向上滚动');
-        const downBtn = mkArrowBtn('▼', '题干向下滚动');
-
-        const startHoldScroll = (buttonEl, deltaPerTick) => {
-            let timer = null;
-
-            const stop = () => {
-                if (timer) {
-                    clearInterval(timer);
-                    timer = null;
-                }
-            };
-
-            const start = (e) => {
-                if (timer) return;
-                e.preventDefault();
-                e.stopPropagation();
-
-                // 立刻滚一次，提升手感
-                scrollTargetBy(deltaPerTick);
-                timer = setInterval(() => {
-                    scrollTargetBy(deltaPerTick);
-                }, 100);
-            };
-
-            // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
-            buttonEl.addEventListener('pointerdown', start, {capture: true, passive: false});
-            buttonEl.addEventListener('pointerup', stop, {capture: true});
-            buttonEl.addEventListener('pointercancel', stop, {capture: true});
-            buttonEl.addEventListener('pointerleave', stop, {capture: true});
-
-            // 切换窗口、隐藏时停止
-            window.addEventListener('blur', stop);
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) stop();
-            });
-        };
-
-        startHoldScroll(upBtn, -60);
-        startHoldScroll(downBtn, 60);
-
-        wrap.appendChild(upBtn);
-        wrap.appendChild(downBtn);
-        // 插到“查看题干”后面
-        btn.insertAdjacentElement('afterend', wrap);
-
-        const syncArrowVisibility = () => {
-            const active = btn?.classList.contains('ant-btn-primary');
-            wrap.style.display = active ? 'inline-flex' : 'none';
-        };
-        syncArrowVisibility();
-        const btnMo = new MutationObserver(() => syncArrowVisibility());
-        btnMo.observe(btn, {attributes: true, attributeFilter: ['class']});
+        container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的“处理中”
 
         const ac = new AbortController();
         const {signal} = ac;
@@ -282,8 +285,14 @@
                 mo.disconnect();
                 btnMo.disconnect();
             }
+            if (container.querySelector('.bg-layer')) {
+                const notice = document.body.querySelector('.ant-message .ant-message-notice .ant-message-notice-content .ant-message-custom-content');
+                if (notice && notice.textContent.includes('没有书写笔迹')) {
+                    container.querySelector('.bg-layer').remove(); // 没有书写笔迹则移除卡死的“处理中”
+                }
+            }
         });
-        mo.observe(document.body, {childList: true, subtree: true});
+        mo.observe(container.parentNode, {childList: true, subtree: true});
 
         document.addEventListener('wheel', function (e) {
             if (e.ctrlKey) return; // 触控板缩放/浏览器缩放
