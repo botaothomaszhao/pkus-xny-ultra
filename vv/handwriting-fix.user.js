@@ -292,7 +292,7 @@
                 }
             }
         });
-        mo.observe(container.parentNode, {childList: true, subtree: true});
+        mo.observe(document.body, {childList: true, subtree: true});
 
         document.addEventListener('wheel', function (e) {
             if (e.ctrlKey) return; // 触控板缩放/浏览器缩放
