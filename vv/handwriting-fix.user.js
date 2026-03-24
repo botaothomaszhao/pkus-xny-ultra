@@ -44,8 +44,21 @@
             pointerDownX: 0,
             pointerDownY: 0,
             pointerMoved: false,
-            pointerId: null
+            pointerId: null,
+
+            // 手写笔出现后，触摸改为滚动题干背景
+            touchScrollActive: false,
+            touchScrollId: null,
+            touchLastY: 0
         };
+    }
+
+    function getTouchById(touchList, id) {
+        if (!touchList || id === null) return null;
+        for (let i = 0; i < touchList.length; i++) {
+            if (touchList[i].identifier === id) return touchList[i];
+        }
+        return null;
     }
 
     function getCanvasPos(canvas, evt) {
@@ -241,23 +254,55 @@
         canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
 
-        // 触摸屏蔽：
+        // 触摸处理：
         // - 未见过笔：放行
-        // - 见过笔：
-        //   - 笔按下：放行 touch（按你的新逻辑）
-        //   - 笔松开：屏蔽 touch，直到下一次笔按下
-        function touchGate(event) {
-            if (state.penEverUsed && !state.penIsDown) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-            }
+        // - 见过笔且笔已抬起：屏蔽触摸落笔，并把上下滑动转成题干背景滚动
+        function touchGateStart(event) {
+            if (!(state.penEverUsed && !state.penIsDown)) return;
+
+            const touch = event.changedTouches[0] || event.touches[0];
+            if (!touch) return;
+
+            state.touchScrollActive = true;
+            state.touchScrollId = touch.identifier;
+            state.touchLastY = touch.clientY;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
         }
 
-        canvas.addEventListener('touchstart', touchGate, {capture: true, passive: false});
-        canvas.addEventListener('touchmove', touchGate, {capture: true, passive: false});
+        function touchGateMove(event) {
+            if (!(state.penEverUsed && !state.penIsDown)) return;
+            if (!state.touchScrollActive) return;
+
+            const touch = getTouchById(event.touches, state.touchScrollId)
+                || getTouchById(event.changedTouches, state.touchScrollId);
+            if (!touch) return;
+
+            const delta = state.touchLastY - touch.clientY;
+            state.touchLastY = touch.clientY;
+            if (delta) scrollTargetBy(delta);
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+
+        function touchGateEnd(event) {
+            if (!state.touchScrollActive) return;
+
+            const ended = getTouchById(event.changedTouches, state.touchScrollId);
+            if (!ended && event.touches.length > 0) return;
+
+            state.touchScrollActive = false;
+            state.touchScrollId = null;
+            state.touchLastY = 0;
+        }
+
+        canvas.addEventListener('touchstart', touchGateStart, {capture: true, passive: false});
+        canvas.addEventListener('touchmove', touchGateMove, {capture: true, passive: false});
         // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画
-        //canvas.addEventListener('touchend', touchGate, {capture: true, passive: false});
-        //canvas.addEventListener('touchcancel', touchGate, {capture: true, passive: false});
+        canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: false});
+        canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: false});
 
         // 5) 滚动题干
         function scrollTargetBy(top) {
