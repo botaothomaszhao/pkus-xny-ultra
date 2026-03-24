@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.4
+// @version      vv.5.5
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -47,9 +47,11 @@
             pointerId: null,
 
             // 手写笔出现后，触摸改为滚动题干背景
-            touchScrollActive: false,
             touchScrollId: null,
-            touchLastY: 0
+            touchLastY: 0,
+            touchLastTime: 0,
+            touchVelocity: 0,
+            inertiaId: 0
         };
     }
 
@@ -141,8 +143,8 @@
                 // 立刻滚一次，提升手感
                 scrollElBy(deltaPerTick);
                 timer = setInterval(() => {
-                    scrollElBy(deltaPerTick);
-                }, 100);
+                    scrollElBy(deltaPerTick, 'instant');
+                }, 50);
             };
 
             // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
@@ -158,8 +160,8 @@
             });
         };
 
-        startHoldScroll(upBtn, -60);
-        startHoldScroll(downBtn, 60);
+        startHoldScroll(upBtn, -30);
+        startHoldScroll(downBtn, 30);
 
         wrap.appendChild(upBtn);
         wrap.appendChild(downBtn);
@@ -254,65 +256,100 @@
         canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
 
+        function scrollTargetBy(top, behavior = 'smooth') {
+            const target = container.querySelector('.bg-layer-fff');
+            if (!target || !top) return false;
+            const before = target.scrollTop;
+            target.scrollBy({top: top, left: 0, behavior: behavior});
+            return target.scrollTop !== before;
+        }
+
+        function stopInertia() {
+            if (state.inertiaId) {
+                cancelAnimationFrame(state.inertiaId);
+                state.inertiaId = 0;
+            }
+        }
+
+        function startInertia() {
+            stopInertia();
+            let v = state.touchVelocity;
+            if (!v) return;
+
+            const step = () => {
+                v *= 0.95;
+                if (Math.abs(v) < 0.02) {
+                    state.inertiaId = 0;
+                    return;
+                }
+                scrollTargetBy(v * 16, 'instant');
+                state.inertiaId = requestAnimationFrame(step);
+            };
+
+            state.inertiaId = requestAnimationFrame(step);
+        }
+
         // 触摸处理：
         // - 未见过笔：放行
         // - 见过笔且笔已抬起：屏蔽触摸落笔，并把上下滑动转成题干背景滚动
         function touchGateStart(event) {
-            if (!(state.penEverUsed && !state.penIsDown)) return;
+            if (!state.penEverUsed || state.penIsDown) return;
 
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
 
-            state.touchScrollActive = true;
+            stopInertia();
             state.touchScrollId = touch.identifier;
             state.touchLastY = touch.clientY;
+            state.touchLastTime = event.timeStamp;
+            state.touchVelocity = 0;
 
             event.preventDefault();
             event.stopImmediatePropagation();
         }
 
         function touchGateMove(event) {
-            if (!(state.penEverUsed && !state.penIsDown)) return;
-            if (!state.touchScrollActive) return;
+            if (!state.penEverUsed || state.penIsDown) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
 
+            if (state.touchScrollId === null) return;
             const touch = getTouchById(event.touches, state.touchScrollId)
                 || getTouchById(event.changedTouches, state.touchScrollId);
             if (!touch) return;
 
+            const now = event.timeStamp;
             const delta = state.touchLastY - touch.clientY;
             state.touchLastY = touch.clientY;
-            if (delta) scrollTargetBy(delta);
+            state.touchLastTime = now;
 
-            event.preventDefault();
-            event.stopImmediatePropagation();
+            if (delta) {
+                scrollTargetBy(delta, 'instant');
+                const v = delta / Math.max(1, now - state.touchLastTime);
+                state.touchVelocity = state.touchVelocity * 0.7 + v * 0.3;
+            }
         }
 
         function touchGateEnd(event) {
-            if (!state.touchScrollActive) return;
+            if (state.touchScrollId === null) return;
 
             const ended = getTouchById(event.changedTouches, state.touchScrollId);
             if (!ended && event.touches.length > 0) return;
 
-            state.touchScrollActive = false;
             state.touchScrollId = null;
             state.touchLastY = 0;
+            state.touchLastTime = 0;
+
+            startInertia();
         }
 
         canvas.addEventListener('touchstart', touchGateStart, {capture: true, passive: false});
         canvas.addEventListener('touchmove', touchGateMove, {capture: true, passive: false});
-        // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画
-        canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: false});
-        canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: false});
+        // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画，所以不能屏蔽
+        canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: true});
+        canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: true});
 
         // 5) 滚动题干
-        function scrollTargetBy(top) {
-            const target = container.querySelector('.bg-layer-fff');
-            if (!target || !top) return false;
-            const before = target.scrollTop;
-            target.scrollBy({top: top, left: 0, behavior: 'smooth'});
-            return target.scrollTop !== before;
-        }
-
         const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
