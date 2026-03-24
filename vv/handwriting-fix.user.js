@@ -276,13 +276,18 @@
             let v = state.touchVelocity;
             if (!v) return;
 
-            const step = () => {
+            let lastTs = 0;
+            const step = (ts) => {
+                if (!lastTs) lastTs = ts;
+                const dt = ts - lastTs;
+                lastTs = ts;
+
                 v *= 0.95;
                 if (Math.abs(v) < 0.02) {
                     state.inertiaId = 0;
                     return;
                 }
-                scrollTargetBy(v * 16, 'instant');
+                scrollTargetBy(v * dt, 'instant');
                 state.inertiaId = requestAnimationFrame(step);
             };
 
@@ -320,14 +325,14 @@
 
             const now = event.timeStamp;
             const delta = state.touchLastY - touch.clientY;
-            state.touchLastY = touch.clientY;
-            state.touchLastTime = now;
 
             if (delta) {
                 scrollTargetBy(delta, 'instant');
                 const v = delta / Math.max(1, now - state.touchLastTime);
                 state.touchVelocity = state.touchVelocity * 0.7 + v * 0.3;
             }
+            state.touchLastY = touch.clientY;
+            state.touchLastTime = now;
         }
 
         function touchGateEnd(event) {
@@ -339,7 +344,6 @@
             state.touchScrollId = null;
             state.touchLastY = 0;
             state.touchLastTime = 0;
-
             startInertia();
         }
 
@@ -395,11 +399,11 @@
             if (e.target.role === 'slider') return;
 
             let delta = 0;
-            if (e.key === 'ArrowDown') delta = 60;
-            else if (e.key === 'ArrowUp') delta = -60;
+            if (e.key === 'ArrowDown') delta = 30;
+            else if (e.key === 'ArrowUp') delta = -30;
             else return;
 
-            if (scrollTargetBy(delta)) {
+            if (scrollTargetBy(delta, 'instant')) {
                 e.preventDefault();
                 e.stopPropagation();
             }
