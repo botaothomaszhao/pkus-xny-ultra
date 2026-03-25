@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.5
+// @version      vv.5.6
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
 // @author       c-jeremy botaothomaszhao
@@ -21,7 +21,6 @@
         /* 让题干显示在画布之下 */
         .write .canvasAnswer .bg-layer-fff {
             z-index: 0 !important;
-            pointer-events: none !important; /* 避免盖住触摸/鼠标事件 */
             scrollbar-width: none;
         }
         .board.answerCanvas .canvasBox-roll .canvasBox canvas {
@@ -39,7 +38,7 @@
             penEverUsed: false,
             penIsDown: false,
 
-            // 用于“单击补点”的指针状态（鼠标/触摸/笔都可能）
+            // 用于"单击补点"的指针状态（鼠标/触摸/笔都可能）
             pointerIsDown: false,
             pointerDownX: 0,
             pointerDownY: 0,
@@ -47,11 +46,7 @@
             pointerId: null,
 
             // 手写笔出现后，触摸改为滚动题干背景
-            touchScrollId: null,
-            touchLastY: 0,
-            touchLastTime: 0,
-            touchVelocity: 0,
-            inertiaId: 0
+            touchScrollId: null
         };
     }
 
@@ -165,7 +160,7 @@
 
         wrap.appendChild(upBtn);
         wrap.appendChild(downBtn);
-        // 插到“查看题干”后面
+        // 插到"查看题干"后面
         originBtn.insertAdjacentElement('afterend', wrap);
 
         const syncArrowVisibility = () => {
@@ -183,10 +178,14 @@
         if (container.hasAttribute(fixedAttribute)) return;
 
         // 1) 阻止绘制操作被识别为滚动手势
-        container.addEventListener('touchmove', function (event) {
-            event.preventDefault();
+    container.addEventListener('touchmove', function (event) {
+    // "笔已用且笔已抬起"时不屏蔽
+    if (state.penEverUsed && !state.penIsDown) {
+        if (getTouchById(event.touches, state.touchScrollId)) return;
+    }
+event.preventDefault();
             event.stopPropagation();
-        }, {passive: false});
+}, {passive: false});
 
         // 2) 禁止在该元素上触发下拉刷新
         container.style.overscrollBehaviorY = 'contain';
@@ -202,13 +201,13 @@
         //    - 维护 penEverUsed / penIsDown（给 touchGate 用）
         //    - 同时维护单击补点状态
         canvas.addEventListener('pointerdown', function (e) {
-            // 更新“笔状态”（触摸屏蔽依赖）
+            // 更新"笔状态"（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penEverUsed = true;
                 state.penIsDown = true;
             } else if (state.penEverUsed) return;
 
-            // 更新“单击补点跟踪状态”
+            // 更新"单击补点跟踪状态"
             // 仅跟踪主键/主指针，避免多指干扰
             if (e.pointerType === 'mouse' && e.button !== 0) return;
 
@@ -231,7 +230,7 @@
         }, {capture: true, passive: true});
 
         const onPointerUpLike = function (e) {
-            // 更新“笔状态”（触摸屏蔽依赖）
+            // 更新"笔状态"（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penIsDown = false;
             } else if (state.penEverUsed) return; // 对补点也屏蔽触摸
@@ -264,75 +263,20 @@
             return target.scrollTop !== before;
         }
 
-        function stopInertia() {
-            if (state.inertiaId) {
-                cancelAnimationFrame(state.inertiaId);
-                state.inertiaId = 0;
-            }
-        }
-
-        function startInertia() {
-            stopInertia();
-            let v = state.touchVelocity;
-            if (!v) return;
-
-            let lastTs = 0;
-            const step = (ts) => {
-                if (!lastTs) lastTs = ts;
-                const dt = ts - lastTs;
-                lastTs = ts;
-
-                v *= 0.95;
-                if (Math.abs(v) < 0.02) {
-                    state.inertiaId = 0;
-                    return;
-                }
-                scrollTargetBy(v * dt, 'instant');
-                state.inertiaId = requestAnimationFrame(step);
-            };
-
-            state.inertiaId = requestAnimationFrame(step);
-        }
-
         // 触摸处理：
         // - 未见过笔：放行
-        // - 见过笔且笔已抬起：屏蔽触摸落笔，并把上下滑动转成题干背景滚动
+        // - 见过笔且笔已抬起：禁用 canvas 的 pointer-events，让触摸穿过到背景层原生滚动
         function touchGateStart(event) {
             if (!state.penEverUsed || state.penIsDown) return;
 
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
 
-            stopInertia();
             state.touchScrollId = touch.identifier;
-            state.touchLastY = touch.clientY;
-            state.touchLastTime = event.timeStamp;
-            state.touchVelocity = 0;
+            canvas.style.pointerEvents = 'none';
 
-            event.preventDefault();
-            event.stopImmediatePropagation();
-        }
-
-        function touchGateMove(event) {
-            if (!state.penEverUsed || state.penIsDown) return;
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
-            if (state.touchScrollId === null) return;
-            const touch = getTouchById(event.touches, state.touchScrollId)
-                || getTouchById(event.changedTouches, state.touchScrollId);
-            if (!touch) return;
-
-            const now = event.timeStamp;
-            const delta = state.touchLastY - touch.clientY;
-
-            if (delta) {
-                scrollTargetBy(delta, 'instant');
-                const v = delta / Math.max(1, now - state.touchLastTime);
-                state.touchVelocity = state.touchVelocity * 0.7 + v * 0.3;
-            }
-            state.touchLastY = touch.clientY;
-            state.touchLastTime = now;
+            //event.preventDefault(); 
+            event.stopImmediatePropagation(); // 屏蔽画线事件，但是不屏蔽浏览器系统的滑动
         }
 
         function touchGateEnd(event) {
@@ -342,13 +286,10 @@
             if (!ended && event.touches.length > 0) return;
 
             state.touchScrollId = null;
-            state.touchLastY = 0;
-            state.touchLastTime = 0;
-            startInertia();
+            canvas.style.pointerEvents = 'auto';
         }
 
         canvas.addEventListener('touchstart', touchGateStart, {capture: true, passive: false});
-        canvas.addEventListener('touchmove', touchGateMove, {capture: true, passive: false});
         // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画，所以不能屏蔽
         canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: true});
         canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: true});
@@ -356,11 +297,11 @@
         // 5) 滚动题干
         const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
         if (btn?.classList.contains('ant-btn-primary')) {
-            btn.click(); // 关闭此前打开的“查看题干”
+            btn.click(); // 关闭此前打开的"查看题干"
         }
         const btnMo = createArrowBtn(btn, scrollTargetBy);
 
-        container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的“处理中”
+        container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的"处理中"
 
         const ac = new AbortController();
         const {signal} = ac;
@@ -374,7 +315,7 @@
             if (container.querySelector('.bg-layer')) {
                 const notice = document.body.querySelector('.ant-message .ant-message-notice .ant-message-notice-content .ant-message-custom-content');
                 if (notice && notice.textContent.includes('没有书写笔迹')) {
-                    container.querySelector('.bg-layer').remove(); // 没有书写笔迹则移除卡死的“处理中”
+                    container.querySelector('.bg-layer').remove(); // 没有书写笔迹则移除卡死的"处理中"
                 }
             }
         });
