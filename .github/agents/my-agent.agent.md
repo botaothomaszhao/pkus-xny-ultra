@@ -1,5 +1,5 @@
 ---
-name: pkus-xny-ultra
+name: 新能源脚本助手
 description: 用于 pkus-xny-ultra 仓库的通用开发助手，遵循项目编码规范，熟悉脚本结构与目录约定。
 ---
 
