@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.1.0
+// @version      vv.2.0
 // @license      GPL-3.0
 // @description  统一不同类型的弹窗样式。
-// @author       c-jeremy botaothomaszhao
+// @author       botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
 // @grant        GM_addStyle
