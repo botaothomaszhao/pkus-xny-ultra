@@ -28,9 +28,12 @@
             z-index: 1 !important;
             background: transparent !important;
         }
+        .write {
+            overscroll-behavior-y: contain !important;
+        }
     `);
 
-    const canvasSelector = '.board.answerCanvas';
+    const containerSelector = '.write';
     const fixedAttribute = 'data-tampermonkey-fixed';
 
     // 每个 canvas 自己的笔/触摸状态
@@ -189,7 +192,7 @@
         }, {passive: false});
 
         // 2) 禁止在该元素上触发下拉刷新
-        container.style.overscrollBehaviorY = 'contain';
+        //container.style.overscrollBehaviorY = 'contain';
 
         const canvas = container.querySelector('canvas');
         const ctx = canvas?.getContext('2d');
@@ -354,7 +357,7 @@
         canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: true});
 
         // 5) 滚动题干
-        const btn = container.closest('.write')?.querySelector('.ml-15 .ant-btn');
+        const btn = container.querySelector('.ml-15 .ant-btn');
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
@@ -418,8 +421,8 @@
             if (mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === 1) {
-                        if (node.matches(canvasSelector)) applyFix(node);
-                        node.querySelectorAll(canvasSelector).forEach(applyFix);
+                        if (node.matches(containerSelector)) applyFix(node);
+                        node.querySelectorAll(containerSelector).forEach(applyFix);
                     }
                 });
             }
