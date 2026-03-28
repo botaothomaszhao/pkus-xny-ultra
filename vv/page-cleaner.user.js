@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.4
+// @version      vv.4.0
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素。
 // @author       c-jeremy botaothomaszhao
@@ -33,7 +33,9 @@
     const hideClass = 'vu-preserve-hidden';
 
     GM_addStyle(`
-        .${hideClass} { display: none !important; }
+        .${hideClass} { 
+            display: none !important;
+        }
         /* 课程页顶部按钮栏高度限制 */
         .content > .top, .content > div > .top {
             max-height: 70px !important;
