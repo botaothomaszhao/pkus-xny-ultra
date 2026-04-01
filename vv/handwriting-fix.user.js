@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.5
+// @version      vv.5.6
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
@@ -54,7 +54,9 @@
             touchLastY: 0,
             touchLastTime: 0,
             touchVelocity: 0,
-            inertiaId: 0
+
+            // 共用滚动动画（惯性 / 按钮 / 键盘）
+            scrollId: 0
         };
     }
 
@@ -104,7 +106,7 @@
         ctx.restore();
     }
 
-    function createArrowBtn(originBtn, scrollElBy) {
+    function createArrowBtn(originBtn, startScroll, stopScroll) {
         const wrap = document.createElement('span');
         wrap.style.display = 'inline-flex';
         wrap.style.gap = '6px';
@@ -128,43 +130,19 @@
         const upBtn = mkArrowBtn('▲', '题干向上滚动');
         const downBtn = mkArrowBtn('▼', '题干向下滚动');
 
-        const startHoldScroll = (buttonEl, deltaPerTick) => {
-            let timer = null;
-
-            const stop = () => {
-                if (timer) {
-                    clearInterval(timer);
-                    timer = null;
-                }
-            };
-
-            const start = (e) => {
-                if (timer) return;
+        const addHoldEvents = (btn, velocity) => {
+            btn.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                // 立刻滚一次，提升手感
-                scrollElBy(deltaPerTick);
-                timer = setInterval(() => {
-                    scrollElBy(deltaPerTick, 'instant');
-                }, 50);
-            };
-
-            // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
-            buttonEl.addEventListener('pointerdown', start, {capture: true, passive: false});
-            buttonEl.addEventListener('pointerup', stop, {capture: true});
-            buttonEl.addEventListener('pointercancel', stop, {capture: true});
-            buttonEl.addEventListener('pointerleave', stop, {capture: true});
-
-            // 切换窗口、隐藏时停止
-            window.addEventListener('blur', stop);
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) stop();
-            });
+                startScroll(velocity);
+            }, {capture: true, passive: false});
+            btn.addEventListener('pointerup', stopScroll, {capture: true});
+            btn.addEventListener('pointercancel', stopScroll, {capture: true});
+            btn.addEventListener('pointerleave', stopScroll, {capture: true});
         };
 
-        startHoldScroll(upBtn, -30);
-        startHoldScroll(downBtn, 30);
+        addHoldEvents(upBtn, -0.6);
+        addHoldEvents(downBtn, 0.6);
 
         wrap.appendChild(upBtn);
         wrap.appendChild(downBtn);
@@ -264,15 +242,29 @@
             return target.scrollTop !== before;
         }
 
-        function stopInertia() {
-            if (state.inertiaId) {
-                cancelAnimationFrame(state.inertiaId);
-                state.inertiaId = 0;
-            }
+        // 按钮/键盘持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
+        function stopScroll() {
+            cancelAnimationFrame(state.scrollId);
+            state.scrollId = 0;
+        }
+
+        function startContinuousScroll(pxPerMs) {
+            if (!container.querySelector('.bg-layer-fff')) return;
+            stopScroll();
+            let lastTs = 0;
+            const step = (ts) => {
+                if (!lastTs) lastTs = ts;
+                const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
+                lastTs = ts;
+                scrollTargetBy(pxPerMs * dt, 'instant');
+                state.scrollId = requestAnimationFrame(step);
+            };
+            state.scrollId = requestAnimationFrame(step);
         }
 
         function startInertia() {
-            stopInertia();
+            if (!container.querySelector('.bg-layer-fff')) return;
+            stopScroll();
             let v = state.touchVelocity;
             if (!v) return;
 
@@ -283,15 +275,12 @@
                 lastTs = ts;
 
                 v *= 0.95;
-                if (Math.abs(v) < 0.02) {
-                    state.inertiaId = 0;
-                    return;
-                }
+                if (Math.abs(v) < 0.02) { state.scrollId = 0; return; }
                 scrollTargetBy(v * dt, 'instant');
-                state.inertiaId = requestAnimationFrame(step);
+                state.scrollId = requestAnimationFrame(step);
             };
 
-            state.inertiaId = requestAnimationFrame(step);
+            state.scrollId = requestAnimationFrame(step);
         }
 
         // 触摸处理：
@@ -303,7 +292,7 @@
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
 
-            stopInertia();
+            stopScroll();
             state.touchScrollId = touch.identifier;
             state.touchLastY = touch.clientY;
             state.touchLastTime = event.timeStamp;
@@ -358,7 +347,7 @@
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
-        const btnMo = createArrowBtn(btn, scrollTargetBy);
+        const btnMo = createArrowBtn(btn, startContinuousScroll, stopScroll);
 
         container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的“处理中”
 
@@ -395,19 +384,29 @@
         }, {capture: true, signal});
 
         document.addEventListener('keydown', function (e) {
-            if (e.ctrlKey) return;
+            if (e.ctrlKey || e.repeat) return;
             if (e.target.role === 'slider') return;
 
-            let delta = 0;
-            if (e.key === 'ArrowDown') delta = 30;
-            else if (e.key === 'ArrowUp') delta = -30;
+            let velocity = 0;
+            if (e.key === 'ArrowDown') velocity = 0.6;
+            else if (e.key === 'ArrowUp') velocity = -0.6;
             else return;
 
-            if (scrollTargetBy(delta, 'instant')) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            if (!container.querySelector('.bg-layer-fff')) return; // 题干未显示时不消费按键
+            e.preventDefault();
+            e.stopPropagation();
+            startContinuousScroll(velocity);
         }, {capture: true, signal});
+
+        document.addEventListener('keyup', function (e) {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            stopScroll();
+        }, {capture: true, signal});
+
+        window.addEventListener('blur', stopScroll, {signal});
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopScroll();
+        }, {signal});
 
         // 标记为已处理，避免重复处理
         container.setAttribute(fixedAttribute, 'true');
