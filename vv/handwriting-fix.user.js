@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.5.5
 // @license      GPL-3.0
-// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。额外：补全单击/轻触在画布上落点。
+// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
@@ -33,8 +33,8 @@
         }
     `);
 
-    const containerSelector = '.write';
-    const fixedAttribute = 'data-tampermonkey-fixed';
+    const containerSelector = '.board.answerCanvas'; // .write 创建时不一定有canvas
+    const fixedAttribute = 'xny-handwrite-fixed';
 
     // 每个 canvas 自己的笔/触摸状态
     function createState() {
@@ -185,23 +185,20 @@
     function applyFix(container) {
         if (container.hasAttribute(fixedAttribute)) return;
 
-        // 1) 阻止绘制操作被识别为滚动手势
+        // 阻止绘制操作被识别为滚动手势
         container.addEventListener('touchmove', function (event) {
             event.preventDefault();
             event.stopPropagation();
         }, {passive: false});
 
-        // 2) 禁止在该元素上触发下拉刷新
-        //container.style.overscrollBehaviorY = 'contain';
-
         const canvas = container.querySelector('canvas');
         const ctx = canvas?.getContext('2d');
         if (!ctx) return;
 
-        // 3) 为该 canvas 维护独立状态，并安装笔/触摸控制
+        // 为该 canvas 维护独立状态，并安装笔/触摸控制
         const state = createState();
 
-        // 4) 合并后的 pointer 事件：
+        // 合并后的 pointer 事件：
         //    - 维护 penEverUsed / penIsDown（给 touchGate 用）
         //    - 同时维护单击补点状态
         canvas.addEventListener('pointerdown', function (e) {
@@ -356,8 +353,8 @@
         canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: true});
         canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: true});
 
-        // 5) 滚动题干
-        const btn = container.querySelector('.ml-15 .ant-btn');
+        // 滚动题干
+        const btn = container.closest('.write').querySelector('.ml-15 .ant-btn');
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
@@ -412,7 +409,7 @@
             }
         }, {capture: true, signal});
 
-        // 6) 标记为已处理，避免重复处理
+        // 标记为已处理，避免重复处理
         container.setAttribute(fixedAttribute, 'true');
     }
 
