@@ -54,7 +54,10 @@
             touchLastY: 0,
             touchLastTime: 0,
             touchVelocity: 0,
-            inertiaId: 0
+
+            // 共用滚动动画（惯性 / 按钮 / 键盘）
+            scrollId: 0,
+            scrollVelocity: 0  // px/ms；仅连续滚动使用，惯性不用此字段
         };
     }
 
@@ -241,40 +244,33 @@
         }
 
         // 按钮/键盘持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
-        let continuousVelocity = 0; // px/ms，非零时循环保持运行
-        let continuousId = 0;
+        function stopScroll() {
+            cancelAnimationFrame(state.scrollId);
+            state.scrollId = 0;
+            state.scrollVelocity = 0;
+        }
 
         function startContinuousScroll(pxPerMs) {
-            continuousVelocity = pxPerMs;
-            if (continuousId) return; // 已在运行，只更新速度
+            stopScroll();
+            state.scrollVelocity = pxPerMs;
             let lastTs = 0;
             const step = (ts) => {
-                if (!continuousVelocity) {
-                    continuousId = 0;
-                    return;
-                }
+                if (!state.scrollVelocity) { state.scrollId = 0; return; }
                 if (!lastTs) lastTs = ts;
                 const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
                 lastTs = ts;
-                scrollTargetBy(continuousVelocity * dt, 'instant');
-                continuousId = requestAnimationFrame(step);
+                scrollTargetBy(state.scrollVelocity * dt, 'instant');
+                state.scrollId = requestAnimationFrame(step);
             };
-            continuousId = requestAnimationFrame(step);
+            state.scrollId = requestAnimationFrame(step);
         }
 
         function stopContinuousScroll() {
-            continuousVelocity = 0; // 循环在下一帧自行退出
-        }
-
-        function stopInertia() {
-            if (state.inertiaId) {
-                cancelAnimationFrame(state.inertiaId);
-                state.inertiaId = 0;
-            }
+            state.scrollVelocity = 0; // 循环在下一帧自行退出
         }
 
         function startInertia() {
-            stopInertia();
+            stopScroll();
             let v = state.touchVelocity;
             if (!v) return;
 
@@ -285,15 +281,12 @@
                 lastTs = ts;
 
                 v *= 0.95;
-                if (Math.abs(v) < 0.02) {
-                    state.inertiaId = 0;
-                    return;
-                }
+                if (Math.abs(v) < 0.02) { state.scrollId = 0; return; }
                 scrollTargetBy(v * dt, 'instant');
-                state.inertiaId = requestAnimationFrame(step);
+                state.scrollId = requestAnimationFrame(step);
             };
 
-            state.inertiaId = requestAnimationFrame(step);
+            state.scrollId = requestAnimationFrame(step);
         }
 
         // 触摸处理：
@@ -305,7 +298,7 @@
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
 
-            stopInertia();
+            stopScroll();
             state.touchScrollId = touch.identifier;
             state.touchLastY = touch.clientY;
             state.touchLastTime = event.timeStamp;
@@ -416,9 +409,9 @@
             stopContinuousScroll();
         }, {capture: true, signal});
 
-        window.addEventListener('blur', stopContinuousScroll, {signal});
+        window.addEventListener('blur', stopScroll, {signal});
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) stopContinuousScroll();
+            if (document.hidden) stopScroll();
         }, {signal});
 
         // 标记为已处理，避免重复处理
