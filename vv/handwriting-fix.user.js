@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.5
+// @version      vv.5.6
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
@@ -56,8 +56,7 @@
             touchVelocity: 0,
 
             // 共用滚动动画（惯性 / 按钮 / 键盘）
-            scrollId: 0,
-            scrollVelocity: 0  // px/ms；仅连续滚动使用，惯性不用此字段
+            scrollId: 0
         };
     }
 
@@ -247,26 +246,19 @@
         function stopScroll() {
             cancelAnimationFrame(state.scrollId);
             state.scrollId = 0;
-            state.scrollVelocity = 0;
         }
 
         function startContinuousScroll(pxPerMs) {
             stopScroll();
-            state.scrollVelocity = pxPerMs;
             let lastTs = 0;
             const step = (ts) => {
-                if (!state.scrollVelocity) { state.scrollId = 0; return; }
                 if (!lastTs) lastTs = ts;
                 const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
                 lastTs = ts;
-                scrollTargetBy(state.scrollVelocity * dt, 'instant');
+                scrollTargetBy(pxPerMs * dt, 'instant');
                 state.scrollId = requestAnimationFrame(step);
             };
             state.scrollId = requestAnimationFrame(step);
-        }
-
-        function stopContinuousScroll() {
-            state.scrollVelocity = 0; // 循环在下一帧自行退出
         }
 
         function startInertia() {
@@ -353,7 +345,7 @@
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
-        const btnMo = createArrowBtn(btn, startContinuousScroll, stopContinuousScroll);
+        const btnMo = createArrowBtn(btn, startContinuousScroll, stopScroll);
 
         container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的“处理中”
 
@@ -406,7 +398,7 @@
 
         document.addEventListener('keyup', function (e) {
             if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-            stopContinuousScroll();
+            stopScroll();
         }, {capture: true, signal});
 
         window.addEventListener('blur', stopScroll, {signal});
