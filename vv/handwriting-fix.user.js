@@ -249,19 +249,21 @@
         }
 
         function startContinuousScroll(pxPerMs) {
+            if (!container.querySelector('.bg-layer-fff')) return;
             stopScroll();
             let lastTs = 0;
             const step = (ts) => {
                 if (!lastTs) lastTs = ts;
                 const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
                 lastTs = ts;
-                if (!scrollTargetBy(pxPerMs * dt, 'instant')) { state.scrollId = 0; return; }
+                scrollTargetBy(pxPerMs * dt, 'instant');
                 state.scrollId = requestAnimationFrame(step);
             };
             state.scrollId = requestAnimationFrame(step);
         }
 
         function startInertia() {
+            if (!container.querySelector('.bg-layer-fff')) return;
             stopScroll();
             let v = state.touchVelocity;
             if (!v) return;
@@ -274,7 +276,7 @@
 
                 v *= 0.95;
                 if (Math.abs(v) < 0.02) { state.scrollId = 0; return; }
-                if (!scrollTargetBy(v * dt, 'instant')) { state.scrollId = 0; return; }
+                scrollTargetBy(v * dt, 'instant');
                 state.scrollId = requestAnimationFrame(step);
             };
 
