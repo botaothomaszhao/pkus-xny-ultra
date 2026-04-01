@@ -286,6 +286,7 @@
         // - 见过笔且笔已抬起：屏蔽触摸落笔，并把上下滑动转成题干背景滚动
         function touchGateStart(event) {
             if (!state.penEverUsed || state.penIsDown) return;
+            if (!container.querySelector('.bg-layer-fff')) return; // 题干未显示时不拦截
 
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
