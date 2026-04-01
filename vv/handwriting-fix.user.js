@@ -255,7 +255,7 @@
                 if (!lastTs) lastTs = ts;
                 const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
                 lastTs = ts;
-                scrollTargetBy(pxPerMs * dt, 'instant');
+                if (!scrollTargetBy(pxPerMs * dt, 'instant')) { state.scrollId = 0; return; }
                 state.scrollId = requestAnimationFrame(step);
             };
             state.scrollId = requestAnimationFrame(step);
@@ -274,7 +274,7 @@
 
                 v *= 0.95;
                 if (Math.abs(v) < 0.02) { state.scrollId = 0; return; }
-                scrollTargetBy(v * dt, 'instant');
+                if (!scrollTargetBy(v * dt, 'instant')) { state.scrollId = 0; return; }
                 state.scrollId = requestAnimationFrame(step);
             };
 
@@ -286,7 +286,6 @@
         // - 见过笔且笔已抬起：屏蔽触摸落笔，并把上下滑动转成题干背景滚动
         function touchGateStart(event) {
             if (!state.penEverUsed || state.penIsDown) return;
-            if (!container.querySelector('.bg-layer-fff')) return; // 题干未显示时不拦截
 
             const touch = event.changedTouches[0] || event.touches[0];
             if (!touch) return;
