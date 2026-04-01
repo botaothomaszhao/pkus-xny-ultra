@@ -104,7 +104,7 @@
         ctx.restore();
     }
 
-    function createArrowBtn(originBtn, scrollElBy) {
+    function createArrowBtn(originBtn, startScroll, stopScroll) {
         const wrap = document.createElement('span');
         wrap.style.display = 'inline-flex';
         wrap.style.gap = '6px';
@@ -128,43 +128,19 @@
         const upBtn = mkArrowBtn('▲', '题干向上滚动');
         const downBtn = mkArrowBtn('▼', '题干向下滚动');
 
-        const startHoldScroll = (buttonEl, deltaPerTick) => {
-            let timer = null;
-
-            const stop = () => {
-                if (timer) {
-                    clearInterval(timer);
-                    timer = null;
-                }
-            };
-
-            const start = (e) => {
-                if (timer) return;
+        const addHoldEvents = (btn, velocity) => {
+            btn.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                // 立刻滚一次，提升手感
-                scrollElBy(deltaPerTick);
-                timer = setInterval(() => {
-                    scrollElBy(deltaPerTick, 'instant');
-                }, 50);
-            };
-
-            // pointer 统一覆盖鼠标/触摸/笔（你站点主要是鼠标+触摸）
-            buttonEl.addEventListener('pointerdown', start, {capture: true, passive: false});
-            buttonEl.addEventListener('pointerup', stop, {capture: true});
-            buttonEl.addEventListener('pointercancel', stop, {capture: true});
-            buttonEl.addEventListener('pointerleave', stop, {capture: true});
-
-            // 切换窗口、隐藏时停止
-            window.addEventListener('blur', stop);
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) stop();
-            });
+                startScroll(velocity);
+            }, {capture: true, passive: false});
+            btn.addEventListener('pointerup', stopScroll, {capture: true});
+            btn.addEventListener('pointercancel', stopScroll, {capture: true});
+            btn.addEventListener('pointerleave', stopScroll, {capture: true});
         };
 
-        startHoldScroll(upBtn, -30);
-        startHoldScroll(downBtn, 30);
+        addHoldEvents(upBtn, -0.6);
+        addHoldEvents(downBtn, 0.6);
 
         wrap.appendChild(upBtn);
         wrap.appendChild(downBtn);
@@ -264,6 +240,32 @@
             return target.scrollTop !== before;
         }
 
+        // 按钮/键盘持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
+        let continuousVelocity = 0; // px/ms，非零时循环保持运行
+        let continuousId = 0;
+
+        function startContinuousScroll(pxPerMs) {
+            continuousVelocity = pxPerMs;
+            if (continuousId) return; // 已在运行，只更新速度
+            let lastTs = 0;
+            const step = (ts) => {
+                if (!continuousVelocity) {
+                    continuousId = 0;
+                    return;
+                }
+                if (!lastTs) lastTs = ts;
+                const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
+                lastTs = ts;
+                scrollTargetBy(continuousVelocity * dt, 'instant');
+                continuousId = requestAnimationFrame(step);
+            };
+            continuousId = requestAnimationFrame(step);
+        }
+
+        function stopContinuousScroll() {
+            continuousVelocity = 0; // 循环在下一帧自行退出
+        }
+
         function stopInertia() {
             if (state.inertiaId) {
                 cancelAnimationFrame(state.inertiaId);
@@ -358,7 +360,7 @@
         if (btn?.classList.contains('ant-btn-primary')) {
             btn.click(); // 关闭此前打开的“查看题干”
         }
-        const btnMo = createArrowBtn(btn, scrollTargetBy);
+        const btnMo = createArrowBtn(btn, startContinuousScroll, stopContinuousScroll);
 
         container.querySelector('.bg-layer')?.remove(); // 移除可能存在的卡死的“处理中”
 
@@ -395,19 +397,29 @@
         }, {capture: true, signal});
 
         document.addEventListener('keydown', function (e) {
-            if (e.ctrlKey) return;
+            if (e.ctrlKey || e.repeat) return;
             if (e.target.role === 'slider') return;
 
-            let delta = 0;
-            if (e.key === 'ArrowDown') delta = 30;
-            else if (e.key === 'ArrowUp') delta = -30;
+            let velocity = 0;
+            if (e.key === 'ArrowDown') velocity = 0.6;
+            else if (e.key === 'ArrowUp') velocity = -0.6;
             else return;
 
-            if (scrollTargetBy(delta, 'instant')) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            if (!container.querySelector('.bg-layer-fff')) return; // 题干未显示时不消费按键
+            e.preventDefault();
+            e.stopPropagation();
+            startContinuousScroll(velocity);
         }, {capture: true, signal});
+
+        document.addEventListener('keyup', function (e) {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            stopContinuousScroll();
+        }, {capture: true, signal});
+
+        window.addEventListener('blur', stopContinuousScroll, {signal});
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopContinuousScroll();
+        }, {signal});
 
         // 标记为已处理，避免重复处理
         container.setAttribute(fixedAttribute, 'true');
