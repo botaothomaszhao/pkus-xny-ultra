@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.8
+// @version      vv.3.9
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -341,7 +341,7 @@
             // 映射为存储结构并合并到 path
 
             /*
-            // 顶部标签栏：能正确捕获但无法正确回放
+            // 顶部标签栏：能正确捕获但无法点击回放
             const slide = document.querySelector("div.swiper-slide.sideActive");
             if (slide){
                 path.push({selector: "div.swiper-slide", text: cleanInnerText(slide)});
@@ -427,15 +427,13 @@
             this.overlay.appendChild(drawerEl);
             document.body.appendChild(this.overlay);
 
-            this.keyInputEl.addEventListener('keydown', (e) => this.escHandle(e), true);
-            this.keyInputEl.addEventListener('keyup', (e) => this.escHandle(e), true);
-
             this.overlay.addEventListener('click', (e) => {
                 if (e.target === this.overlay) this.close();
             });
             this.itemElsList = [];
             this.currentIndex = -1;
             this.keyInputEl.addEventListener('keydown', (e) => this.handleKeydown(e));
+            this.keyInputEl.addEventListener('keyup', (e) => this.escHandle(e), true);
 
             // 显示并聚焦
             requestAnimationFrame(() => {
@@ -472,22 +470,22 @@
         }
 
         handleKeydown(e) {
+            this.escHandle(e);
             if (!this.itemElsList.length) return;
 
             if (e.key === 'ArrowDown') {
-                e.preventDefault();
                 this.highlightIndex(this.currentIndex + 1);
             } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
                 this.highlightIndex(this.currentIndex - 1);
             } else if (e.key === 'Enter') {
-                e.preventDefault();
                 if (this.currentIndex >= 0 && this.currentIndex < this.itemElsList.length) {
                     this.itemElsList[this.currentIndex].click();
                 } else if (this.itemElsList.length > 0) {
                     this.itemElsList[0].click();
                 }
-            }
+            } else return;
+            e.preventDefault();
+            e.stopPropagation();
         }
 
         highlightIndex(index) {
@@ -498,9 +496,10 @@
 
             this.currentIndex = index;
             this.itemElsList.forEach(it => it.classList.remove('highlighted'));
-            this.itemElsList[this.currentIndex].classList.add('highlighted');
-            this.itemElsList[this.currentIndex].scrollIntoView({block: 'nearest', behavior: 'auto'});
-            this.itemElsList[this.currentIndex].focus({focusVisible: false});
+            const li = this.itemElsList[this.currentIndex];
+            li.classList.add('highlighted');
+            li.scrollIntoView({block: 'nearest', behavior: 'auto'});
+            if (li.tabIndex === 0) li.focus({focusVisible: false});
         }
 
         escHandle(e) {
@@ -541,7 +540,7 @@
             this.closeDrawer();
         }
 
-        open(children) {
+        open(children, lastElement) {
             this.closeDrawer();
             this.drawer = new ItemDrawer(
                 'next-step-drawer',
@@ -557,6 +556,9 @@
                     li.innerHTML = `<span class="item-title">${cleanInnerText(childEl)}</span>`;
                     li.addEventListener('click', () => {
                         try {
+                            if (!lastElement.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
+                                lastElement.click();
+                            }
                             childEl.click();
                             scrollTreeItem(childEl);
                         } catch (e) {
@@ -583,7 +585,7 @@
             if (childTree?.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
-                    this.open(childrenWrappers);
+                    this.open(childrenWrappers, lastElement);
                 }
             }
         }
@@ -1227,9 +1229,8 @@
     // 劫持 replaceState，保存当前路径到 state 中，供 popstate 事件回放使用
     const originalReplaceState = history.replaceState;
     history.replaceState = (...args) => {
-
-        if (!document.querySelector('.ant-empty')){ // 仅保存有内容的页面
-            console.log("replaceState 被调用，触发页面变更检查。", captureCurrentPath());
+        if (!document.querySelector('.ant-empty')) { // 仅保存有内容的页面
+            console.log("replaceState 被调用，触发页面变更检查。", args);
             originalReplaceState.call(history, {path: captureCurrentPath()}, '', window.location.href);
             history.pushState(...args);
         } else {
