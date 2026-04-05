@@ -530,6 +530,7 @@
     class NextStepManager {
         constructor() {
             this.drawer = null;
+            this.lastElement = null;
         }
 
         onLoginPage() {
@@ -537,16 +538,18 @@
         }
 
         onPageChange() {
-            this.closeDrawer();
+            if (!this.lastElement?.matches('.ant-tree-node-selected')) this.closeDrawer(); // 如果不在打开下一步的目标，则关闭
         }
 
-        open(children, lastElement) {
+        open(children) {
+            const lastEl = this.lastElement; // close会重置
             this.closeDrawer();
+            this.lastElement = lastEl;
             this.drawer = new ItemDrawer(
                 'next-step-drawer',
                 'bottom-sheet-drawer',
                 (drawer, itemEl) => {
-                    drawer.innerHTML = `<div class="drawer-header"><h2>可能的下一步</h2></div>`;
+                    drawer.innerHTML = `<div class="drawer-header"><h2>${cleanInnerText(lastEl)} - 可能的下一步</h2></div>`;
                     drawer.appendChild(itemEl);
                     return drawer;
                 });
@@ -556,8 +559,8 @@
                     li.innerHTML = `<span class="item-title">${cleanInnerText(childEl)}</span>`;
                     li.addEventListener('click', () => {
                         try {
-                            if (!lastElement.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
-                                lastElement.click();
+                            if (!lastEl.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
+                                lastEl.click();
                             }
                             childEl.click();
                             scrollTreeItem(childEl);
@@ -572,20 +575,22 @@
         closeDrawer() {
             this.drawer?.close();
             this.drawer = null;
+            this.lastElement = null;
         }
 
         // 检测是否有子节点可展开，若有则展开
-        checkNextStep(lastElement) {
+        checkNextStep(lastEl) {
+            this.lastElement = lastEl;
             let childTree;
-            if (lastElement?.matches('.folderName')) {
-                childTree = lastElement.closest('div.folder')?.querySelector('.ant-tree-directory');
+            if (lastEl?.matches('.folderName')) {
+                childTree = lastEl.closest('div.folder')?.querySelector('.ant-tree-directory');
             } else {
-                childTree = lastElement?.closest('li[role="treeitem"]')?.querySelector('ul.ant-tree-child-tree');
+                childTree = lastEl?.closest('li[role="treeitem"]')?.querySelector('ul.ant-tree-child-tree');
             }
             if (childTree?.children.length > 0) {
                 const childrenWrappers = Array.from(childTree.querySelectorAll(':scope > li > span.ant-tree-node-content-wrapper'));
                 if (childrenWrappers.length > 0) {
-                    this.open(childrenWrappers, lastElement);
+                    this.open(childrenWrappers);
                 }
             }
         }
@@ -961,7 +966,7 @@
                                         <span class="item-path">${item.displayPath}</span>`;
                         li.addEventListener('click', async () => {
                             const path = item.replayablePath;
-                            this.drawer.close();
+                            this.closeDrawer();
                             await startReplay(path, true);
                         });
                     },
@@ -1203,8 +1208,6 @@
 
     checkPageChange();
     if (onContentPage()) hardRefreshBtn.replaySavedPathIfAny();
-
-    let popping = false;
 
     window.addEventListener('popstate', (e) => {
         if (e.state?.path) {
