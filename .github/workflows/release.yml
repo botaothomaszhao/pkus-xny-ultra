@@ -1,0 +1,91 @@
+name: 发布 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（作为 tag，如 vv.2.5）"
+        required: true
+        type: string
+      release_title:
+        description: "发布标题（如 手写优化&页面清理拆分）"
+        required: true
+        type: string
+      release_notes:
+        description: "Release 正文（Markdown）"
+        required: true
+        type: string
+      via_exclude:
+        description: "Via 版排除的脚本文件名，逗号分隔（留空则包含全部）"
+        required: false
+        default: ""
+        type: string
+      edge_exclude:
+        description: "Edge 版排除的脚本文件名，逗号分隔"
+        required: false
+        default: "build-in-camera.user.js"
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 统计脚本信息
+        id: info
+        run: |
+          total=$(ls vv/*.user.js | wc -l)
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+
+      - name: 打包 Via 版 zip
+        run: |
+          mkdir -p /tmp/zips
+          cp vv/*.user.js /tmp/via-scripts/
+          mkdir -p /tmp/via-scripts
+          cp vv/*.user.js /tmp/via-scripts/
+
+          IFS=',' read -ra excludes <<< "${{ inputs.via_exclude }}"
+          for f in "${excludes[@]}"; do
+            f=$(echo "$f" | xargs)  # trim whitespace
+            [ -n "$f" ] && rm -f "/tmp/via-scripts/$f"
+          done
+
+          count=$(ls /tmp/via-scripts/*.user.js 2>/dev/null | wc -l)
+          echo "Via 版包含 $count 个脚本"
+          ls /tmp/via-scripts/*.user.js
+
+          cd /tmp/via-scripts
+          zip -j /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-via.zip *.user.js
+
+      - name: 打包 Edge 版 zip
+        run: |
+          mkdir -p /tmp/edge-scripts
+          cp vv/*.user.js /tmp/edge-scripts/
+
+          IFS=',' read -ra excludes <<< "${{ inputs.edge_exclude }}"
+          for f in "${excludes[@]}"; do
+            f=$(echo "$f" | xargs)
+            [ -n "$f" ] && rm -f "/tmp/edge-scripts/$f"
+          done
+
+          count=$(ls /tmp/edge-scripts/*.user.js 2>/dev/null | wc -l)
+          echo "Edge 版包含 $count 个脚本"
+          ls /tmp/edge-scripts/*.user.js
+
+          cd /tmp/edge-scripts
+          zip -j /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-edge.zip *.user.js
+
+      - name: 创建 Release 并上传附件
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ inputs.version }}" \
+            --title "${{ inputs.release_title }}" \
+            --notes "${{ inputs.release_notes }}" \
+            /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-via.zip \
+            /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-edge.zip
