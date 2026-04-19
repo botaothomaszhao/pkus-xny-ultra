@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       release_title:
-        description: "发布标题（如 手写优化&页面清理拆分）"
+        description: "发布标题（如 vv.2.5 - 手写优化&页面清理拆分）"
         required: true
         type: string
       release_notes:
@@ -21,9 +21,9 @@ on:
         default: ""
         type: string
       edge_exclude:
-        description: "Edge 版排除的脚本文件名，逗号分隔"
+        description: "Edge 版排除的脚本文件名，逗号分隔（留空则包含全部）"
         required: false
-        default: "build-in-camera.user.js"
+        default: ""
         type: string
 
 jobs:
