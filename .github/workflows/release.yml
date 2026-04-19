@@ -44,9 +44,7 @@ jobs:
 
       - name: 打包 Via 版 zip
         run: |
-          mkdir -p /tmp/zips
-          cp vv/*.user.js /tmp/via-scripts/
-          mkdir -p /tmp/via-scripts
+          mkdir -p /tmp/zips /tmp/via-scripts
           cp vv/*.user.js /tmp/via-scripts/
 
           IFS=',' read -ra excludes <<< "${{ inputs.via_exclude }}"
@@ -84,8 +82,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          printf '%s' "${{ inputs.release_notes }}" > /tmp/release-notes.md
           gh release create "${{ inputs.version }}" \
             --title "${{ inputs.release_title }}" \
-            --notes "${{ inputs.release_notes }}" \
+            --notes-file /tmp/release-notes.md \
             /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-via.zip \
             /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-edge.zip
