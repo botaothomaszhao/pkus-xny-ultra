@@ -197,4 +197,57 @@
         }
     }, true);
 
+    let contentScrollId = 0;
+    const scrollVelocity = 0.8; // px/ms，按键触发时的滚动速度
+
+    function stopContentScroll() {
+        cancelAnimationFrame(contentScrollId);
+        contentScrollId = 0;
+    }
+
+    function startContentScroll(pxPerMs) {
+        const content = document.querySelector('.content');
+        if (!content || !pxPerMs) return;
+
+        stopContentScroll();
+        let lastTs = 0;
+        const step = (ts) => {
+            if (!lastTs) lastTs = ts;
+            const dt = Math.min(ts - lastTs, 50);
+            lastTs = ts;
+            content.scrollBy({top: pxPerMs * dt, left: 0, behavior: 'instant'});
+            contentScrollId = requestAnimationFrame(step);
+        };
+        contentScrollId = requestAnimationFrame(step);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+
+        let direction = 0;
+        if (e.key === 'ArrowUp') direction = -1;
+        else if (e.key === 'ArrowDown') direction = 1;
+        else return;
+
+        const active = document.activeElement;
+        const tag = active?.tagName;
+        if (active && (active.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
+
+        if (active && active !== document.body && !active.closest('.content')) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        startContentScroll(direction * scrollVelocity);
+    }, true);
+
+    document.addEventListener('keyup', (e) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        stopContentScroll();
+    }, true);
+
+    window.addEventListener('blur', stopContentScroll);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopContentScroll();
+    });
+
 })();
