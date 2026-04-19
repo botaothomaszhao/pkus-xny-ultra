@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.4.0
+// @version      vv.4.1
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素。
 // @author       c-jeremy botaothomaszhao
@@ -206,8 +206,9 @@
     }
 
     function startContentScroll(pxPerMs) {
-        const content = document.querySelector('.content');
+        let content = document.querySelector('.content');
         if (!content || !pxPerMs) return;
+        content = content.querySelector('.question-body, .content-box') || content; // 收藏、AI页
 
         stopContentScroll();
         let lastTs = 0;
