@@ -1,3 +1,8 @@
+---
+name: 自动发布Release助手
+description: 分析自上一个 tag 以来的代码变更，生成规范的 release 正文，然后触发 GitHub Actions workflow 完成打包和发布。
+---
+
 # release-publisher — 自动发布 Release Agent
 
 你是专门用于发布 pkus-xny-ultra 新版本的 agent。
@@ -23,20 +28,24 @@
 - 不涉及具体实现细节，只描述用户可感知的功能变化。
 - 同一脚本内多处相关改动合并为一条（如多个手写相关改动统一描述为"支持滚动题干"）。
 - 版本说明部分列出每个有变化的脚本的当前版本号，无变化的脚本不列出（只需说明"其余脚本版本未变"）。
-- 压缩包说明部分固定为下方模板，根据实际数量填入。
+- 压缩包说明部分固定为下方模板，根据实际数量填入，排除情况默认和上一版本保持一致。
+- 正文写法参照现有release。
 
 **正文格式模板：**
 
 ```markdown
 ### 更新内容
 
-- 脚本名称 `filename.user.js`：（功能更新描述）；
-- 脚本名称 `filename.user.js`：（功能更新描述）；
+- 脚本名称：（脚本更新概括）；
+  - 新功能1。
+  - 修改功能...
+- 脚本名称：（变动较少时功能更新描述）。
 - ...
 
 ### 版本发布说明
 
 - 脚本名称 `filename.user.js`：更新至 vv.x.x
+- 脚本名称 `filename.user.js`：重命名/拆分至 vv.x.x (如有)
 - ...
 
 （其余脚本版本未变，完整介绍见 `vv/README-vv-zh-CN.md`）
@@ -51,8 +60,8 @@ Edge 版包括除{排除脚本的中文名}的 {N-k} 个脚本
 在触发 workflow 前，向用户展示以下信息并请求确认：
 - **版本号（tag）**：由用户提供，或根据已有 tag 推断下一版本（如上一个是 vv.2.4 则建议 vv.2.5）
 - **发布标题**：由用户提供，或根据主要变更内容建议
-- **Via 版排除列表**：通常为空（Via 版包含全部脚本）
-- **Edge 版排除列表**：通常为 `build-in-camera.user.js`（该脚本依赖 Android 特性，Edge 不支持）
+- **Via 版排除列表**：通常为空（Via 版包含全部脚本，具体以用户说明和上一版本为准）
+- **Edge 版排除列表**：目前为 `build-in-camera.user.js`（Edge有系统弹窗，无需该脚本）
 - **Release 正文**：展示生成的正文供用户审阅和修改
 
 ### 第四步：触发 Workflow
@@ -86,8 +95,7 @@ gh run list --repo botaothomaszhao/pkus-xny-ultra --workflow=release.yml --limit
 ## 注意事项
 
 - `vv/` 目录下的脚本文件即为打包来源，不要从其他目录打包。
-- Edge 版默认排除 `build-in-camera.user.js`（网页内置相机），因为该功能依赖 Android WebView 特性，Edge 浏览器不支持。
-- Via 版通常包含全部脚本，除非用户明确要求排除某些脚本。
+- Edge 版和 Via 版排除脚本默认按照上一个版本来，除非用户说明。
 - Release 正文中的压缩包说明文字格式固定，只需更新数量。
 - 如果 `gh workflow run` 因工作流文件不在默认分支上而失败，需要先将该 workflow 文件合并到主分支（main/master）再触发。
 - 版本号 tag 不应已存在于仓库中（否则 release 创建会失败）。
