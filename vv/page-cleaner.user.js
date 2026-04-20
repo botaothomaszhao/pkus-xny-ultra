@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.4.1
+// @version      vv.4.2
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素。
 // @author       c-jeremy botaothomaszhao
@@ -198,11 +198,13 @@
     }, true);
 
     let contentScrollId = 0;
+    let activeScrollKey = ''; // 'ArrowUp' | 'ArrowDown' | ''
     const scrollVelocity = 0.8; // px/ms，按键触发时的滚动速度
 
     function stopContentScroll() {
         cancelAnimationFrame(contentScrollId);
         contentScrollId = 0;
+        activeScrollKey = '';
     }
 
     function startContentScroll(pxPerMs) {
@@ -210,7 +212,7 @@
         if (!content || !pxPerMs) return;
         content = content.querySelector('.question-body, .content-box') || content; // 收藏、AI页
 
-        stopContentScroll();
+        cancelAnimationFrame(contentScrollId);
         let lastTs = 0;
         const step = (ts) => {
             if (!lastTs) lastTs = ts;
@@ -223,26 +225,30 @@
     }
 
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-
-        let direction = 0;
-        if (e.key === 'ArrowUp') direction = -1;
-        else if (e.key === 'ArrowDown') direction = 1;
-        else return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
 
         const active = document.activeElement;
         const tag = active?.tagName;
         if (active && (active.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
-
         if (active && active !== document.body && !active.closest('.content')) return;
 
+        const direction = e.key === 'ArrowUp' ? -1 : 1;
+
+        // 只在第一次按下某方向时启动；若按住上又按下，则立即切换为最新方向
+        if (activeScrollKey !== e.key) {
+            activeScrollKey = e.key;
+            startContentScroll(direction * scrollVelocity);
+        }
         e.preventDefault();
         e.stopPropagation();
-        startContentScroll(direction * scrollVelocity);
     }, true);
 
     document.addEventListener('keyup', (e) => {
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        
+        // 只在释放当前激活方向时停止；避免“按住上+点按下”时松开下导致停掉上
+        if (e.key !== activeScrollKey) return;
         stopContentScroll();
     }, true);
 
@@ -250,5 +256,5 @@
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopContentScroll();
     });
-
+    
 })();
