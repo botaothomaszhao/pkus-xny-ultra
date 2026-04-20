@@ -208,10 +208,11 @@
     }
 
     function startContentScroll(pxPerMs) {
-        let content = document.querySelector('.content');
+        const content = document.querySelector('.um-content, .bg-layer-fff') // 支持弹窗和手写背景
+            || document.querySelector('.content .question-body, .content .content-box') // 收藏、AI页
+            || document.querySelector('.content');
         if (!content || !pxPerMs) return;
-        content = content.querySelector('.question-body, .content-box') || content; // 收藏、AI页
-
+        
         cancelAnimationFrame(contentScrollId);
         let lastTs = 0;
         const step = (ts) => {
@@ -230,8 +231,8 @@
 
         const active = document.activeElement;
         const tag = active?.tagName;
-        if (active && (active.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
-        if (active && active !== document.body && !active.closest('.content')) return;
+        if (active && (active.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') || e.target.role === 'slider') return;
+        if (active && active !== document.body && !active.closest('.content, .um-overlay, .write')) return;
 
         const direction = e.key === 'ArrowUp' ? -1 : 1;
 
