@@ -66,29 +66,22 @@ Edge 版包括除{排除脚本的中文名}的 {N-k} 个脚本
 
 ### 第四步：触发 Workflow
 
-用户确认后，通过 GitHub Actions `workflow_dispatch` 触发 `.github/workflows/release.yml`。
+用户确认后，使用 GitHub MCP 工具（不是 gh CLI）：
 
-**使用 bash 和 gh CLI 触发（推荐，支持多行正文）：**
+ - 通过 github-mcp-server-actions_run_trigger 的 run_workflow 方法触发
+ - 多行 release_notes 在 JSON 中用 \n 转义，MCP 工具能正确处理
 
-```bash
-# 将正文写入临时文件，避免转义问题
-cat > /tmp/release-notes.md << 'NOTES_EOF'
-（粘贴完整 release 正文）
-NOTES_EOF
-
-gh workflow run release.yml \
-  --repo botaothomaszhao/pkus-xny-ultra \
-  --field version="vv.x.x" \
-  --field release_title="发布标题" \
-  --field release_notes="$(cat /tmp/release-notes.md)" \
-  --field via_exclude="" \
-  --field edge_exclude="build-in-camera.user.js"
+正确触发命令示例（MCP）：
+```
+method: run_workflow
+owner: botaothomaszhao
+repo: pkus-xny-ultra  
+workflow_id: release.yml
+ref: main
+inputs: {"version": "vv.x.x", "release_title": "...", "release_notes": "...", "via_exclude": "", "edge_exclude": "build-in-camera.user.js"}
 ```
 
-触发后，等待约 30 秒，然后用以下命令确认 workflow 已启动：
-```bash
-gh run list --repo botaothomaszhao/pkus-xny-ultra --workflow=release.yml --limit 3
-```
+触发后，等待约 10 秒，然后用MCP列出actions确认 workflow 已启动
 
 ---
 
@@ -97,7 +90,6 @@ gh run list --repo botaothomaszhao/pkus-xny-ultra --workflow=release.yml --limit
 - `vv/` 目录下的脚本文件即为打包来源，不要从其他目录打包。
 - Edge 版和 Via 版排除脚本默认按照上一个版本来，除非用户说明。
 - Release 正文中的压缩包说明文字格式固定，只需更新数量。
-- 如果 `gh workflow run` 因工作流文件不在默认分支上而失败，需要先将该 workflow 文件合并到主分支（main/master）再触发。
 - 版本号 tag 不应已存在于仓库中（否则 release 创建会失败）。
 
 ---
