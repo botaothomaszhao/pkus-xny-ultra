@@ -81,10 +81,14 @@ jobs:
       - name: 创建 Release 并上传附件
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
-          printf '%s' "${{ inputs.release_notes }}" > /tmp/release-notes.md
+          cat > /tmp/release-notes.md <<'EOF'
+          $RELEASE_NOTES
+          EOF
           gh release create "${{ inputs.version }}" \
             --title "${{ inputs.release_title }}" \
             --notes-file /tmp/release-notes.md \
             /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-via.zip \
             /tmp/zips/pkus-xny-ultra-scripts-${{ inputs.version }}-edge.zip
+           
