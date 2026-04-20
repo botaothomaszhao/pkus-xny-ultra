@@ -83,9 +83,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
-          cat > /tmp/release-notes.md <<'EOF'
-          $RELEASE_NOTES
-          EOF
+          printf "%s" "$RELEASE_NOTES" > /tmp/release-notes.md
           gh release create "${{ inputs.version }}" \
             --title "${{ inputs.release_title }}" \
             --notes-file /tmp/release-notes.md \
