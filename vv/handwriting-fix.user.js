@@ -383,26 +383,6 @@
             }
         }, {capture: true, signal});
 
-        document.addEventListener('keydown', function (e) {
-            if (e.ctrlKey || e.repeat) return;
-            if (e.target.role === 'slider') return;
-
-            let velocity = 0;
-            if (e.key === 'ArrowDown') velocity = 0.6;
-            else if (e.key === 'ArrowUp') velocity = -0.6;
-            else return;
-
-            if (!container.querySelector('.bg-layer-fff')) return; // 题干未显示时不消费按键
-            e.preventDefault();
-            e.stopPropagation();
-            startContinuousScroll(velocity);
-        }, {capture: true, signal});
-
-        document.addEventListener('keyup', function (e) {
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-            stopScroll();
-        }, {capture: true, signal});
-
         window.addEventListener('blur', stopScroll, {signal});
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) stopScroll();
