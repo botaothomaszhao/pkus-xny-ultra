@@ -199,63 +199,69 @@
 
     let contentScrollId = 0;
     let activeScrollKey = ''; // 'ArrowUp' | 'ArrowDown' | ''
-    const scrollVelocity = 0.8; // px/ms，按键触发时的滚动速度
+    const scrollVelocity = 0.8; // px/ms，最大滚动速度
+    const accelDuration = 180; // 加速时长、最小滚动时长
 
-    function stopContentScroll() {
-        cancelAnimationFrame(contentScrollId);
-        contentScrollId = 0;
-        activeScrollKey = '';
-    }
-
-    function startContentScroll(pxPerMs) {
+    function startContentScroll(direction) {
         const content = document.querySelector('.um-content, .bg-layer-fff') // 支持弹窗和手写背景
             || document.querySelector('.content .question-body, .content .content-box') // 收藏、AI页
             || document.querySelector('.content');
-        if (!content || !pxPerMs) return;
-        
+        if (!content) return;
+
         cancelAnimationFrame(contentScrollId);
+        let startTs = 0;
         let lastTs = 0;
+        let released = false;
+
         const step = (ts) => {
-            if (!lastTs) lastTs = ts;
+            if (!startTs) startTs = lastTs = ts;
+            const elapsed = ts - startTs;
             const dt = Math.min(ts - lastTs, 50);
             lastTs = ts;
-            content.scrollBy({top: pxPerMs * dt, left: 0, behavior: 'instant'});
+
+            // 线性加速
+            const accel = Math.min(elapsed / accelDuration, 1);
+            content.scrollBy({ top: direction * scrollVelocity * accel * dt, behavior: 'instant' });
+
+            // 只有当按键已松开且超过最小滚动时间，或者方向被改变（通过外部cancel）时才停止
+            if (released && elapsed >= accelDuration) {
+                activeScrollKey = '';
+                return;
+            }
             contentScrollId = requestAnimationFrame(step);
         };
+
+        // 提供给 keyup 修改状态
+        startContentScroll.release = () => { released = true; };
         contentScrollId = requestAnimationFrame(step);
     }
 
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
 
         const active = document.activeElement;
-        const tag = active?.tagName;
-        if (active && (active.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') || e.target.role === 'slider') return;
-        if (active && active !== document.body && !active.closest('.content, .um-overlay, .write')) return;
+        if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) || e.target.role === 'slider') return;
 
-        const direction = e.key === 'ArrowUp' ? -1 : 1;
-
-        // 只在第一次按下某方向时启动；若按住上又按下，则立即切换为最新方向
         if (activeScrollKey !== e.key) {
             activeScrollKey = e.key;
-            startContentScroll(direction * scrollVelocity);
+            startContentScroll(e.key === 'ArrowUp' ? -1 : 1);
         }
         e.preventDefault();
         e.stopPropagation();
     }, true);
 
     document.addEventListener('keyup', (e) => {
-        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-        
-        // 只在释放当前激活方向时停止；避免“按住上+点按下”时松开下导致停掉上
-        if (e.key !== activeScrollKey) return;
-        stopContentScroll();
+        if (e.key === activeScrollKey) startContentScroll.release?.();
     }, true);
 
-    window.addEventListener('blur', stopContentScroll);
+    function stopAll() {
+        cancelAnimationFrame(contentScrollId);
+        activeScrollKey = '';
+    }
+    
+    window.addEventListener('blur', stopAll);
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) stopContentScroll();
+        if (document.hidden) stopAll();
     });
     
 })();
