@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.0
+// @version      vv.2.1
 // @license      GPL-3.0
 // @description  统一不同类型的弹窗样式。
 // @author       botaothomaszhao
@@ -108,13 +108,15 @@
         
         /* pdf预览 */
         .um-modal:not(.fullscreen) .um-content iframe {
+            display: block;
             box-sizing: border-box;
             max-height: min(500px, calc(100vh - 137px));
             min-width: min(852px, calc(100vw - 96px));
         }
         .um-modal.fullscreen .um-content iframe {
+            display: block;
             box-sizing: border-box;
-            height: 99% !important;
+            height: 100% !important;
         }
         /* 确认按钮置底 */
         .um-modal:not(.fullscreen) .um-content :is(.btn-box, .footer-box, .option-box.txt-r) {

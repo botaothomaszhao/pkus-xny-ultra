@@ -1,0 +1,25 @@
+# Node / package manager
+node_modules/
+.npm/
+.pnpm-store/
+
+# Build artifacts
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+.aiassistant/
+
