@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.4.2
 // @license      GPL-3.0
-// @description  自动删除页面中的无用元素。
+// @description  自动删除页面中的无用元素，使标签栏可滑动，上下键滚动课程页面。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @exclude      https://bdfz.xnykcxt.com:5002/exam/pdf/web/viewer.html*
@@ -199,8 +199,8 @@
 
     let contentScrollId = 0;
     let activeScrollKey = ''; // 'ArrowUp' | 'ArrowDown' | ''
-    const scrollVelocity = 0.8; // px/ms，最大滚动速度
-    const accelDuration = 180; // 加速时长、最小滚动时长
+    const scrollVelocity = 0.7; // px/ms，最大滚动速度
+    const accelDuration = 160; // 加速时长、最小滚动时长
 
     function startContentScroll(direction) {
         const content = document.querySelector('.um-content, .bg-layer-fff') // 支持弹窗和手写背景
@@ -240,7 +240,8 @@
         if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
 
         const active = document.activeElement;
-        if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) || e.target.role === 'slider') return;
+        if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))
+            || e.target.role === 'slider') return;
 
         if (activeScrollKey !== e.key) {
             activeScrollKey = e.key;
