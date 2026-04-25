@@ -239,9 +239,10 @@
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
 
-        const active = document.activeElement;
+        const active = e.target;
         if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))
-            || e.target.role === 'slider') return;
+            || active.role === 'slider') return;
+        if (active && active !== document.body && !active.closest('.content, .um-overlay, .write')) return;
 
         if (activeScrollKey !== e.key) {
             activeScrollKey = e.key;
