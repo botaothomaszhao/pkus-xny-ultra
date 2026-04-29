@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         页面清理
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.4.2
+// @version      vv.4.3
 // @license      GPL-3.0
 // @description  自动删除页面中的无用元素，使标签栏可滑动，上下键滚动课程页面。
 // @author       c-jeremy botaothomaszhao
@@ -33,7 +33,7 @@
     const hideClass = 'vu-preserve-hidden';
 
     GM_addStyle(`
-        .${hideClass} { 
+        .${hideClass} {
             display: none !important;
         }
         /* 课程页顶部按钮栏高度限制 */
@@ -54,6 +54,13 @@
         }
         .router-view {
             overflow-y: hidden !important;
+        }
+
+        /* 红点按钮css被html上的样式覆盖，用important修复，不改背景色因为需要看到红色 */
+        .content .top .right .ant-btn:not(.ant-btn-danger,.ant-btn-primary):focus,
+        .content .top .right .ant-btn:not(.ant-btn-danger,.ant-btn-primary):hover {
+            color: #9aa7fc !important;
+            border-color: #9aa7fc !important;
         }
     `);
 
@@ -221,7 +228,7 @@
 
             // 线性加速
             const accel = Math.min(elapsed / accelDuration, 1);
-            content.scrollBy({ top: direction * scrollVelocity * accel * dt, behavior: 'instant' });
+            content.scrollBy({top: direction * scrollVelocity * accel * dt, behavior: 'instant'});
 
             // 只有当按键已松开且超过最小滚动时间，或者方向被改变（通过外部cancel）时才停止
             if (released && elapsed >= accelDuration) {
@@ -232,7 +239,9 @@
         };
 
         // 提供给 keyup 修改状态
-        startContentScroll.release = () => { released = true; };
+        startContentScroll.release = () => {
+            released = true;
+        };
         contentScrollId = requestAnimationFrame(step);
     }
 
@@ -260,10 +269,10 @@
         cancelAnimationFrame(contentScrollId);
         activeScrollKey = '';
     }
-    
+
     window.addEventListener('blur', stopAll);
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopAll();
     });
-    
+
 })();
