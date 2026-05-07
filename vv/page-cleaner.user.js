@@ -52,7 +52,7 @@
         .swiper_box .anticon-left:hover, .swiper_box .anticon-right:hover {
             background-color: #cfd6e8 !important;
         }
-        .router-view {
+        .router-view:not(:has(.mySetting)) {
             overflow-y: hidden !important;
         }
 

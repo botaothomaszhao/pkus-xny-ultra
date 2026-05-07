@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         统一弹窗
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.1
+// @version      vv.2.2
 // @license      GPL-3.0
 // @description  统一不同类型的弹窗样式。
 // @author       botaothomaszhao
@@ -297,7 +297,7 @@
      * - bodySelector: 内容容器选择器
      * - getBodyNodes(bodyEl): [可选] 自定义 body 内要搬运的节点（bg-box 用来排除 .title）
      * - hideOriginal(root): 打开统一弹窗时如何隐藏原弹窗
-     * - extraBtn: [可选] 额外的确认、取消按钮选择器
+     * - extraCloseBtn: [可选] 额外的确认、取消按钮选择器
      * - closeBtn: 关闭按钮选择器
      * - closeOriginal(root): 关闭统一弹窗时，如何触发原始关闭逻辑/恢复样式
      * - disableOverlayClose: [可选] 是否禁用点击弹窗以外直接关闭
@@ -353,7 +353,9 @@
         document.querySelectorAll('.ant-modal-root').forEach(antModalRoot =>
             catchGenericModal(antModalRoot, {
                 shouldSkip(root) {
-                    return root.matches('.ant-modal-confirm') || root.querySelector('.ant-modal-mask').style.display === 'none';
+                    return root.matches('.ant-modal-confirm') // 确认删除收藏的弹窗
+                        || root.querySelector('.ant-modal-footer')  // 修改密码
+                        || root.querySelector('.ant-modal-mask').style.display === 'none';
                 },
                 containerSelector: '.ant-modal',
                 titleSelector: '.ant-modal-title',
@@ -379,7 +381,7 @@
                 titleSelector: '.title .left',
                 bodySelector: '.con',
                 getBodyNodes(bodyEl) {
-                    return Array.from(bodyEl.childNodes).filter(node => !(node.matches && node.matches('.title')));
+                    return Array.from(bodyEl.childNodes).filter(node => !(node.matches('.title')));
                 },
                 hideOriginal(root) {
                     root.style.visibility = 'hidden';
