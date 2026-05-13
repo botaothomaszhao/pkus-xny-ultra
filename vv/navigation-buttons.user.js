@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         快捷导航按钮
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.3.9
+// @version      vv.3.10
 // @license      GPL-3.0
 // @description  提供收藏夹、目录搜索、页面刷新按钮，并在页面加载时自动重放路径
 // @author       c-jeremy botaothomaszhao
@@ -136,7 +136,7 @@
         }
         .action-btn:hover, .action-btn:focus { background-color: #f3f4f6; color: #374151; }
         .action-btn.delete:hover, .action-btn.delete:focus { color: #ef4444; }
-        .action-btn svg { width: 20px; height: 20px; display: block; }
+        .action-btn svg { width: 20px, height: 20px; display: block; }
 
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
@@ -361,10 +361,14 @@
     async function replayPath(path, myToken) {
         let lastClickedEl = null;
 
-        async function click(sel, text, isLast) {
+        async function click(sel, text, isLast, prevEl) {
+            const scopeEl = prevEl?.matches('span.ant-tree-node-content-wrapper')
+                ? prevEl.closest('li[role="treeitem"]') // 限定在该级目录内寻找下一步，避免同级节点重名导致误点
+                : null;
             for (let i = 0; i < 100; i++) { // 最多尝试10s
                 for (const node of document.querySelectorAll(sel)) {
                     if (cleanInnerText(node) === text) {
+                        if (scopeEl && !scopeEl.contains(node)) continue;
                         if (isLast || !node.matches('.ant-tree-node-content-wrapper-open, div.folderName.active')) {
                             node.click(); // 如果已展开则不点击
                             scrollTreeItem(node);
@@ -382,12 +386,15 @@
             return false;
         }
 
-        for (const step of path) {
+        for (let i = 0; i < path.length; i++) {
+            const step = path[i];
+            const prevEl = step.selector === 'span.ant-tree-node-content-wrapper' ? lastClickedEl : null;
+
             // 在每一步开始前检查 token（若被替换则中断）
             if (replayToken !== myToken) {
                 throw new Error('Replay cancelled');
             }
-            if (!(await click(step.selector, step.text, step === path[path.length - 1]))) {
+            if (!(await click(step.selector, step.text, step === path[path.length - 1], prevEl))) {
                 throw new Error('Replay failed');
             }
         }
