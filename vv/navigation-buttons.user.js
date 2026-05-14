@@ -136,7 +136,7 @@
         }
         .action-btn:hover, .action-btn:focus { background-color: #f3f4f6; color: #374151; }
         .action-btn.delete:hover, .action-btn.delete:focus { color: #ef4444; }
-        .action-btn svg { width: 20px, height: 20px; display: block; }
+        .action-btn svg { width: 20px; height: 20px; display: block; }
 
         .search-spotlight-card {
             position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: 92%; max-width: 720px;
@@ -961,12 +961,22 @@
                 }
                 const qParts = q.trim().split(/\s+/);
                 const items = this.searchableItems.filter(item => {
+                    let searchPos = 0;
                     return qParts.every(part => {
                         try {
-                            return PinyinMatch.match(item.title, part);
+                            const result = PinyinMatch.match(item.title.slice(searchPos), part);
+                            if (result) {
+                                searchPos += result[1] + 1;
+                                return true;
+                            }
                         } catch (e) {
-                            return item.title && item.title.includes(part);
+                            const idx = item.title.indexOf(part, searchPos);
+                            if (idx !== -1) {
+                                searchPos = idx + part.length;
+                                return true;
+                            }
                         }
+                        return false;
                     });
                 });
                 this.drawer.renderList(
