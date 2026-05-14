@@ -11,7 +11,7 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @run-at       document-body
-// @require      https://unpkg.com/pinyin-match@1.2.8/dist/main.js
+// @require      https://unpkg.com/pinyin-match@latest/dist/main.js
 // ==/UserScript==
 
 (function () {
@@ -959,12 +959,15 @@
                     this.drawer.itemEl.innerHTML = `<div class="empty-list">请先点击左侧的科目以加载目录数据。</div>`;
                     return;
                 }
+                const qParts = q.trim().split(/\s+/);
                 const items = this.searchableItems.filter(item => {
-                    try {
-                        return PinyinMatch.match(item.title, q);
-                    } catch (e) {
-                        return item.title && item.title.includes(q);
-                    }
+                    return qParts.every(part => {
+                        try {
+                            return PinyinMatch.match(item.title, part);
+                        } catch (e) {
+                            return item.title && item.title.includes(part);
+                        }
+                    });
                 });
                 this.drawer.renderList(
                     items.slice(0, this.MAX_DISPLAY),
