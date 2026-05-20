@@ -1,7 +1,5 @@
 # 自动打包发布配置与使用说明
 
-本文面向 fork 或后续接手本仓库的维护者，目标是让你可以稳定使用 Agent 自动触发发布流程。
-
 ## 1. 当前仓库自动发布链路
 
 仓库内已有两个关键部分：
@@ -25,22 +23,14 @@
 
 ### 2.1 在你的仓库里启用对应文件
 
-如果你是 fork：
-
 1. 确保 `.github/workflows/release.yml` 存在且未被禁用。
 2. 确保 `.github/agents/release-publisher.agent.md` 存在（用于 Agent 发布流程）。
 3. 在仓库 `Actions` 页面确认 workflow 可见且可手动运行。
 
 ### 2.2 配置 MCP（让 Agent 能调用 GitHub Actions）
 
-本仓库的自动发布 Agent 使用方式是：直接在 **GitHub 仓库网页中的 Agent 页面** 调用 `release-publisher`。  
-该页面中的 Agent 仍然依赖 GitHub MCP Server 权限来触发 Actions，因此你需要给它配置可用认证。  
-核心检查点只有两个：
-
-1. MCP 已连接到 GitHub（不是只读离线模式）。
-2. MCP 认证所用令牌对目标仓库具备 Actions 写权限（至少能触发 workflow）。
-
-如果你本地/团队有统一 MCP 配置模板，直接套用并替换仓库名即可。
+自动发布 Agent 的使用入口是：**GitHub 仓库网页 → Agent 页面**，直接调用 `release-publisher`。  
+该 Agent 触发 Actions 依赖 MCP，因此必须在仓库设置里配置 MCP 与对应 Secret（见第 4 节）。
 
 ## 3. 在项目中创建发布专用 Token（Fine-grained PAT）
 
@@ -66,9 +56,13 @@
 - 只保存在 Agent/MCP 密钥区，不写进仓库文件。
 - 一旦泄露，立即 Revoke 并重建。
 
-## 4. 在项目中设置 MCP（仓库网页 Agent 页面）
+## 4. 在项目中设置 MCP 与 Secret（仓库网页设置）
 
-本项目当前使用的 MCP 配置如下（放在仓库网页 Agent 的 MCP 配置中）：
+进入仓库网页：`Settings` → `Copilot` → `Coding agent`。
+
+### 4.1 配置 MCP servers（粘贴位置）
+
+在 `MCP servers` 配置区域添加或替换为以下 JSON：
 
 ```json
 {
@@ -85,14 +79,15 @@
 }
 ```
 
-设置步骤：
+### 4.2 配置 Secret（把 Token 配到仓库）
 
-1. 进入仓库网页的 Agent 页面，打开该仓库的 MCP 配置入口。
-2. 添加或替换为上面的 `github-mcp-server` 配置。
-3. 在同一 Agent 环境的 Secrets/凭据设置里新增发布 Token（建议命名 `GH_TOKEN`），值为第 3 节创建的 Fine-grained PAT。
-4. 保存后重开 Agent 会话，先执行一次只读验证（如列出 workflow），再执行发布。
+在同一页面的 `Secrets` 区域新增：
 
-说明：MCP 配置里不直接写明文 Token，Token 通过 Agent 的 Secrets 注入。
+- Name：`COPILOT_MCP_GITHUB_PERSONAL_ACCESS_TOKEN`
+- Value：第 3 节创建的 Fine-grained PAT
+
+保存后重开 Agent 会话，先做一次只读验证（例如列出 workflow），再执行发布。  
+说明：MCP 配置 JSON 里不写明文 Token，Token 通过上面的 Secret 注入。
 
 ## 5. 实际发布操作（给维护者）
 
