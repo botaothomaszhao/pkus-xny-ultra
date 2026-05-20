@@ -45,13 +45,13 @@
 
 建议单独创建一个仅用于 Agent 触发发布的 Fine-grained Personal Access Token，不要复用日常开发 Token。
 
-按你提供的截图，可行配置为：
+可行的最小权限配置示例如下：
 
 - Repository access：仅选择目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）
 - User permissions：无（不授予）
 - Repository permissions：
   - `Actions`：**Read and write**
-  - 其余保持最小可用（截图中显示包含只读访问：agent tasks、code、metadata、pull requests）
+  - 其余保持最小可用（可保留只读访问：agent tasks、code、metadata、pull requests）
 
 额外建议：
 
