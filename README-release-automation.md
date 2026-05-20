@@ -58,7 +58,7 @@
 
 ## 4. 在项目中设置 MCP 与 Secret（仓库网页设置）
 
-进入仓库网页：`Settings` → `Copilot` → `Coding agent`。
+进入仓库网页设置路径：`Settings` → `Copilot` → `Coding agent`。
 
 ### 4.1 配置 MCP servers（粘贴位置）
 
