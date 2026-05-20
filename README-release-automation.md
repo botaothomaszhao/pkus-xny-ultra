@@ -33,7 +33,8 @@
 
 ### 2.2 配置 MCP（让 Agent 能调用 GitHub Actions）
 
-你需要在使用 Agent 的客户端里启用 GitHub MCP Server，并让它具备对目标仓库调用 Actions 的权限。  
+本仓库的自动发布 Agent 使用方式是：直接在 **GitHub 仓库网页中的 Agent 页面** 调用 `release-publisher`。  
+该页面中的 Agent 仍然依赖 GitHub MCP Server 权限来触发 Actions，因此你需要给它配置可用认证。  
 核心检查点只有两个：
 
 1. MCP 已连接到 GitHub（不是只读离线模式）。
@@ -74,7 +75,7 @@
 建议流程：
 
 1. 确认工作区代码已准备完成（`vv/` 脚本与 README 已更新）。
-2. 让 release-publisher agent 生成发布信息并展示待确认参数。
+2. 打开该仓库网页的 Agent 页面，选择 `release-publisher` agent，让它生成发布信息并展示待确认参数。
 3. 重点核对：
    - `version` 未与已有 tag 冲突
    - `release_title` 可读
