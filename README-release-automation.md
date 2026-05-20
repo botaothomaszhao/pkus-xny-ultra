@@ -1,6 +1,6 @@
 # 自动打包发布配置与使用说明
 
-## 1. 当前仓库自动发布链路
+## 1. 自动发布链路
 
 仓库内已有两个关键部分：
 
@@ -19,9 +19,7 @@
   - 职责：整理变更说明，确认发布参数后触发 `release.yml`
   - 触发方式：通过 GitHub MCP Actions 接口调用 `run_workflow`
 
-## 2. 前置条件（最重要）
-
-### 2.1 在你的仓库里启用对应文件
+## 2. 前置条件
 
 1. 确保 `.github/workflows/release.yml` 存在且未被禁用。
 2. 确保 `.github/agents/release-publisher.agent.md` 存在（用于 Agent 发布流程）。
@@ -31,24 +29,21 @@
 
 建议单独创建一个仅用于 Agent 触发发布的 Fine-grained Personal Access Token，不要复用日常开发 Token。
 
-创建步骤（按这个顺序基本不会迷路）：
+创建步骤：
 
-1. 先点 GitHub 右上角头像 → `Settings`。  
-   或直接打开：`https://github.com/settings/tokens?type=beta`
-2. 在左侧菜单找到 `Developer settings`（通常在最底部）。
-3. 进入 `Personal access tokens` → `Fine-grained tokens`。
-4. 点击 `Generate new token`（或 `Generate new token (classic)` 旁边下拉后选 Fine-grained）。
-5. `Repository access` 选择 `Only select repositories`，只勾选目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）。
-6. `User permissions` 保持不授予。
-7. `Repository permissions` 至少设置：
+1. 打开 GitHub：`Settings` → `Developer settings` → `Personal access tokens` → `Fine-grained tokens`。
+2. 点击 `Generate new token`（或 `Generate new token (classic)` 旁边下拉后选 Fine-grained）。
+3. `Repository access` 选择 `Only select repositories`，只勾选目标仓库（例如 `xxx/pkus-xny-ultra`）。
+4. `User permissions` 保持不授予。
+5. `Repository permissions` 至少设置：
    - `Actions`：**Read and write**
    - `agent tasks`、`code`、`metadata`、`pull requests`：**Read**
-8. 设置有效期后生成 Token，并立即复制保存（页面离开后无法再次查看明文）。
+6. 设置有效期后生成 Token，并立即复制保存（页面离开后无法再次查看明文）。
 
 额外建议：
 
 - Token 使用短周期并轮换。
-- 只保存在 Agent/MCP 密钥区，不写进仓库文件。
+- 只保存在 Agent 密钥区，不写进仓库文件。
 - 一旦泄露，立即 Revoke 并重建。
 
 生成 Token 后，立即在仓库网页配置 Secret：
@@ -62,8 +57,6 @@
 ## 4. 在项目中设置 MCP 与 Secret（仓库网页设置）
 
 进入仓库网页设置路径：`Settings` → `Copilot` → `Cloud agent`。
-
-### 4.1 配置 MCP servers（粘贴位置）
 
 在 `MCP servers` 配置区域添加或替换为以下 JSON：
 
