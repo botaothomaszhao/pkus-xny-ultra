@@ -46,16 +46,19 @@
 
 建议单独创建一个仅用于 Agent 触发发布的 Fine-grained Personal Access Token，不要复用日常开发 Token。
 
-创建步骤：
+创建步骤（按这个顺序基本不会迷路）：
 
-1. 打开 GitHub：`Settings` → `Developer settings` → `Personal access tokens` → `Fine-grained tokens`。
-2. 点击 `Generate new token`。
-3. `Repository access` 选择 `Only select repositories`，只勾选目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）。
-4. `User permissions` 保持不授予。
-5. `Repository permissions` 至少设置：
+1. 先点 GitHub 右上角头像 → `Settings`。  
+   或直接打开：`https://github.com/settings/tokens?type=beta`
+2. 在左侧菜单找到 `Developer settings`（通常在最底部）。
+3. 进入 `Personal access tokens` → `Fine-grained tokens`。
+4. 点击 `Generate new token`（或 `Generate new token (classic)` 旁边下拉后选 Fine-grained）。
+5. `Repository access` 选择 `Only select repositories`，只勾选目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）。
+6. `User permissions` 保持不授予。
+7. `Repository permissions` 至少设置：
    - `Actions`：**Read and write**
    - `agent tasks`、`code`、`metadata`、`pull requests`：**Read**
-6. 设置有效期后生成 Token，并立即复制保存（页面离开后无法再次查看明文）。
+8. 设置有效期后生成 Token，并立即复制保存（页面离开后无法再次查看明文）。
 
 额外建议：
 
