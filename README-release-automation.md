@@ -9,7 +9,7 @@
 - Workflow：`.github/workflows/release.yml`
   - 触发方式：`workflow_dispatch`（手动触发）
   - 关键输入：
-    - `version`：tag（例如 `vv.2.5`）
+    - `version`：tag（本仓库约定为 `vv.x.x`，例如 `vv.2.5`）
     - `release_title`：发布标题
     - `release_notes`：Release 正文（Markdown）
     - `via_exclude`：Via 包排除文件（逗号分隔）
@@ -101,7 +101,7 @@
 给新维护者至少交接以下内容：
 
 - 本文档链接
-- 当前发布命名规范（`vv.x.x`）
+- 当前发布命名规范（本仓库约定 `vv.x.x`，不是 `v.x.x`）
 - 哪些脚本通常排除在 Edge 包外（如有团队约定）
 - Token 轮换周期与保管方式
 
