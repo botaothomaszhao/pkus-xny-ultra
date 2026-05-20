@@ -27,11 +27,6 @@
 2. 确保 `.github/agents/release-publisher.agent.md` 存在（用于 Agent 发布流程）。
 3. 在仓库 `Actions` 页面确认 workflow 可见且可手动运行。
 
-### 2.2 配置 MCP（让 Agent 能调用 GitHub Actions）
-
-自动发布 Agent 的使用入口是：**GitHub 仓库网页 → Agent 页面**，直接调用 `release-publisher`。  
-该 Agent 触发 Actions 依赖 MCP，因此必须在仓库设置里配置 MCP 与对应 Secret（见第 4 节）。
-
 ## 3. 在项目中创建发布专用 Token（Fine-grained PAT）
 
 建议单独创建一个仅用于 Agent 触发发布的 Fine-grained Personal Access Token，不要复用日常开发 Token。
@@ -56,9 +51,17 @@
 - 只保存在 Agent/MCP 密钥区，不写进仓库文件。
 - 一旦泄露，立即 Revoke 并重建。
 
+生成 Token 后，立即在仓库网页配置 Secret：
+
+1. 进入仓库 `Settings` → `Secrets and variables` → `Agent`。
+2. 新增 Secret：
+   - Name：`COPILOT_MCP_GITHUB_PERSONAL_ACCESS_TOKEN`
+   - Value：第 3 节创建的 Fine-grained PAT
+3. 保存后再继续 MCP 配置。
+
 ## 4. 在项目中设置 MCP 与 Secret（仓库网页设置）
 
-进入仓库网页设置路径：`Settings` → `Copilot` → `Coding agent`。
+进入仓库网页设置路径：`Settings` → `Copilot` → `Cloud agent`。
 
 ### 4.1 配置 MCP servers（粘贴位置）
 
@@ -79,15 +82,8 @@
 }
 ```
 
-### 4.2 配置 Secret（把 Token 配到仓库）
-
-在同一页面的 `Secrets` 区域新增：
-
-- Name：`COPILOT_MCP_GITHUB_PERSONAL_ACCESS_TOKEN`
-- Value：第 3 节创建的 Fine-grained PAT
-
 保存后重开 Agent 会话，先做一次只读验证（例如列出 workflow），再执行发布。  
-说明：MCP 配置 JSON 里不写明文 Token，Token 通过上面的 Secret 注入。
+说明：MCP 配置 JSON 里不写明文 Token，Token 通过仓库 `Settings` → `Secrets and variables` → `Agent` 中的 `COPILOT_MCP_GITHUB_PERSONAL_ACCESS_TOKEN` 注入。
 
 ## 5. 实际发布操作（给维护者）
 
@@ -115,14 +111,3 @@
 3. 打包后缺脚本：
    - 检查 `via_exclude` / `edge_exclude` 是否误排除；
    - 检查 `vv/` 下脚本命名是否正确且为 `*.user.js`。
-
-## 7. 交接建议
-
-给新维护者至少交接以下内容：
-
-- 本文档链接
-- 当前发布命名规范（本仓库约定 `vv.x.x`，不是 `v.x.x`；用于对应 `vv/` 活跃目录并与旧版 `v1/`、`v2/` 习惯区分）
-- 哪些脚本通常排除在 Edge 包外（如有团队约定）
-- Token 轮换周期与保管方式
-
-做到以上四点，fork 或接手后即可独立完成自动打包发布。
