@@ -87,6 +87,10 @@
 - 感谢AI工具及提供商，尤其是免费为我提供Copilot教育许可的GitHub，这些工具为我编写陌生语言的代码提供了极大帮助（和添乱）。
 - 再次感谢 c-jeremy 及所有开源贡献者！
 
+## 自动发布（维护者）
+
+- 维护者自动发布说明见 [README-release-automation.md](/README-release-automation.md)（含 Agent 页面使用、MCP 设置位置、限权 Token 与仓库 Secret 配置）。
+
 ## todos:
 
 - [x] 测试改用ImageCapture
