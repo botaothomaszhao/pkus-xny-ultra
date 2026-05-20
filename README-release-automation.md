@@ -78,9 +78,7 @@
 保存后重开 Agent 会话，先做一次只读验证（例如列出 workflow），再执行发布。  
 说明：MCP 配置 JSON 里不写明文 Token，Token 通过仓库 `Settings` → `Secrets and variables` → `Agent` 中的 `COPILOT_MCP_GITHUB_PERSONAL_ACCESS_TOKEN` 注入。
 
-## 5. 实际发布操作（给维护者）
-
-建议流程：
+## 5. 实际发布操作流程：
 
 1. 确认工作区代码已准备完成（`vv/` 脚本与 README 已更新）。
 2. 打开该仓库网页的 Agent 页面，选择 `release-publisher` agent，让它生成发布信息并展示待确认参数。
