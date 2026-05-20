@@ -83,6 +83,7 @@
 ## 贡献与反馈
 
 - 本分支在原作者基础上做出适配修改，如有建议或发现问题，欢迎在仓库 Issues 中反馈或提交 PR。
+- 维护者自动发布说明见 [README-release-automation.md](/README-release-automation.md)（含 MCP、Agent、限权 Token 配置）。
 - 若引用本代码或二次发布，请遵循 GPLv3 许可证条款并保留原作者署名与许可证信息。
 - 感谢AI工具及提供商，尤其是免费为我提供Copilot教育许可的GitHub，这些工具为我编写陌生语言的代码提供了极大帮助（和添乱）。
 - 再次感谢 c-jeremy 及所有开源贡献者！
