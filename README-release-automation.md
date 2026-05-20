@@ -42,33 +42,54 @@
 
 如果你本地/团队有统一 MCP 配置模板，直接套用并替换仓库名即可。
 
-## 3. Fine-grained PAT 最小权限配置（推荐）
+## 3. 在项目中创建发布专用 Token（Fine-grained PAT）
 
 建议单独创建一个仅用于 Agent 触发发布的 Fine-grained Personal Access Token，不要复用日常开发 Token。
 
-可行的最小权限配置示例如下：
+创建步骤：
 
-- Repository access：仅选择目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）
-- User permissions：无（不授予）
-- Repository permissions：
-  - `Actions`：**Read and write**
-  - 其余保持最小可用（可保留只读访问：agent tasks、code、metadata、pull requests）
+1. 打开 GitHub：`Settings` → `Developer settings` → `Personal access tokens` → `Fine-grained tokens`。
+2. 点击 `Generate new token`。
+3. `Repository access` 选择 `Only select repositories`，只勾选目标仓库（例如 `botaothomaszhao/pkus-xny-ultra`）。
+4. `User permissions` 保持不授予。
+5. `Repository permissions` 至少设置：
+   - `Actions`：**Read and write**
+   - `agent tasks`、`code`、`metadata`、`pull requests`：**Read**
+6. 设置有效期后生成 Token，并立即复制保存（页面离开后无法再次查看明文）。
 
 额外建议：
 
-- Token 设置过期时间（短周期），到期轮换。
-- 仅在 MCP/Agent 运行环境中保存，不写入代码仓库。
+- Token 使用短周期并轮换。
+- 只保存在 Agent/MCP 密钥区，不写进仓库文件。
 - 一旦泄露，立即 Revoke 并重建。
 
-## 4. 将 Token 提供给 MCP
+## 4. 在项目中设置 MCP（仓库网页 Agent 页面）
 
-不同客户端写法不同，但原则相同：
+本项目当前使用的 MCP 配置如下（放在仓库网页 Agent 的 MCP 配置中）：
 
-1. 将 Fine-grained PAT 安全保存到 MCP 使用的凭据位置（环境变量或密钥配置）。
-2. 重启 MCP/Agent 会话，确认 GitHub 工具可正常列出本仓库 workflow。
-3. 用一次低风险动作验证（如仅列出 workflow，不直接发布）。
+```json
+{
+  "mcpServers": {
+    "github-mcp-server": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "tools": ["*"],
+      "headers": {
+        "X-MCP-Toolsets": "repos,issues,users,pull_requests,code_security,secret_protection,actions,web_search"
+      }
+    }
+  }
+}
+```
 
-如果你不确定自己的 MCP 客户端具体字段名，先查你所用客户端文档，再填入上面创建的 PAT。
+设置步骤：
+
+1. 进入仓库网页的 Agent 页面，打开该仓库的 MCP 配置入口。
+2. 添加或替换为上面的 `github-mcp-server` 配置。
+3. 在同一 Agent 环境的 Secrets/凭据设置里新增发布 Token（建议命名 `GH_TOKEN`），值为第 3 节创建的 Fine-grained PAT。
+4. 保存后重开 Agent 会话，先执行一次只读验证（如列出 workflow），再执行发布。
+
+说明：MCP 配置里不直接写明文 Token，Token 通过 Agent 的 Secrets 注入。
 
 ## 5. 实际发布操作（给维护者）
 
