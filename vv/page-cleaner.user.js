@@ -210,7 +210,7 @@
     const accelDuration = 160; // 加速时长、最小滚动时长
 
     function startContentScroll(direction) {
-        const content = document.querySelector('.um-content, .bg-layer-fff') // 支持弹窗和手写背景
+        const content = document.querySelector('.um-content, .bg-layer-fff, .canvasContent') // 支持弹窗、手写背景、草稿画布
             || document.querySelector('.content .question-body, .content .content-box') // 收藏、AI页
             || document.querySelector('.content');
         if (!content) return;
@@ -251,7 +251,7 @@
         const active = e.target;
         if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))
             || active.role === 'slider') return;
-        if (active && active !== document.body && !active.closest('.content, .um-overlay, .write')) return;
+        if (active && active !== document.body && !active.closest('.content, .um-overlay, .write, .box-100.box')) return;
 
         if (activeScrollKey !== e.key) {
             activeScrollKey = e.key;

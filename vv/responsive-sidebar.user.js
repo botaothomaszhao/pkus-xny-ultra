@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自动收起侧边栏
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.2.2
+// @version      vv.2.3
 // @license      GPL-3.0
 // @description  在屏幕宽度改变时自动收起/展开侧边栏，并可通过点击左侧导航菜单展开。
 // @author       botaothomaszhao
@@ -86,8 +86,8 @@
         if (event.target.closest('.nav .menu')) {
             if (!isSidebarOpen()) {
                 toggleTo(true);
-            } else if (event.target.closest('.active')) {
-                toggleTo(computeShouldOpen()); // 效果类似于点put,操作后屏幕宽度变化不会再次触发自动展开/收起
+            } else if (event.target.closest('.active') && event.isTrusted) {
+                toggleTo(!isSidebarOpen()); // 效果类似于点put,操作后屏幕宽度变化不会再次触发自动展开/收起
             }
         }
     }, true);
