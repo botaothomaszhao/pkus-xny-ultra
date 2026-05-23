@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.6
+// @version      vv.5.7
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
@@ -31,10 +31,19 @@
         .write {
             overscroll-behavior-y: contain !important;
         }
+        .iconfont {
+            color: #9aa7fc;
+            padding-left: 5px
+        }
+        .c-fff {
+            color: #fff!important
+        }
     `);
 
     const containerSelector = '.board.answerCanvas'; // .write 创建时不一定有canvas
     const fixedAttribute = 'xny-handwrite-fixed';
+    const draftBoardSelector = '.or-box .board';
+    const draftFixedAttribute = 'xny-draft-tools-fixed';
 
     // 每个 canvas 自己的笔/触摸状态
     function createState() {
@@ -64,6 +73,16 @@
         if (!touchList || id === null) return null;
         for (let i = 0; i < touchList.length; i++) {
             if (touchList[i].identifier === id) return touchList[i];
+        }
+        return null;
+    }
+
+    function getVueInstance(el) {
+        let cur = el;
+        while (cur) {
+            if (cur.__vue__) return cur.__vue__;
+            if (cur.__vueParentComponent?.proxy) return cur.__vueParentComponent.proxy;
+            cur = cur.parentElement;
         }
         return null;
     }
@@ -392,6 +411,62 @@
         container.setAttribute(fixedAttribute, 'true');
     }
 
+    // 追加 5460 草稿绘图板的“橡皮擦/清屏”按钮
+    function enhanceDraftBoard(board) {
+        if (board.hasAttribute(draftFixedAttribute)) return;
+
+        const tools = board.querySelector('ul.tools');
+        if (!tools) return;
+        if (tools.querySelector('.lx-xiangpica') || tools.querySelector('.lx-clear')) {
+            board.setAttribute(draftFixedAttribute, 'true');
+            return;
+        }
+
+        const inst = getVueInstance(board) || getVueInstance(tools);
+        if (!inst) return;
+
+        const eraserLi = document.createElement('li');
+        const eraserSpan = document.createElement('span');
+        eraserSpan.className = 'iconfont lx-xiangpica';
+        eraserSpan.textContent = ' 笔擦';
+        eraserLi.appendChild(eraserSpan);
+
+        const clearLi = document.createElement('li');
+        const clearSpan = document.createElement('span');
+        clearSpan.className = 'iconfont lx-clear';
+        clearSpan.textContent = ' 清屏';
+        clearLi.appendChild(clearSpan);
+
+        const syncEraserState = () => {
+            const active = inst.EraserEnabled || inst.index === 8;
+            eraserSpan.classList.toggle('c-fff', !!active);
+        };
+
+        const scheduleSync = () => {
+            setTimeout(syncEraserState, 0);
+        };
+
+        eraserLi.addEventListener('click', () => {
+            if (typeof inst.tools === 'function') {
+                inst.tools(8);
+                scheduleSync();
+            }
+        });
+
+        clearLi.addEventListener('click', () => {
+            if (typeof inst.clearCanvas === 'function') {
+                inst.clearCanvas();
+            }
+        });
+
+        tools.addEventListener('click', scheduleSync);
+        tools.appendChild(eraserLi);
+        tools.appendChild(clearLi);
+        scheduleSync();
+
+        board.setAttribute(draftFixedAttribute, 'true');
+    }
+
     const observer = new MutationObserver(function (mutations) {
         for (const mutation of mutations) {
             if (mutation.addedNodes.length > 0) {
@@ -399,6 +474,8 @@
                     if (node.nodeType === 1) {
                         if (node.matches(containerSelector)) applyFix(node);
                         node.querySelectorAll(containerSelector).forEach(applyFix);
+                        if (node.matches(draftBoardSelector)) enhanceDraftBoard(node);
+                        node.querySelectorAll(draftBoardSelector).forEach(enhanceDraftBoard);
                     }
                 });
             }
@@ -407,3 +484,7 @@
 
     observer.observe(document.body, {childList: true, subtree: true});
 })();
+/*
+7742:手写作答
+5460:草稿
+ */
