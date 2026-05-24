@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         手写滑动修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.5.7
+// @version      vv.6.0
 // @license      GPL-3.0
 // @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
@@ -31,12 +31,27 @@
         .write {
             overscroll-behavior-y: contain !important;
         }
+        /* 草稿画布按钮颜色 */
         .iconfont {
             color: #9aa7fc;
             padding-left: 5px
         }
         .c-fff {
             color: #fff!important
+        }
+        /* 草稿画布黑边 */
+        .bg-fff.board-body {
+            padding: 0 !important;
+        }
+        .bg-fff.board-body .btn-box {
+            margin: 0 !important;
+            padding: 10px !important;
+        }
+        .win-dow.flex {
+            margin: 0 !important;
+        }
+        .canvas-box[data-v-2e2405eb] {
+            height: calc(100vh - 88px) !important;
         }
     `);
 
@@ -77,6 +92,7 @@
         return null;
     }
 
+    // 获取画布所在Vue组件实例
     function getVueInstance(el) {
         let cur = el;
         while (cur) {
@@ -178,26 +194,26 @@
         return btnMo;
     }
 
-    // 对单个 canvas 应用修复
-    function applyFix(container) {
-        if (container.hasAttribute(fixedAttribute)) return;
+    function scrollTargetBy(container, top, behavior = 'smooth', targetSelector = '.bg-layer-fff') {
+        const target = container.querySelector(targetSelector);
+        if (!target || !top) return false;
+        const before = target.scrollTop;
+        target.scrollBy({top: top, left: 0, behavior: behavior});
+        return target.scrollTop !== before;
+    }
 
-        // 阻止绘制操作被识别为滚动手势
+    function installCanvasInput(container, canvas, scrollSelector = '.bg-layer-fff') {
+        const ctx = canvas?.getContext('2d');
+        if (!ctx) return;
+        console.log('Installing handwriting fix for canvas', canvas);
+        const state = createState();
+        const allowPointer = () => !state.penEverUsed || state.penIsDown;
+
         container.addEventListener('touchmove', function (event) {
             event.preventDefault();
             event.stopPropagation();
         }, {passive: false});
 
-        const canvas = container.querySelector('canvas');
-        const ctx = canvas?.getContext('2d');
-        if (!ctx) return;
-
-        // 为该 canvas 维护独立状态，并安装笔/触摸控制
-        const state = createState();
-
-        // 合并后的 pointer 事件：
-        //    - 维护 penEverUsed / penIsDown（给 touchGate 用）
-        //    - 同时维护单击补点状态
         canvas.addEventListener('pointerdown', function (e) {
             // 更新“笔状态”（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
@@ -218,7 +234,7 @@
         }, {capture: true, passive: true});
 
         canvas.addEventListener('pointermove', function (e) {
-            if (state.penEverUsed && !state.penIsDown) return;
+            if (!allowPointer()) return;
             if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
 
             const pos = getCanvasPos(canvas, e);
@@ -236,7 +252,7 @@
             // 单击补点
             if (!state.pointerIsDown || e.pointerId !== state.pointerId) return;
 
-            if (!state.pointerMoved && !canvas.classList.contains('xiangpica')) { // 为画笔而不是橡皮擦
+            if (!state.pointerMoved && !container.querySelector('.lx-xiangpica.c-fff')) { // 橡皮擦未被选中
                 const pos = getCanvasPos(canvas, e);
                 const colorBox = container.querySelector('.color-box');
                 const slider = container.querySelector('.ant-slider-handle');
@@ -253,36 +269,14 @@
         canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
 
-        function scrollTargetBy(top, behavior = 'smooth') {
-            const target = container.querySelector('.bg-layer-fff');
-            if (!target || !top) return false;
-            const before = target.scrollTop;
-            target.scrollBy({top: top, left: 0, behavior: behavior});
-            return target.scrollTop !== before;
-        }
-
-        // 按钮/键盘持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
+        // 按钮持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
         function stopScroll() {
             cancelAnimationFrame(state.scrollId);
             state.scrollId = 0;
         }
 
-        function startContinuousScroll(pxPerMs) {
-            if (!container.querySelector('.bg-layer-fff')) return;
-            stopScroll();
-            let lastTs = 0;
-            const step = (ts) => {
-                if (!lastTs) lastTs = ts;
-                const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
-                lastTs = ts;
-                scrollTargetBy(pxPerMs * dt, 'instant');
-                state.scrollId = requestAnimationFrame(step);
-            };
-            state.scrollId = requestAnimationFrame(step);
-        }
-
         function startInertia() {
-            if (!container.querySelector('.bg-layer-fff')) return;
+            if (!container.querySelector(scrollSelector)) return;
             stopScroll();
             let v = state.touchVelocity;
             if (!v) return;
@@ -294,8 +288,11 @@
                 lastTs = ts;
 
                 v *= 0.95;
-                if (Math.abs(v) < 0.02) { state.scrollId = 0; return; }
-                scrollTargetBy(v * dt, 'instant');
+                if (Math.abs(v) < 0.02) {
+                    state.scrollId = 0;
+                    return;
+                }
+                scrollTargetBy(container, v * dt, 'instant', scrollSelector);
                 state.scrollId = requestAnimationFrame(step);
             };
 
@@ -335,7 +332,7 @@
             const delta = state.touchLastY - touch.clientY;
 
             if (delta) {
-                scrollTargetBy(delta, 'instant');
+                scrollTargetBy(container, delta, 'instant', scrollSelector);
                 const v = delta / Math.max(1, now - state.touchLastTime);
                 state.touchVelocity = state.touchVelocity * 0.7 + v * 0.3;
             }
@@ -360,6 +357,34 @@
         // 手写笔的touchend在pointerup之后，屏蔽会导致抬笔后还在画，所以不能屏蔽
         canvas.addEventListener('touchend', touchGateEnd, {capture: true, passive: true});
         canvas.addEventListener('touchcancel', touchGateEnd, {capture: true, passive: true});
+
+        return {state, stopScroll};
+    }
+
+    // 对单个 canvas 应用修复
+    function applyFix(container) {
+        if (container.hasAttribute(fixedAttribute)) return;
+
+        const canvas = container.querySelector('canvas');
+        const input = installCanvasInput(container, canvas, '.bg-layer-fff');
+        if (!input) return;
+
+        const {state, stopScroll} = input;
+
+        // 按钮持续滚动（rAF 每帧，与触摸惯性共用相同节奏）
+        function startContinuousScroll(pxPerMs) {
+            if (!container.querySelector('.bg-layer-fff')) return;
+            stopScroll();
+            let lastTs = 0;
+            const step = (ts) => {
+                if (!lastTs) lastTs = ts;
+                const dt = Math.min(ts - lastTs, 50); // 限制最大步长，防切换后跳帧
+                lastTs = ts;
+                scrollTargetBy(container, pxPerMs * dt, 'instant', '.bg-layer-fff');
+                state.scrollId = requestAnimationFrame(step);
+            };
+            state.scrollId = requestAnimationFrame(step);
+        }
 
         // 滚动题干
         const btn = container.closest('.write').querySelector('.ml-15 .ant-btn');
@@ -397,7 +422,7 @@
             if (e.deltaMode === 1) delta *= 16;
             else if (e.deltaMode === 2) delta *= container.clientHeight - 90;
 
-            if (scrollTargetBy(delta)) {
+            if (scrollTargetBy(container, delta, 'smooth', '.bg-layer-fff')) {
                 e.stopPropagation();
             }
         }, {capture: true, signal});
@@ -411,9 +436,13 @@
         container.setAttribute(fixedAttribute, 'true');
     }
 
-    // 追加 5460 草稿绘图板的“橡皮擦/清屏”按钮
+    // 草稿绘图板的“橡皮擦/清屏”按钮
     function enhanceDraftBoard(board) {
         if (board.hasAttribute(draftFixedAttribute)) return;
+
+        const canvas = board.querySelectorAll('canvas')[1];
+        if (!canvas) return;
+        installCanvasInput(board, canvas, '.canvasContent');
 
         const tools = board.querySelector('ul.tools');
         if (!tools) return;
