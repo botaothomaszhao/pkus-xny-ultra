@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         手写滑动修复
+// @name         手写修复
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
-// @version      vv.6.0
+// @version      vv.6.1
 // @license      GPL-3.0
-// @description  修复手写输入时窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
+// @description  修复手写作答和草稿窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
@@ -31,6 +31,12 @@
         .write {
             overscroll-behavior-y: contain !important;
         }
+        .or-box .board .btn-box{
+            position: absolute !important;
+            bottom: 0;
+            right: 0;
+            left: 0;
+        }
         /* 草稿画布按钮颜色 */
         .iconfont {
             color: #9aa7fc;
@@ -56,9 +62,8 @@
     `);
 
     const containerSelector = '.board.answerCanvas'; // .write 创建时不一定有canvas
-    const fixedAttribute = 'xny-handwrite-fixed';
     const draftBoardSelector = '.or-box .board';
-    const draftFixedAttribute = 'xny-draft-tools-fixed';
+    const fixedAttribute = 'xny-handwrite-fixed';
 
     // 每个 canvas 自己的笔/触摸状态
     function createState() {
@@ -438,7 +443,7 @@
 
     // 草稿绘图板的“橡皮擦/清屏”按钮
     function enhanceDraftBoard(board) {
-        if (board.hasAttribute(draftFixedAttribute)) return;
+        if (board.hasAttribute(fixedAttribute)) return;
 
         const canvas = board.querySelectorAll('canvas')[1];
         if (!canvas) return;
@@ -447,7 +452,7 @@
         const tools = board.querySelector('ul.tools');
         if (!tools) return;
         if (tools.querySelector('.lx-xiangpica') || tools.querySelector('.lx-clear')) {
-            board.setAttribute(draftFixedAttribute, 'true');
+            board.setAttribute(fixedAttribute, 'true');
             return;
         }
 
@@ -493,7 +498,7 @@
         tools.appendChild(clearLi);
         scheduleSync();
 
-        board.setAttribute(draftFixedAttribute, 'true');
+        board.setAttribute(fixedAttribute, 'true');
     }
 
     const observer = new MutationObserver(function (mutations) {
