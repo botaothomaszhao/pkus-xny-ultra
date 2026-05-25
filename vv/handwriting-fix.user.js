@@ -3,7 +3,7 @@
 // @namespace    https://github.com/botaothomaszhao/pkus-xny-ultra
 // @version      vv.6.1
 // @license      GPL-3.0
-// @description  修复手写作答和草稿窗口上下滑动问题，支持显示题干同时作答，在使用手写笔后屏蔽触摸。
+// @description  修复手写作答和草稿窗口上下滑动问题，在有手写笔时用触摸滚动，手写作答支持同时显示题干同。
 // @author       c-jeremy botaothomaszhao
 // @match        https://bdfz.xnykcxt.com:5002/*
 // @grant        GM_addStyle
@@ -28,14 +28,12 @@
             z-index: 1 !important;
             background: transparent !important;
         }
-        .write {
-            overscroll-behavior-y: contain !important;
-        }
-        .or-box .board .btn-box{
+        /* 固定底部按钮位置 */
+        .write div.box, .or-box .board .btn-box {
             position: absolute !important;
             bottom: 0;
-            right: 0;
             left: 0;
+            right: 0;
         }
         /* 草稿画布按钮颜色 */
         .iconfont {
@@ -49,7 +47,7 @@
         .bg-fff.board-body {
             padding: 0 !important;
         }
-        .bg-fff.board-body .btn-box {
+        .or-box .board .btn-box{
             margin: 0 !important;
             padding: 10px !important;
         }
@@ -210,7 +208,6 @@
     function installCanvasInput(container, canvas, scrollSelector = '.bg-layer-fff') {
         const ctx = canvas?.getContext('2d');
         if (!ctx) return;
-        console.log('Installing handwriting fix for canvas', canvas);
         const state = createState();
         const allowPointer = () => !state.penEverUsed || state.penIsDown;
 
@@ -367,11 +364,11 @@
     }
 
     // 对单个 canvas 应用修复
-    function applyFix(container) {
+    function fixWriteBoard(container) {
         if (container.hasAttribute(fixedAttribute)) return;
 
         const canvas = container.querySelector('canvas');
-        const input = installCanvasInput(container, canvas, '.bg-layer-fff');
+        const input = installCanvasInput(container.closest('.write'), canvas, '.bg-layer-fff');
         if (!input) return;
 
         const {state, stopScroll} = input;
@@ -442,7 +439,7 @@
     }
 
     // 草稿绘图板的“橡皮擦/清屏”按钮
-    function enhanceDraftBoard(board) {
+    function fixDraftBoard(board) {
         if (board.hasAttribute(fixedAttribute)) return;
 
         const canvas = board.querySelectorAll('canvas')[1];
@@ -459,6 +456,35 @@
         const inst = getVueInstance(board) || getVueInstance(tools);
         if (!inst) return;
 
+        if (!inst.__xnySubmitAllowEmpty && typeof inst.submitData === 'function') {
+            const originalSubmit = inst.submitData;
+            inst.submitData = function () {
+                const target = inst;
+                const hasStrokes = (target.baseStrokes && target.baseStrokes.length > 0)
+                    || (target.strokes && target.strokes.length > 0);
+                const hasDraft = !!target.draftImage;
+
+                if (!hasStrokes && !hasDraft) {
+                    const prevDraftImage = target.draftImage;
+                    const prevDraftInfo = target.draftImageDrawInfo;
+                    const dummy = document.createElement('canvas');
+                    dummy.width = 1;
+                    dummy.height = 1;
+                    target.draftImage = dummy;
+                    target.draftImageDrawInfo = {x: 0, y: 0, width: 0, height: 0};
+
+                    try {
+                        return originalSubmit.apply(target, arguments);
+                    } finally {
+                        target.draftImage = prevDraftImage;
+                        target.draftImageDrawInfo = prevDraftInfo;
+                    }
+                }
+                return originalSubmit.apply(target, arguments);
+            };
+            inst.__xnySubmitAllowEmpty = true;
+        }
+
         const eraserLi = document.createElement('li');
         const eraserSpan = document.createElement('span');
         eraserSpan.className = 'iconfont lx-xiangpica';
@@ -471,26 +497,35 @@
         clearSpan.textContent = ' 清屏';
         clearLi.appendChild(clearSpan);
 
-        const syncEraserState = () => {
-            const active = inst.EraserEnabled || inst.index === 8;
-            eraserSpan.classList.toggle('c-fff', !!active);
-        };
-
         const scheduleSync = () => {
-            setTimeout(syncEraserState, 0);
+            setTimeout(() => {
+                const active = inst.EraserEnabled || inst.index === 8;
+                eraserSpan.classList.toggle('c-fff', !!active);
+            }, 0);
         };
 
-        eraserLi.addEventListener('click', () => {
-            if (typeof inst.tools === 'function') {
-                inst.tools(8);
-                scheduleSync();
-            }
-        });
-
-        clearLi.addEventListener('click', () => {
+        const clearDraftAll = () => {
             if (typeof inst.clearCanvas === 'function') {
                 inst.clearCanvas();
             }
+            if (inst.baseStrokes) inst.baseStrokes = [];
+            if (inst.strokes) inst.strokes = [];
+            if (inst.strokesData) inst.strokesData = [];
+            if (inst.history) inst.history = [];
+            if (typeof inst.historyIndex === 'number') inst.historyIndex = -1;
+            if (inst.draftImage) inst.draftImage = null;
+            if (inst.draftImageDrawInfo) inst.draftImageDrawInfo = null;
+            if (inst.ctx && inst.canvas) inst.ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
+            if (typeof inst.redrawAllStrokes === 'function') inst.redrawAllStrokes();
+        };
+
+        eraserLi.addEventListener('click', () => {
+            if (typeof inst.tools === 'function') inst.tools(8);
+        });
+
+        clearLi.addEventListener('click', () => {
+            clearDraftAll();
+            if (typeof inst.tools === 'function') inst.tools(0);
         });
 
         tools.addEventListener('click', scheduleSync);
@@ -506,10 +541,10 @@
             if (mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === 1) {
-                        if (node.matches(containerSelector)) applyFix(node);
-                        node.querySelectorAll(containerSelector).forEach(applyFix);
-                        if (node.matches(draftBoardSelector)) enhanceDraftBoard(node);
-                        node.querySelectorAll(draftBoardSelector).forEach(enhanceDraftBoard);
+                        if (node.matches(containerSelector)) fixWriteBoard(node);
+                        node.querySelectorAll(containerSelector).forEach(fixWriteBoard);
+                        if (node.matches(draftBoardSelector)) fixDraftBoard(node);
+                        node.querySelectorAll(draftBoardSelector).forEach(fixDraftBoard);
                     }
                 });
             }
