@@ -55,7 +55,7 @@
             margin: 0 !important;
         }
         .canvas-box[data-v-2e2405eb] {
-            height: calc(100vh - 88px) !important;
+            height: calc(100vh - 87px) !important;
         }
     `);
 
@@ -152,7 +152,7 @@
         wrap.style.verticalAlign = 'middle';
         wrap.style.display = 'none';
 
-        const mkArrowBtn = (text, title) => {
+        function mkArrowBtn(text, title) {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'ant-btn ant-btn-default';
@@ -163,12 +163,12 @@
             b.style.touchAction = 'none'; // 避免触摸下的默认滚动/双击缩放/选中文本
             b.style.userSelect = 'none';
             return b;
-        };
+        }
 
         const upBtn = mkArrowBtn('▲', '题干向上滚动');
         const downBtn = mkArrowBtn('▼', '题干向下滚动');
 
-        const addHoldEvents = (btn, velocity) => {
+        function addHoldEvents(btn, velocity) {
             btn.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -177,7 +177,7 @@
             btn.addEventListener('pointerup', stopScroll, {capture: true});
             btn.addEventListener('pointercancel', stopScroll, {capture: true});
             btn.addEventListener('pointerleave', stopScroll, {capture: true});
-        };
+        }
 
         addHoldEvents(upBtn, -0.6);
         addHoldEvents(downBtn, 0.6);
@@ -245,7 +245,7 @@
             }
         }, {capture: true, passive: true});
 
-        const onPointerUpLike = function (e) {
+        function onPointerUpLike(e) {
             // 更新“笔状态”（触摸屏蔽依赖）
             if (e.pointerType === 'pen') {
                 state.penIsDown = false;
@@ -266,7 +266,7 @@
             state.pointerIsDown = false;
             state.pointerId = null;
             state.pointerMoved = false;
-        };
+        }
 
         canvas.addEventListener('pointerup', onPointerUpLike, {capture: true, passive: true});
         canvas.addEventListener('pointercancel', onPointerUpLike, {capture: true, passive: true});
@@ -459,28 +459,27 @@
         if (!inst.__xnySubmitAllowEmpty && typeof inst.submitData === 'function') {
             const originalSubmit = inst.submitData;
             inst.submitData = function () {
-                const target = inst;
-                const hasStrokes = (target.baseStrokes && target.baseStrokes.length > 0)
-                    || (target.strokes && target.strokes.length > 0);
-                const hasDraft = !!target.draftImage;
+                const hasStrokes = (inst.baseStrokes && inst.baseStrokes.length > 0)
+                    || (inst.strokes && inst.strokes.length > 0);
+                const hasDraft = !!inst.draftImage;
 
                 if (!hasStrokes && !hasDraft) {
-                    const prevDraftImage = target.draftImage;
-                    const prevDraftInfo = target.draftImageDrawInfo;
+                    const prevDraftImage = inst.draftImage;
+                    const prevDraftInfo = inst.draftImageDrawInfo;
                     const dummy = document.createElement('canvas');
                     dummy.width = 1;
                     dummy.height = 1;
-                    target.draftImage = dummy;
-                    target.draftImageDrawInfo = {x: 0, y: 0, width: 0, height: 0};
+                    inst.draftImage = dummy;
+                    inst.draftImageDrawInfo = {x: 0, y: 0, width: 0, height: 0};
 
                     try {
-                        return originalSubmit.apply(target, arguments);
+                        return originalSubmit.apply(inst, arguments);
                     } finally {
-                        target.draftImage = prevDraftImage;
-                        target.draftImageDrawInfo = prevDraftInfo;
+                        inst.draftImage = prevDraftImage;
+                        inst.draftImageDrawInfo = prevDraftInfo;
                     }
                 }
-                return originalSubmit.apply(target, arguments);
+                return originalSubmit.apply(inst, arguments);
             };
             inst.__xnySubmitAllowEmpty = true;
         }
@@ -497,14 +496,14 @@
         clearSpan.textContent = ' 清屏';
         clearLi.appendChild(clearSpan);
 
-        const scheduleSync = () => {
+        function scheduleSync() {
             setTimeout(() => {
                 const active = inst.EraserEnabled || inst.index === 8;
                 eraserSpan.classList.toggle('c-fff', !!active);
             }, 0);
-        };
+        }
 
-        const clearDraftAll = () => {
+        function clearDraftAll() {
             if (typeof inst.clearCanvas === 'function') {
                 inst.clearCanvas();
             }
@@ -517,7 +516,7 @@
             if (inst.draftImageDrawInfo) inst.draftImageDrawInfo = null;
             if (inst.ctx && inst.canvas) inst.ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
             if (typeof inst.redrawAllStrokes === 'function') inst.redrawAllStrokes();
-        };
+        }
 
         eraserLi.addEventListener('click', () => {
             if (typeof inst.tools === 'function') inst.tools(8);
@@ -553,7 +552,3 @@
 
     observer.observe(document.body, {childList: true, subtree: true});
 })();
-/*
-7742:手写作答
-5460:草稿
- */
