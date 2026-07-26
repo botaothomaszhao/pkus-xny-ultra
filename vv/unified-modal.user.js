@@ -334,7 +334,62 @@
         config.hideOriginal(rootEl);
     }
 
+    async function catchVideoModal(antModalRoot) {
+        if (antModalRoot.getAttribute(UNIFIED_ATTR) === '1') return;
+
+        const modal = antModalRoot.querySelector('.ant-modal');
+        const body = antModalRoot.querySelector('.ant-modal-body');
+        const title = cleanInnerText(modal?.querySelector('.ant-modal-title'));
+
+        if (!modal || !body || !title || !title.includes('文件预览')) return;
+
+        antModalRoot.setAttribute(UNIFIED_ATTR, 'processing');
+        await new Promise((resolve) => {
+            if (body.querySelector('video')) {
+                resolve();
+                return;
+            }
+            const observer = new MutationObserver(() => {
+                if (body.querySelector('video')) {
+                    observer.disconnect();
+                    resolve();
+                }
+            });
+            observer.observe(body, { childList: true, subtree: true });
+            setTimeout(() => {
+                observer.disconnect();
+                resolve();
+            }, 5000);
+        });
+        // 搬运
+        if (antModalRoot.getAttribute(UNIFIED_ATTR) === '1') return;
+        await unifiedModal?.close();
+        const bodyNodes = Array.from(body.childNodes);
+        antModalRoot.setAttribute(UNIFIED_ATTR, '1');
+        unifiedModal = new UnifiedModal(
+            title,
+            bodyNodes,
+            async () => {
+                body.append(...unifiedModal.contentEl.childNodes);
+                antModalRoot.style.display = '';
+                const closeBtn = modal.querySelector('.ant-modal-close');
+                if (closeBtn) closeBtn.click();
+                unifiedModal = null;
+            },
+            false
+        );
+        antModalRoot.style.display = 'none';
+        unifiedModal.modal.focus();
+    }
+
     function scan() {
+        document.querySelectorAll('.ant-modal-root:not([xny-modal-unified])').forEach(root => {
+            const mask = root.querySelector('.ant-modal-mask');
+            if (mask && mask.style.display !== 'none') {
+                catchVideoModal(root);
+            }
+        });
+
         // 答案
         document.querySelectorAll('.modal-overlay').forEach(overlay =>
             catchGenericModal(overlay, {
@@ -354,8 +409,9 @@
             catchGenericModal(antModalRoot, {
                 shouldSkip(root) {
                     return root.matches('.ant-modal-confirm') // 确认删除收藏的弹窗
-                        || root.querySelector('.ant-modal-footer')  // 修改密码
-                        || root.querySelector('.ant-modal-mask').style.display === 'none';
+                        || root.querySelector('.ant-modal-footer') // 修改密码
+                        || root.querySelector('.ant-modal-mask').style.display === 'none'
+                        || root.querySelector('.ant-modal-title')?.innerText?.includes('文件预览');
                 },
                 containerSelector: '.ant-modal',
                 titleSelector: '.ant-modal-title',
