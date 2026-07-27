@@ -341,7 +341,7 @@
         const body = antModalRoot.querySelector('.ant-modal-body');
         const title = cleanInnerText(modal?.querySelector('.ant-modal-title'));
 
-        if (!modal || !body || !title || !title.includes('文件预览')) return;
+        if (!modal || !body || !title || !title.includes('文件预览') || !body.innerHTML.includes('<video')) return;
 
         antModalRoot.setAttribute(UNIFIED_ATTR, 'processing');
         await new Promise((resolve) => {
